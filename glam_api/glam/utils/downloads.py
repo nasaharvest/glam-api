@@ -68,7 +68,7 @@ class GlamDownloader(object):
             vrt_path,
             out_path,
             profile,
-            in_memory=False,
+            allow_intermediate_compression=True,
             quiet=False
         )
 
@@ -90,6 +90,7 @@ class GlamDownloader(object):
             dataset,
             out_file,
             out_meta,
+            allow_intermediate_compression=True,
             quiet=False
         )
 
