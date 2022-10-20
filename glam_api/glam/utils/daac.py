@@ -64,6 +64,27 @@ def get_lp_directory(product):
 
     return directory
 
+def get_dtype_from_sds_name(sds_name):
+    # given name of sds return string representation of dtype
+    if 'sur_refl_b' in sds_name:
+        return 'int16'
+    elif sds_name == 'sur_refl_qc_500m':
+        return 'uint32'
+    elif sds_name == 'sur_refl_szen':
+        return 'int16'
+    elif sds_name == 'sur_refl_vzen':
+        return 'int16'
+    elif sds_name == 'sur_refl_raz':
+        return 'int16'
+    elif sds_name == 'sur_refl_state_500m':
+        return 'uint16'
+    elif sds_name == 'sur_refl_day_of_year':
+        return 'uint16'
+    elif sds_name == 'sur_refl_state_250m':
+        return 'uint16'
+    elif sds_name == 'sur_refl_qc_250m':
+        return 'uint16'
+
 
 def is_nrt(product):
     if product[-1] == "N":
@@ -106,8 +127,10 @@ def apply_mask(in_array, source_dataset, nodata):
     """
 
     # get file extension and product suffix
-    suffix = source_dataset.name.split(".")[0][3:]
-    ext = source_dataset.name.split(".")[-1]
+    file_path = source_dataset.name
+    file_name = os.path.basename(file_path)
+    suffix = file_name.split(".")[0][3:]
+    ext = file_name.split(".")[-1]
 
     # product-conditional behavior
 
@@ -343,8 +366,10 @@ def apply_mask(in_array, source_dataset, nodata):
 
 
 def get_ndvi_array(dataset):
-    suffix = dataset.name.split(".")[0][3:]
-    ext = dataset.name.split(".")[-1]
+    file_path = dataset.name
+    file_name = os.path.basename(file_path)
+    suffix = file_name.split(".")[0][3:]
+    ext = file_name.split(".")[-1]
 
     if suffix == "09Q4" or suffix == "13Q4":
         band_name = "250m 8 days NDVI"
@@ -395,8 +420,10 @@ def get_ndvi_array(dataset):
 
 
 def get_ndwi_array(dataset):
-    suffix = dataset.name.split(".")[0][3:]
-    ext = dataset.name.split(".")[-1]
+    file_path = dataset.name
+    file_name = os.path.basename(file_path)
+    suffix = file_name.split(".")[0][3:]
+    ext = file_name.split(".")[-1]
 
     if suffix == "09A1":
         nir_name = "sur_refl_b02"
@@ -598,14 +625,17 @@ def get_available_dates(product: str, date_obj: str) -> list:
 
 def create_ndvi_geotiff(dataset, out_dir):
 
+    file_path = dataset.name
+    file_name = os.path.basename(file_path)
+
     # calculate ndvi and export to geotiff
     ndvi_array, ndvi_nodata = get_ndvi_array(dataset)
 
     # apply mask
     ndvi_array = apply_mask(ndvi_array, dataset, ndvi_nodata)
 
-    out_name = dataset.name.replace('.hdf', '.ndvi.tif')
-    output = out_dir+out_name
+    out_name = file_name.replace('.hdf', '.ndvi.tif')
+    output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
     dtype = 'int16'
@@ -632,6 +662,8 @@ def create_ndvi_geotiff(dataset, out_dir):
 
 
 def create_ndwi_geotiff(dataset, out_dir):
+    file_path = dataset.name
+    file_name = os.path.basename(file_path)
 
     # calculate ndvi and export to geotiff
     ndwi_array, ndwi_nodata = get_ndwi_array(dataset)
@@ -639,8 +671,8 @@ def create_ndwi_geotiff(dataset, out_dir):
     # apply mask
     ndwi_array = apply_mask(ndwi_array, dataset, ndwi_nodata)
 
-    out_name = dataset.name.replace('.hdf', '.ndwi.tif')
-    output = out_dir+out_name
+    out_name = file_name.replace('.hdf', '.ndwi.tif')
+    output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
     dtype = 'int16'
@@ -667,6 +699,8 @@ def create_ndwi_geotiff(dataset, out_dir):
 
 
 def create_sds_geotiff(dataset, sds_name, out_dir):
+    file_path = dataset.name
+    file_name = os.path.basename(file_path)
 
     # calculate ndvi and export to geotiff
     sds_array, sds_nodata = get_sds(dataset, sds_name)
@@ -679,11 +713,10 @@ def create_sds_geotiff(dataset, sds_name, out_dir):
         sds_array[sds_array != sds_nodata] = np.clip(
             sds_array[sds_array != sds_nodata], 0, 10000)
 
-    out_name = dataset.name.replace('.hdf', f'.{sds_name}.tif')
-    output = out_dir+out_name
+    out_name = file_name.replace('.hdf', f'.{sds_name}.tif')
+    output = os.path.join(out_dir,out_name)
 
-    # coerce dtype to int16
-    dtype = 'int16'
+    dtype = get_dtype_from_sds_name(sds_name)
 
     sds_array = sds_array.astype(dtype)
 
