@@ -25,7 +25,8 @@ from django_q.tasks import async_task
 from django.conf import settings
 from config.local_settings.credentials import CREDENTIALS
 from ..utils import exceptions
-from ..utils.daac import create_sds_geotiff, get_available_dates, NASA_PRODUCTS, pull_from_lp, create_ndvi_geotiff, create_ndwi_geotiff
+from ..utils.daac import (get_available_dates, NASA_PRODUCTS, pull_from_lp,
+                          create_ndvi_geotiff, create_ndwi_geotiff, get_sds_path)
 from ..utils.spectral import SUPPORTED_INDICIES
 
 logging.basicConfig(
@@ -43,7 +44,25 @@ class GlamDownloader(object):
         else:
             self.product = product
 
-    def _create_mosaic_cog(self, date, files, out_dir):
+    def _create_mosaic_cog_from_vrt(self, vrt_path):
+
+        out_path = vrt_path.replace('vrt', 'tif')
+
+        profile = cog_profiles.get("deflate")
+        log.info("Creating global mosaic & cloud optimizing.")
+        cog_translate(
+            vrt_path,
+            out_path,
+            profile,
+            allow_intermediate_compression=True,
+            quiet=False
+        )
+
+        os.remove(vrt_path)
+
+        return out_path
+
+    def _create_mosaic_cog_from_tifs(self, date, files, out_dir):
 
         year = date.strftime("%Y")
         doy = date.strftime("%j")
@@ -374,6 +393,8 @@ class GlamDownloader(object):
     def _download_nasa_product(self, date, out_dir, **kwargs):
         start = time.time()
         date_obj = datetime.strptime(date, "%Y-%m-%d")
+        year = date_obj.strftime("%Y")
+        doy = date_obj.strftime("%j")
 
         vi_functions = {
             "NDVI": create_ndvi_geotiff,
@@ -398,16 +419,21 @@ class GlamDownloader(object):
         if sds:
             if type(sds) == list:
                 for ds in sds:
-                    ds_files = []
+                    sds_paths = []
                     for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
                         dataset = rasterio.open(file)
-                        ds_files.append(
-                            create_sds_geotiff(dataset, ds, out_dir))
-                    ds_mosaic = self._create_mosaic_cog(
-                        date_obj, ds_files, out_dir)
+                        sds_path = get_sds_path(dataset, ds)
+                        sds_paths.append(sds_path)
+
+                    vrt_path = f'{self.product}.{ds}.{year}.{doy}.vrt'
+                    log.info("Creating {ds} VRT.")
+                    # use gdal to build vrt rather than creating intermediate tifs
+                    vrt_command = ["gdalbuildvrt", vrt_path]
+                    vrt_command += sds_paths
+                    subprocess.call(vrt_command)
+
+                    ds_mosaic = self._create_mosaic_cog_from_vrt(vrt_path)
                     output.append(ds_mosaic)
-                    for file in ds_files:
-                        os.remove(file)
 
         if vi == False:
             for file in hdf_files:
@@ -419,7 +445,8 @@ class GlamDownloader(object):
                 vi_files.append(vi_functions[vi](dataset, out_dir))
                 os.remove(file)
 
-            vi_mosaic = self._create_mosaic_cog(date_obj, vi_files, out_dir)
+            vi_mosaic = self._create_mosaic_cog_from_tifs(
+                date_obj, vi_files, out_dir)
             output.append(vi_mosaic)
             # remove tiffs after mosaic creation
             for file in vi_files:
