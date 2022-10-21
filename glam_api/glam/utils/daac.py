@@ -34,8 +34,8 @@ LP_DAAC_URL = 'https://e4ftl01.cr.usgs.gov/'
 LADS_DAAC_URL = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
 LANCE_NRT_URL = 'https://nrt3.modaps.eosdis.nasa.gov/archive/allData/'
 
-NASA_PRODUCTS = ["MOD09Q1", "MOD13Q1", "MYD09Q1", "MYD13Q1",
-                 "VNP09H1", "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09CMG", "MOD09A1"]
+NASA_PRODUCTS = ["MOD09Q1", "MYD09Q1", "MOD13Q1", "MYD13Q1", "MOD09A1", "MYD09A1",
+                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09CMG"]
 
 
 def get_collection(product):
@@ -63,6 +63,7 @@ def get_lp_directory(product):
         directory = 'MOTA'
 
     return directory
+
 
 def get_dtype_from_sds_name(sds_name):
     # given name of sds return string representation of dtype
@@ -714,7 +715,7 @@ def create_sds_geotiff(dataset, sds_name, out_dir):
             sds_array[sds_array != sds_nodata], 0, 10000)
 
     out_name = file_name.replace('.hdf', f'.{sds_name}.tif')
-    output = os.path.join(out_dir,out_name)
+    output = os.path.join(out_dir, out_name)
 
     dtype = get_dtype_from_sds_name(sds_name)
 

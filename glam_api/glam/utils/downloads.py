@@ -621,6 +621,18 @@ class GlamDownloader(object):
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 16
 
+            elif self.product == "MOD09A1":
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2000.049", "%Y.%j")
+                delta = 8
+
+            elif self.product == "MYD09A1":
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2002.185", "%Y.%j")
+                delta = 8
+
             elif self.product == "MOD13Q4N":
                 # get all possible dates
                 if latest is None:
@@ -633,11 +645,6 @@ class GlamDownloader(object):
                     latest = datetime.strptime("2012.017", "%Y.%j")
                 delta = 8
 
-            elif self.product == "MOD09A1":
-                # get all possible dates
-                if latest is None:
-                    latest = datetime.strptime("2000.049", "%Y.%j")
-                delta = 8
             else:
                 raise exceptions.BadInputError(
                     f"Product '{self.product}' not recognized")
