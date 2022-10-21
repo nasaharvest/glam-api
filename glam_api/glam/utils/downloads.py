@@ -425,7 +425,8 @@ class GlamDownloader(object):
                         sds_path = get_sds_path(dataset, ds)
                         sds_paths.append(sds_path)
 
-                    vrt_path = f'{self.product}.{ds}.{year}.{doy}.vrt'
+                    vrt_name = f'{self.product}.{ds}.{year}.{doy}.vrt'
+                    vrt_path = os.path.join(out_dir, vrt_name)
                     log.info("Creating {ds} VRT.")
                     # use gdal to build vrt rather than creating intermediate tifs
                     vrt_command = ["gdalbuildvrt", vrt_path]
