@@ -102,6 +102,12 @@ def get_sds(dataset, name):
             return (band.read(), band.nodata)
 
 
+def get_sds_path(dataset, name):
+    for sds in dataset.subdatasets:
+        if sds.split(':')[-1] == name:
+            return sds
+
+
 def apply_mask(in_array, source_dataset, nodata):
     """
     This function removes non-clear pixels from an input array,
