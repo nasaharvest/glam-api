@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import csv
+import h5py
 import requests
 from requests_futures.sessions import FuturesSession
 from concurrent.futures import as_completed
@@ -35,7 +36,7 @@ LADS_DAAC_URL = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
 LANCE_NRT_URL = 'https://nrt3.modaps.eosdis.nasa.gov/archive/allData/'
 
 NASA_PRODUCTS = ["MOD09Q1", "MYD09Q1", "MOD13Q1", "MYD13Q1", "MOD09A1", "MYD09A1",
-                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09CMG"]
+                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG"]
 
 
 def get_collection(product):
@@ -85,7 +86,27 @@ def get_dtype_from_sds_name(sds_name):
         return 'uint16'
     elif sds_name == 'sur_refl_qc_250m':
         return 'uint16'
+    elif sds_name == 'RelativeAzimuth':
+        return 'int16'
+    elif sds_name == 'SolarZenith':
+        return 'int16'
+    elif sds_name == 'SensorZenith':
+        return 'int16'
+    elif sds_name == 'SurfReflect_Day_Of_Year':
+        return 'uint16'
 
+def get_h5_geo_info(file):
+    # Get info from the StructMetadata Object
+    metadata = file['HDFEOS INFORMATION']['StructMetadata.0'][()].split()
+    # Info returned is of type Byte, must convert to string before using it
+    metadata_byte2str = [s.decode('utf-8') for s in metadata]
+    # Get upper left points
+    ulc = [i for i in metadata_byte2str if 'UpperLeftPointMtrs' in i]
+    ulc_lon = float(ulc[0].replace('=', ',').replace('(', '') \
+            .replace(')', '').split(',')[1])
+    ulc_lat = float(ulc[0].replace('=', ',').replace('(', '') \
+            .replace(')', '').split(',')[2])
+    return((ulc_lon,  0.0 , ulc_lat, 0.0 ))
 
 def is_nrt(product):
     if product[-1] == "N":
@@ -97,15 +118,26 @@ def is_nrt(product):
 
 def get_sds(dataset, name):
     for sds in dataset.subdatasets:
-        if sds.split(':')[-1] == name:
-            band = rasterio.open(sds)
-            return (band.read(), band.nodata)
+        sds_parts = sds.split(':')
+        if sds_parts[0] == 'HDF4_EOS':
+            if sds_parts[-1] == name:
+                band = rasterio.open(sds)
+                return (band.read(), band.nodata)
+        elif sds_parts[0] == 'HDF5':
+            if sds_parts[-1].split('/')[-1] == name:
+                band = rasterio.open(sds)
+                return (band.read(), band.nodata)
 
 
 def get_sds_path(dataset, name):
     for sds in dataset.subdatasets:
-        if sds.split(':')[-1] == name:
-            return sds
+        sds_parts = sds.split(':')
+        if sds_parts[0] == 'HDF4_EOS':
+            if sds_parts[-1] == name:
+                return sds
+        elif sds_parts[0] == 'HDF5':
+            if sds_parts[-1].split('/')[-1] == name:
+                return sds
 
 
 def apply_mask(in_array, source_dataset, nodata):
@@ -319,9 +351,13 @@ def apply_mask(in_array, source_dataset, nodata):
                 "File must be of format .hdf or .h5")
     # standard
     else:
-        # modis
+        # viirs
+        if ext == "h5":
+            qa_arr, qa_nodata = get_sds(source_dataset, "SurfReflect_QC_500m")
+            state_arr, state_nodata = get_sds(
+                source_dataset, "SurfReflect_State_500m")
         # MOD09A1
-        if suffix == "09A1":
+        elif suffix == "09A1":
             qa_arr, qa_nodata = get_sds(source_dataset, "sur_refl_qc_500m")
             state_arr, state_nodata = get_sds(
                 source_dataset, "sur_refl_state_500m")
@@ -330,13 +366,6 @@ def apply_mask(in_array, source_dataset, nodata):
             qa_arr, qa_nodata = get_sds(source_dataset, "sur_refl_qc_250m")
             state_arr, state_nodata = get_sds(
                 source_dataset, "sur_refl_state_250m")
-
-        # viirs
-        elif ext == "h5":
-            qa_arr, qa_nodata = get_sds(source_dataset, "SurfReflect_QC_500m")
-            state_arr, state_nodata = get_sds(
-                source_dataset, "SurfReflect_State_500m")
-
         else:
             raise exceptions.FileTypeError(
                 "File must be of format .hdf or .h5")
@@ -473,7 +502,11 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
         dir_url = f'{LP_DAAC_URL}{directory}/{product}.{collection}/{lp_date}/'
         dir_request = requests.get(dir_url)
         soup = BeautifulSoup(dir_request.content, "html.parser")
-        expr = re.compile(f'^{product}.*hdf$')
+        if directory == 'VIIRS':
+            suffix = 'h5'
+        else:
+            suffix = 'hdf'
+        expr = re.compile(f'^{product}.*{suffix}$')
         links = soup.find_all("a", href=expr)
         paths = [dir_url+link.text for link in links]
         total_files = len(paths)
@@ -705,7 +738,7 @@ def create_ndwi_geotiff(dataset, out_dir):
     return output
 
 
-def create_sds_geotiff(dataset, sds_name, out_dir):
+def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
     file_path = dataset.name
     file_name = os.path.basename(file_path)
 
@@ -713,10 +746,11 @@ def create_sds_geotiff(dataset, sds_name, out_dir):
     sds_array, sds_nodata = get_sds(dataset, sds_name)
 
     # apply mask
-    sds_array = apply_mask(sds_array, dataset, sds_nodata)
+    if mask:
+        sds_array = apply_mask(sds_array, dataset, sds_nodata)
 
     # if band is surface reflectance then clip values (exclude nodata)
-    if sds_name.lower().find('refl') > -1:
+    if sds_name.lower().find('refl') > -1 and product != "VNP09A1":
         sds_array[sds_array != sds_nodata] = np.clip(
             sds_array[sds_array != sds_nodata], 0, 10000)
 
@@ -729,6 +763,32 @@ def create_sds_geotiff(dataset, sds_name, out_dir):
 
     profile = rasterio.open(dataset.subdatasets[0]).profile.copy()
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": sds_nodata})
+
+    if "VNP" in product:
+        print(file_path)
+        f = h5py.File(file_path, 'r')
+        geo_info = get_h5_geo_info(f)
+        print(geo_info)
+        out_name = file_name.replace('.h5', f'.{sds_name}.tif')
+        output = os.path.join(out_dir, out_name)
+        if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
+            yRes = -926.6254330555555    
+            xRes = 926.6254330555555
+        elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
+            yRes = -463.31271652777775
+            xRes = 463.31271652777775
+        new_transform = rasterio.Affine(xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        profile.update({"transform": new_transform})
+        tags = dataset.tags()
+        for tag in tags:
+            if sds_name+'__FillValue' in tag:
+                sds_nodata = tags[tag]
+        profile.update({"nodata": int(sds_nodata)})
+
+
+    # assign CRS if None
+    if profile['crs'] == None:
+        profile.update({"crs": 'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",DATUM["Not_specified_based_on_custom_spheroid",SPHEROID["Custom spheroid",6371007.181,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'})
 
     #  create cog
     with MemoryFile() as memfile:

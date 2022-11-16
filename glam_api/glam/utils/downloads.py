@@ -26,7 +26,7 @@ from django.conf import settings
 from config.local_settings.credentials import CREDENTIALS
 from ..utils import exceptions
 from ..utils.daac import (get_available_dates, NASA_PRODUCTS, pull_from_lp,
-                          create_ndvi_geotiff, create_ndwi_geotiff, get_sds_path)
+                          create_ndvi_geotiff, create_ndwi_geotiff, get_sds_path, create_sds_geotiff)
 from ..utils.spectral import SUPPORTED_INDICIES
 
 logging.basicConfig(
@@ -419,22 +419,34 @@ class GlamDownloader(object):
         if sds:
             if type(sds) == list:
                 for ds in sds:
-                    sds_paths = []
-                    for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
-                        dataset = rasterio.open(file)
-                        sds_path = get_sds_path(dataset, ds)
-                        sds_paths.append(sds_path)
+                    if "VNP" in self.product:
+                        log.info("Try creating cogs")
+                        ds_files = [] 
+                        for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
+                            dataset = rasterio.open(file)
+                            ds_files.append(create_sds_geotiff(self.product, dataset, ds, out_dir, mask=False))
+                        
+                        ds_mosaic = self._create_mosaic_cog_from_tifs(date_obj, ds_files, out_dir)
+                        output.append(ds_mosaic)
+                        for file in ds_files:
+                            os.remove(file)
+                    else:
+                        sds_paths = []
+                        for file in tqdm(hdf_files, desc=f'Reading {ds} hdf files.'):
+                            dataset = rasterio.open(file)
+                            sds_path = get_sds_path(dataset, ds)
+                            sds_paths.append(sds_path)
 
-                    vrt_name = f'{self.product}.{ds}.{year}.{doy}.vrt'
-                    vrt_path = os.path.join(out_dir, vrt_name)
-                    log.info("Creating {ds} VRT.")
-                    # use gdal to build vrt rather than creating intermediate tifs
-                    vrt_command = ["gdalbuildvrt", vrt_path]
-                    vrt_command += sds_paths
-                    subprocess.call(vrt_command)
+                        vrt_name = f'{self.product}.{ds}.{year}.{doy}.vrt'
+                        vrt_path = os.path.join(out_dir, vrt_name)
+                        log.info("Creating {ds} VRT.")
+                        # use gdal to build vrt rather than creating intermediate tifs
+                        vrt_command = ["gdalbuildvrt", vrt_path]
+                        vrt_command += sds_paths
+                        subprocess.call(vrt_command)
 
-                    ds_mosaic = self._create_mosaic_cog_from_vrt(vrt_path)
-                    output.append(ds_mosaic)
+                        ds_mosaic = self._create_mosaic_cog_from_vrt(vrt_path)
+                        output.append(ds_mosaic)
 
         if vi == False:
             for file in hdf_files:
@@ -668,6 +680,12 @@ class GlamDownloader(object):
                 delta = 1
 
             elif self.product == "VNP09H1":
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2012.017", "%Y.%j")
+                delta = 8
+            
+            elif self.product == "VNP09A1":
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2012.017", "%Y.%j")
