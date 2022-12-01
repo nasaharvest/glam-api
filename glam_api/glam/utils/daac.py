@@ -36,7 +36,8 @@ LADS_DAAC_URL = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
 LANCE_NRT_URL = 'https://nrt3.modaps.eosdis.nasa.gov/archive/allData/'
 
 NASA_PRODUCTS = ["MOD09Q1", "MYD09Q1", "MOD13Q1", "MYD13Q1", "MOD09A1", "MYD09A1",
-                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG"]
+                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG", 
+                 "MCD12Q1"]
 
 
 def get_collection(product):
@@ -94,6 +95,8 @@ def get_dtype_from_sds_name(sds_name):
         return 'int16'
     elif sds_name == 'SurfReflect_Day_Of_Year':
         return 'uint16'
+    elif sds_name == 'LC_Type1':
+        return 'uint8'
 
 def get_h5_geo_info(file):
     # Get info from the StructMetadata Object

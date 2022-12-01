@@ -678,6 +678,12 @@ class GlamDownloader(object):
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 1
+            
+            elif self.product == "MCD12Q1":
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2001.001", "%Y.%j")
+                delta = 366
 
             elif self.product == "VNP09H1":
                 # get all possible dates
