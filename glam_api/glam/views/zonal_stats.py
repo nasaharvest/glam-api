@@ -22,11 +22,11 @@ from django.db.models import F
 from ..serializers import ZStatsSerializer, ZStatsPandasSerializer, ZStatsParamSerializer
 from ..renderers import OldGLAMZStatsRenderer
 from ..mixins import ListViewSet
-from ..models import (ZonalStats, Product, CropMask, AdminLayer)
+from ..models import (ZonalStats, Product, CropMask, BoundaryLayer)
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
-AVAILABLE_ADMINLAYERS = list()
+AVAILABLE_BOUNDARY_LAYERS = list()
 
 try:
     products = Product.objects.all()
@@ -43,9 +43,9 @@ except:
     pass
 
 try:
-    adminlayers = AdminLayer.objects.all()
-    for a in adminlayers:
-        AVAILABLE_ADMINLAYERS.append(a.adminlayer_id)
+    boundary_layers = BoundaryLayer.objects.all()
+    for b in boundary_layers:
+        AVAILABLE_BOUNDARY_LAYERS.append(b.layer_id)
 except:
     pass
 
@@ -67,19 +67,19 @@ cropmask_param = openapi.Parameter(
     format=openapi.FORMAT_SLUG,
     enum=AVAILABLE_CROPMASKS if len(AVAILABLE_CROPMASKS) > 0 else None)
 
-adminlayer_param = openapi.Parameter(
-    'adminlayer_id',
+boundary_layer_param = openapi.Parameter(
+    'layer_id',
     openapi.IN_PATH,
-    description="A unique character ID to identify Administrative Layer records.",
+    description="A unique character ID to identify Boundary Layer records.",
     required=True,
     type=openapi.TYPE_STRING,
     format=openapi.FORMAT_SLUG,
-    enum=AVAILABLE_ADMINLAYERS if len(AVAILABLE_ADMINLAYERS) > 0 else None)
+    enum=AVAILABLE_BOUNDARY_LAYERS if len(AVAILABLE_BOUNDARY_LAYERS) > 0 else None)
 
-admin_unit_param = openapi.Parameter(
-    'admin_unit',
+boundary_feature_param = openapi.Parameter(
+    'feature_id',
     openapi.IN_PATH,
-    description="Administrative Unit Code.",
+    description="Boundary Feature ID.",
     # required=True,
     type=openapi.TYPE_INTEGER
 )
@@ -118,9 +118,9 @@ class ZStatsPagination(PageNumberPagination):
 class ZonalStatsViewSet(PandasViewSet):
 
     queryset = ZonalStats.objects.all().prefetch_related(
-        'product_dataset', 'product_dataset__product',
-        'mask_dataset', 'mask_dataset__crop_mask',
-        'admin_dataset', 'admin_dataset__admin_layer'
+        'product_raster', 'product_raster__product',
+        'cropmask_raster', 'cropmask_raster__crop_mask',
+        'boundary_raster', 'boundary_raster__boundary_layer'
     )
     pagination_class = ZStatsPagination
     serializer_class = ZStatsPandasSerializer
@@ -132,35 +132,35 @@ class ZonalStatsViewSet(PandasViewSet):
     @swagger_auto_schema(
         operation_id="zonal stats",
         manual_parameters=[
-            product_param, cropmask_param, adminlayer_param,
-            admin_unit_param, date_after_param, date_before_param,
+            product_param, cropmask_param, boundary_layer_param,
+            boundary_feature_param, date_after_param, date_before_param,
             format_param]
     )
     def list(
             self, request, product_id: str = None, cropmask_id: str = None,
-            adminlayer_id: str = None, admin_unit: int = None,
+            layer_id: str = None, feature_id: int = None,
             date_after: str = None, date_before: str = None):
         """
         Return list of Zonal Statistics for specified \
-            Dataset, Cropmask and Administrative Layer
+            Dataset, Cropmask and Boundary Layer
         """
-        if cropmask_id == 'none':
+        if cropmask_id == 'no-mask':
             queryset = self.get_queryset().filter(
-                product_dataset__product__product_id=product_id,
-                mask_dataset=None,
-                admin_dataset__admin_layer__adminlayer_id=adminlayer_id,
-                admin_unit_id=admin_unit).order_by('date')
+                product_raster__product__product_id=product_id,
+                cropmask_raster=None,
+                boundary_raster__boundary_layer__layer_id=layer_id,
+                feature_id=feature_id).order_by('date')
         else:
             queryset = self.get_queryset().filter(
-                product_dataset__product__product_id=product_id,
-                mask_dataset__crop_mask__cropmask_id=cropmask_id,
-                admin_dataset__admin_layer__adminlayer_id=adminlayer_id,
-                admin_unit_id=admin_unit).order_by('date')
+                product_raster__product__product_id=product_id,
+                cropmask_raster__crop_mask__cropmask_id=cropmask_id,
+                boundary_raster__boundary_layer__layer_id=layer_id,
+                feature_id=feature_id).order_by('date')
 
         # remove duplicate records
         queryset = queryset.distinct(
-            'product_dataset', 'mask_dataset', 'admin_dataset',
-            'admin_unit_id', 'arable_pixels', 'percent_arable',
+            'product_raster', 'cropmask_raster', 'boundary_raster',
+            'feature_id', 'arable_pixels', 'percent_arable',
             'mean_value', 'date')
 
         params = ZStatsParamSerializer(data=request.query_params)

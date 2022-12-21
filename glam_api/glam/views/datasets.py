@@ -14,7 +14,7 @@ from django.views.decorators.cache import cache_page
 from django.core import serializers
 from django.shortcuts import get_object_or_404
 
-from ..models import ProductDataset, Product, Tag
+from ..models import ProductRaster, Product, Tag
 from ..serializers import DatasetSerializer
 from ..filters import DatasetFilter
 from ..mixins import ListViewSet
@@ -84,7 +84,7 @@ class DatasetViewSet(ListViewSet):
     """
     Return list of available Datasets.
     """
-    queryset = ProductDataset.objects.all().prefetch_related(
+    queryset = ProductRaster.objects.all().prefetch_related(
         'product'
     ).order_by('date')
     serializer_class = DatasetSerializer

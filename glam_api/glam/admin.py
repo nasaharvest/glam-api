@@ -3,7 +3,7 @@ from django.contrib import admin
 from modeltranslation.admin import TranslationAdmin
 
 from .models import (Tag, DataSource, Variable, Colormap, Crop,
-                     Product, CropMask, AdminLayer, Announcement,
+                     Product, CropMask, BoundaryLayer, Announcement,
                      ImageExport)
 
 
@@ -27,7 +27,7 @@ class CropMaskAdmin(TranslationAdmin):
     pass
 
 
-class AdminLayerAdmin(TranslationAdmin):
+class BoundaryLayerAdmin(TranslationAdmin):
     pass
 
 
@@ -39,5 +39,5 @@ admin.site.register(Colormap)
 admin.site.register(Crop)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(CropMask, CropMaskAdmin)
-admin.site.register(AdminLayer, AdminLayerAdmin)
+admin.site.register(BoundaryLayer, BoundaryLayerAdmin)
 admin.site.register(ImageExport)

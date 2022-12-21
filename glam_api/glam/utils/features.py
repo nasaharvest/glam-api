@@ -9,7 +9,7 @@ from rasterio.windows import Window
 from django.conf import settings
 
 # set up logging
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="INFO")
 log = logging.getLogger(__name__)
 
 
@@ -47,7 +47,7 @@ def _update_unique_admins(old_array, new_array) -> list:
     return np.unique(out_array)
 
 
-def get_unique_admin_units(
+def get_unique_features(
         admin_path, n_cores=settings.N_PROCESSES,
         block_scale_factor=settings.BLOCK_SCALE_FACTOR) -> list:
 

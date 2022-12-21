@@ -188,7 +188,7 @@ PRODUCT_DATASET_LOCAL_PATH = os.path.join(LOCAL_ROOT, 'product_datasets')
 
 MASK_DATASET_LOCAL_PATH = os.path.join(LOCAL_ROOT, 'mask_datasets')
 
-ADMIN_DATASET_LOCAL_PATH = os.path.join(LOCAL_ROOT, 'admin_datasets')
+BOUNDARY_RASTER_LOCAL_PATH = os.path.join(LOCAL_ROOT, 'boundary_rasters')
 
 ANOMALY_BASELINE_LOCAL_PATH = os.path.join(LOCAL_ROOT, 'baseline_datasets')
 

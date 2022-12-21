@@ -13,7 +13,7 @@ from django_q.tasks import async_task
 from config.storage_backends import (RasterStorage, ColormapStorage,
                                      VectorStorage, PublicStorage)
 
-from .utils.admin_units import get_unique_admin_units
+from .utils.features import get_unique_features
 
 # from .tasks.queue import queue_dataset_stats_queue
 from .utils.helpers import generate_unique_slug
@@ -62,7 +62,7 @@ class Announcement(models.Model):
 class DataSource(models.Model):
     """
     Model to store details on the sources of products, 
-    masks, administrative layers, or GLAM partners
+    masks, boundary layers, or GLAM partners
     """
     name = models.CharField(max_length=256, help_text="Source name.")
     source_id = models.SlugField(blank=True, unique=True, max_length=256,
@@ -225,6 +225,8 @@ class CropMask(models.Model):
                                    help_text="A unique character ID to identify Crop Mask records.")
     crop_type = models.ForeignKey(
         Crop, on_delete=models.PROTECT, help_text="Crop that the mask represents.")
+    coverage = models.CharField(
+        max_length=256, help_text="Text representation of spatial coverage/extent of crop mask.", default="Global")
     display_name = models.CharField(
         max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
@@ -238,10 +240,10 @@ class CropMask(models.Model):
         help_text="Date that the cropmask version was created.")
     date_added = models.DateField(
         help_text="Date cropmask added to the system.")
-    raster_file = models.FileField(upload_to='masks', storage=raster_storage, blank=True,
-                                   null=True, help_text="Original cropmask raster file. (if available)")
-    vector_file = models.FileField(upload_to='vectors', storage=vector_storage,
-                                   blank=True, null=True, help_text="Original cropmask vector file. (if available)")
+    source_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
+                                   null=True, help_text="Original source file(s). Raster or Vector. (If Available)")
+    raster_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
+                                   null=True, help_text="Cloud Optimized Geotiff to be used for visualization in TMS.")
 
     def __str__(self):
         return self.cropmask_id
@@ -255,82 +257,82 @@ class CropMask(models.Model):
         verbose_name = "crop mask"
 
 
-class AdminLayer(models.Model):
+class BoundaryLayer(models.Model):
     """
-    Administrative Layer Model
+    Boundary Layer Model
     Store Layer details, original raster file or vector file if available.
     """
     name = models.CharField(
-        max_length=256, help_text="Administrative layer name.")
-    adminlayer_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                     help_text="A unique character ID to identify Administrative Layer records.")
+        max_length=256, help_text="Boundary layer name.")
+    layer_id = models.SlugField(blank=True, unique=True, max_length=256,
+                                help_text="A unique character ID to identify Boundary Layer records.")
     display_name = models.CharField(
-        max_length=256, help_text="Administrative Layer display name.")
+        max_length=256, help_text="Boundary Layer display name.")
     desc = models.TextField(
-        help_text="Brief description of Adminsitrative Layer.")
+        help_text="Brief description of Boundary Layer.")
     tags = models.ManyToManyField(
         Tag, blank=True, help_text="Optional tags to help searching and filtering.")
     meta = models.JSONField(
         blank=True, null=True, help_text="Optional metadata field to provide extra details.")
     source = models.ForeignKey(
-        DataSource, on_delete=models.PROTECT, help_text="Administrative Layer source.")
-    admin_units = models.JSONField(
-        blank=True, null=True, help_text="List of administrative units present in the administrative layer.")
+        DataSource, on_delete=models.PROTECT, help_text="Boundary Layer source.")
+    features = models.JSONField(
+        blank=True, null=True, help_text="List of boundary features present in the boundary layer.")
     date_created = models.DateField(
-        help_text="Date the Administrative Layer version was created.")
+        help_text="Date the Boundary Layer version was created.")
     date_added = models.DateField(
-        help_text="Date the Administrative Layer was added to the system.")
+        help_text="Date the Boundary Layer was added to the system.")
     masks = models.ManyToManyField(
-        CropMask, help_text="Cropmasks that are available for the Administrative Layer. (for ZonalStats generation)")
-    primary_raster = models.FileField(upload_to='regions', storage=raster_storage, blank=True,
-                                      null=True, help_text="Original Administrative Layer raster file. (if available)")
-    vector_file = models.FileField(upload_to='vectors', storage=vector_storage, blank=True,
-                                   null=True, help_text="Original Administrative Layer vector file. (if available)")
+        CropMask, help_text="Cropmasks that are available for the Boundary Layer. (for ZonalStats generation)")
+    source_data = models.FileField(upload_to='boundary-layers', storage=raster_storage, blank=True,
+                                   null=True, help_text="Original Boundary Layer raster or vector")
+    vector_file = models.FileField(upload_to='boundary-layers', storage=vector_storage, blank=True,
+                                   null=True, help_text="Vector geometry file for visual representation in the GLAM application")
 
     def __str__(self):
-        return self.adminlayer_id
+        return self.layer_id
 
     def save(self, *args, **kwargs):
-        if not self.adminlayer_id:
-            self.adminlayer_id = generate_unique_slug(self, 'adminlayer_id')
+        if not self.layer_id:
+            self.layer_id = generate_unique_slug(self, 'layer_id')
         super().save(*args, **kwargs)
 
     class Meta:
-        verbose_name = "administrative layer"
+        verbose_name = "boundary layer"
 
 
-class AdminUnit(geomodels.Model):
+class BoundaryFeature(geomodels.Model):
     """
-    Administrative Layer Units
-    Admin Units that belong to each Administrative Layer
+    Boundary Layer Features
+    Features that belong to each Boundary Layer
     """
 
-    admin_unit_name = models.CharField(
-        max_length=256, help_text="Administrative layer name.")
-    admin_unit_id = models.BigIntegerField(
-        null=True, db_index=True, help_text="A unique character ID to identify Administrative Layer records.")
-    admin_layer = models.ForeignKey(
-        AdminLayer, on_delete=models.CASCADE, help_text="layer that administrative unit belongs to")
+    feature_name = models.CharField(
+        max_length=256, help_text="Boundary layer name.")
+    feature_id = models.BigIntegerField(
+        null=True, db_index=True, help_text="A unique character ID to identify Boundary Layer records.")
+    boundary_layer = models.ForeignKey(
+        BoundaryLayer, on_delete=models.CASCADE, help_text="Boundary layer that feature belongs to")
     properties = models.JSONField(blank=True, null=True)
     geom = geomodels.MultiPolygonField(null=True)
 
     def __str__(self):
-        return self.admin_unit_name
+        return self.feature_name
 
     class Meta:
-        verbose_name = "administrative unit"
+        verbose_name = "boundary feature"
 
         indexes = [
             models.Index(
                 fields=[
-                    'admin_unit_name', 'admin_unit_id',
-                    'admin_layer'
-                ], name='adminunit_name_id_layer_idx'
+                    'feature_name', 'feature_id',
+                    'boundary_layer'
+                ], name='feature_name_id_layer_idx'
             )
         ]
 
 
-class ProductDataset(models.Model):
+class ProductRaster(models.Model):
     """
     Raster Datasets that belong to each product
     """
@@ -348,9 +350,9 @@ class ProductDataset(models.Model):
                             help_text="Dataset date. If product is a composite see product details for when the date falls in the compositing period. Derived automatically from file name.")
     date_added = models.DateField(
         auto_now_add=True, help_text="Date dataset added to system.")
-    local_path = models.FilePathField(path=settings.PRODUCT_DATASET_LOCAL_PATH, match=".*\.tif$",
+    local_path = models.FilePathField(path=settings.PRODUCT_DATASET_LOCAL_PATH, match=".*\.tif$", max_length=256,
                                       recursive=True, help_text="Path to dataset on current machine. Used to upload dataset file_object.")
-    file_object = models.FileField(upload_to='rasters', storage=raster_storage, blank=True,
+    file_object = models.FileField(upload_to='product-rasters', storage=raster_storage, blank=True,
                                    help_text="Stored dataset file. When dataset object is saved, the file_object is created using the local_path.")
 
     def __str__(self):
@@ -409,12 +411,18 @@ class ProductDataset(models.Model):
         verbose_name = "product dataset"
 
 
-class MaskDataset(models.Model):
+class CropmaskRaster(models.Model):
     """
     Raster Dataset of Crop Mask - 
     Resampled to match resolution of related product \
      for ZonalStats calculation
     """
+
+    MASK_TYPE_CHOICES = [
+        ('binary', 'Binary (Crop or No Crop'),
+        ('percent', 'Percent Crop')
+    ]
+
     crop_mask = models.ForeignKey(
         CropMask, on_delete=models.CASCADE,
         help_text="CropMask that the crop mask dataset belongs to.")
@@ -423,6 +431,8 @@ class MaskDataset(models.Model):
         help_text="Product that the crop mask dataset belongs to."
                   "Necessary for matching product resolution in ZonalStats "
                   "calculation.")
+    mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
+                                 help_text="Type of values present in mask raster (binary or percent crop). Used for zonal statistics calculations.")
     name = models.CharField(
         max_length=256, blank=True,
         help_text="Dataset name. Generated automatically from file name.")
@@ -442,7 +452,7 @@ class MaskDataset(models.Model):
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
-        upload_to='masks', storage=raster_storage, blank=True,
+        upload_to='cropmask-rasters', storage=raster_storage, blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
                   "the file_object is created using the local_path.")
 
@@ -479,18 +489,18 @@ class MaskDataset(models.Model):
         verbose_name = "crop mask dataset"
 
 
-class AdminDataset(models.Model):
+class BoundaryRaster(models.Model):
     """
-    Raster Dataset of Administrative Layer -
+    Raster Dataset of Boundary Layer -
     Resampled to match resolution of related product \
      for ZonalStats calculation
     """
-    admin_layer = models.ForeignKey(
-        AdminLayer, on_delete=models.CASCADE,
-        help_text="Administrative Layer that the dataset belongs to.")
+    boundary_layer = models.ForeignKey(
+        BoundaryLayer, on_delete=models.CASCADE,
+        help_text="Boundary Layer that the dataset belongs to.")
     product = models.ForeignKey(
-        Product, related_name='admin_datasets', on_delete=models.CASCADE,
-        help_text="Product that the Administrative Layer dataset belongs to."
+        Product, related_name='boundary_rasters', on_delete=models.CASCADE,
+        help_text="Product that the Boundary Layer dataset belongs to."
                   "Necessary for matching product resolution in ZonalStats "
                   "calculation.")
     name = models.CharField(
@@ -499,10 +509,10 @@ class AdminDataset(models.Model):
     slug = models.SlugField(
         blank=True, unique=True, max_length=256,
         help_text="Slug for dataset. (automatically generated)")
-    admin_units = models.JSONField(
+    features = models.JSONField(
         blank=True, null=True,
-        help_text="List of administrative units present "
-                  "in the administrative layer dataset.")
+        help_text="List of boundary layer features present "
+                  "in the boundary raster dataset.")
     meta = models.JSONField(
         blank=True, null=True,
         help_text="Optional metadata field to provide extra dataset details.")
@@ -511,12 +521,12 @@ class AdminDataset(models.Model):
     date_added = models.DateField(
         auto_now_add=True, help_text="Date dataset added to system.")
     local_path = models.FilePathField(
-        path=settings.ADMIN_DATASET_LOCAL_PATH,
+        path=settings.BOUNDARY_RASTER_LOCAL_PATH,
         match=".*\.tif$", recursive=True,
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
-        upload_to='regions', storage=raster_storage, blank=True,
+        upload_to='boundary-rasters', storage=raster_storage, blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
                   "the file_object is created using the local_path.")
 
@@ -546,18 +556,18 @@ class AdminDataset(models.Model):
             self.slug = generate_unique_slug(self, 'slug')
 
         if created:
-            # if dataset is new, generate admin units
-            self.admin_units = get_unique_admin_units(self.local_path)
+            # if dataset is new, generate features
+            self.features = get_unique_features(self.local_path)
 
         super().save(*args, **kwargs)
 
         self.upload_file(created)
 
     class Meta:
-        verbose_name = "administrative layer dataset"
+        verbose_name = "boundary layer raster dataset"
 
 
-class AnomalyBaselineDataset(models.Model):
+class AnomalyBaselineRaster(models.Model):
     """
     Model to store Baseline Datasets for anomaly calculation
     """
@@ -609,7 +619,7 @@ class AnomalyBaselineDataset(models.Model):
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
-        upload_to='rasters', storage=raster_storage, blank=True,
+        upload_to='baseline-rasters', storage=raster_storage, blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
                   "the file_object is created using the local_path.")
 
@@ -681,28 +691,28 @@ class ZonalStats(models.Model):
     """
     Zonal Statistics - 
     Calculated per combination of each product dataset and corresponding
-    crop mask(s) and administrative layer(s)
+    crop mask(s), boundary layer(s), and feature
     """
-    product_dataset = models.ForeignKey(
-        ProductDataset, on_delete=models.CASCADE,
+    product_raster = models.ForeignKey(
+        ProductRaster, on_delete=models.CASCADE,
         help_text="Product dataset of ZonalStats.")
-    mask_dataset = models.ForeignKey(
-        MaskDataset, null=True, on_delete=models.CASCADE,
+    cropmask_raster = models.ForeignKey(
+        CropmaskRaster, null=True, on_delete=models.CASCADE,
         help_text="Cropmask dataset of ZonalStats.")
-    admin_dataset = models.ForeignKey(
-        AdminDataset, on_delete=models.CASCADE,
-        help_text="Administrative Layer dataset of ZonalStats.")
-    admin_unit_id = models.IntegerField(
+    boundary_raster = models.ForeignKey(
+        BoundaryRaster, on_delete=models.CASCADE,
+        help_text="Boundary Layer dataset of ZonalStats.")
+    feature_id = models.IntegerField(
         db_index=True,
-        help_text="Administrative Unit of ZonalStats.")
+        help_text="Feature of ZonalStats.")
     arable_pixels = models.FloatField(
         help_text="Number of pixels representing arable land "
-                  "within the specified administrative unit.")
+                  "within the specified feature.")
     percent_arable = models.FloatField(
         help_text="Percent of arable pixels for the "
                   "product and mask dataset comination.")
     mean_value = models.FloatField(
-        help_text="Mean calculated for specified administrative unit "
+        help_text="Mean calculated for specified feature "
                   "using the product and mask dataset combination.")
     date = models.DateField(
         db_index=True,
@@ -715,15 +725,15 @@ class ZonalStats(models.Model):
         indexes = [
             models.Index(
                 fields=[
-                    'product_dataset', 'mask_dataset',
-                    'admin_dataset', 'admin_unit_id',
+                    'product_raster', 'cropmask_raster',
+                    'boundary_raster', 'feature_id',
                     'date'
                 ], name='zstats_idx'
             ),
             models.Index(
                 fields=[
-                    'product_dataset', 'mask_dataset',
-                    'admin_dataset', 'admin_unit_id'
+                    'product_raster', 'cropmask_raster',
+                    'boundary_raster', 'feature_id'
                 ], name='zstats_idx_no_date'
             )
         ]

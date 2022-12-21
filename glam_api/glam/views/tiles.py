@@ -25,8 +25,8 @@ from ..serializers import TilesSerializer
 from ..renderers import PNGRenderer
 from ..utils.cmaps import AVAILABLE_CMAPS, get_cmap
 
-from ..models import (Product, ProductDataset, CropMask,
-                      MaskDataset, AnomalyBaselineDataset)
+from ..models import (Product, ProductRaster, CropMask,
+                      CropmaskRaster, AnomalyBaselineRaster)
 
 
 def get_closest_to_dt(qs, dt):
@@ -62,9 +62,9 @@ except:
     pass
 
 try:
-    for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+    for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
         ANOMALY_LENGTH_CHOICES.append(length[0])
-    for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+    for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
         ANOMALY_TYPE_CHOICES.append(type[0])
     ANOMALY_TYPE_CHOICES.append('diff')
 except:
@@ -201,7 +201,7 @@ class Tiles(viewsets.ViewSet):
             for specified zoom and tile coordinates.
         """
         # start = time.perf_counter()
-        product_queryset = ProductDataset.objects.filter(
+        product_queryset = ProductRaster.objects.filter(
             product__product_id=product_id)
         product_dataset = get_object_or_404(
             product_queryset,
@@ -245,7 +245,7 @@ class Tiles(viewsets.ViewSet):
             if anom_type == 'diff':
                 new_year = diff_year
                 new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductDataset.objects.filter(
+                anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
                 closest = get_closest_to_dt(anomaly_queryset, new_date)
                 try:
@@ -263,7 +263,7 @@ class Tiles(viewsets.ViewSet):
                     doy = swi_baselines[idx]
                 if product_id == 'chirps':
                     doy = int(str(date.month)+str(date.day))
-                anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                anomaly_queryset = AnomalyBaselineRaster.objects.all()
                 anomaly_dataset = get_object_or_404(
                     anomaly_queryset,
                     product__product_id=product_id,
@@ -290,7 +290,7 @@ class Tiles(viewsets.ViewSet):
             )
 
         if cropmask:
-            mask_queryset = MaskDataset.objects.all()
+            mask_queryset = CropmaskRaster.objects.all()
             mask_dataset = get_object_or_404(
                 mask_queryset,
                 product__product_id=product_id,
@@ -495,7 +495,7 @@ class Tiles(viewsets.ViewSet):
         Return overview of image tiles as PNG. (Zoom 0)
         """
         # start = time.perf_counter()
-        product_queryset = ProductDataset.objects.filter(
+        product_queryset = ProductRaster.objects.filter(
             product__product_id=product_id)
         product_dataset = get_object_or_404(
             product_queryset,
@@ -543,7 +543,7 @@ class Tiles(viewsets.ViewSet):
             if anom_type == 'diff':
                 new_year = diff_year
                 new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductDataset.objects.filter(
+                anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
                 closest = get_closest_to_dt(anomaly_queryset, new_date)
                 try:
@@ -561,7 +561,7 @@ class Tiles(viewsets.ViewSet):
                     doy = swi_baselines[idx]
                 if product_id == 'chirps':
                     doy = int(str(date.month)+str(date.day))
-                anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                anomaly_queryset = AnomalyBaselineRaster.objects.all()
                 anomaly_dataset = get_object_or_404(
                     anomaly_queryset,
                     product__product_id=product_id,
@@ -588,7 +588,7 @@ class Tiles(viewsets.ViewSet):
             )
 
         if cropmask:
-            mask_queryset = MaskDataset.objects.all()
+            mask_queryset = CropmaskRaster.objects.all()
             mask_dataset = get_object_or_404(
                 mask_queryset,
                 product__product_id=product_id,

@@ -11,8 +11,8 @@ from rasterio.windows import Window
 from django.conf import settings
 from django_q.tasks import async_task
 
-from ..models import (Product, ProductDataset, CropMask, MaskDataset,
-                      AdminLayer, AdminDataset, ZonalStats)
+from ..models import (Product, ProductRaster, CropMask, CropmaskRaster,
+                      BoundaryLayer, BoundaryRaster, ZonalStats)
 
 """
 Some functions derived from 'glam_data_processing'
@@ -95,9 +95,9 @@ def _mp_worker_ZS(args: tuple) -> dict:
             targetwindow
             product_path
             mask_path
-            admin_path
+            boundary_path
     """
-    targetwindow, product_path, mask_path, admin_path, mask_type = args
+    targetwindow, product_path, mask_path, boundary_path, mask_type = args
 
     if "nomask" in mask_path:
         mask_path = None
@@ -118,7 +118,7 @@ def _mp_worker_ZS(args: tuple) -> dict:
         mask_data = np.full(product_data.shape, 1)
 
     # get admin raster info
-    admin_handle = rasterio.open(admin_path, 'r')
+    admin_handle = rasterio.open(boundary_path, 'r')
     admin_noDataVal = admin_handle.meta['nodata']
     admin_data = admin_handle.read(1, window=targetwindow)
     admin_handle.close()
@@ -237,7 +237,7 @@ def _update_ZS(stored_dict, this_dict) -> dict:
 
 
 def zonalStats(
-        product_path: str, mask_path: str, admin_path: str, mask_type: str = 'binary',
+        product_path: str, mask_path: str, boundary_path: str, mask_type: str = 'binary',
         n_cores: int = 1, block_scale_factor: int = 8, default_block_size: int = 256,
         time: bool = False) -> dict:
     """A function for calculating zonal statistics on a raster image
@@ -251,7 +251,7 @@ def zonalStats(
         Path to product dataset on disk
     mask_path:str
         Path to crop mask dataset on disk
-    admin_path:str
+    boundary_path:str
         Path to admin dataset on disk
     n_cores:int
         Number of cores to use for parallel processing. Default is 1
@@ -290,7 +290,7 @@ def zonalStats(
 
     # generate parallel args
     parallel_args = [
-        (w, product_path, mask_path, admin_path, mask_type) for w in windows
+        (w, product_path, mask_path, boundary_path, mask_type) for w in windows
     ]
 
     # note progress
@@ -311,10 +311,10 @@ def zonalStats(
               {datetime.now()-checkpoint_1_time}.")
     if time:
         log.info(f"Finished processing {product_path} x {mask_path} x \
-                 {admin_path} in {datetime.now()-start_time}.")
+                 {boundary_path} in {datetime.now()-start_time}.")
     else:
         log.debug(f"Finished processing {product_path} x {mask_path} x \
-                  {admin_path} in {datetime.now()-start_time}.")
+                  {boundary_path} in {datetime.now()-start_time}.")
 
     return final_output
 
@@ -493,7 +493,7 @@ end glam_data_processing functions
 """
 
 
-def bulk_zonal_stats(product_ds, cropmask_ds, adminlayer_ds, mask_type: str = 'binary'):
+def bulk_zonal_stats(product_ds, cropmask_ds, boundary_ds):
     # get optimal processing parameters
     if product_ds.product.meta['optimal_bsf']:
         bsf = product_ds.product.meta['optimal_bsf']
@@ -512,23 +512,23 @@ def bulk_zonal_stats(product_ds, cropmask_ds, adminlayer_ds, mask_type: str = 'b
     results = zonalStats(
         product_path=product_ds.local_path,
         mask_path=cropmask_ds.local_path if cropmask_ds else "nomask",
-        admin_path=adminlayer_ds.local_path,
+        boundary_path=boundary_ds.local_path,
         n_cores=n_cores,
-        mask_type=mask_type,
+        mask_type=cropmask_ds.mask_type if cropmask_ds else "binary",
         block_scale_factor=bsf
     )
     # create list of ZonalStats records for bulk_create
     insert_list = []
-    for admin_unit in results:
+    for feature in results:
         insert_list.append(
             ZonalStats(
-                product_dataset=product_ds,
-                mask_dataset=cropmask_ds,
-                admin_dataset=adminlayer_ds,
-                admin_unit_id=admin_unit,
-                arable_pixels=results[admin_unit]['arable_pixels'],
-                percent_arable=results[admin_unit]['percent_arable'],
-                mean_value=results[admin_unit]['value'],
+                product_raster=product_ds,
+                cropmask_raster=cropmask_ds,
+                boundary_raster=boundary_ds,
+                feature_id=feature,
+                arable_pixels=results[feature]['arable_pixels'],
+                percent_arable=results[feature]['percent_arable'],
+                mean_value=results[feature]['value'],
                 date=product_ds.date
             )
         )
@@ -538,8 +538,7 @@ def bulk_zonal_stats(product_ds, cropmask_ds, adminlayer_ds, mask_type: str = 'b
 
 def queue_bulk_stats(
         products: list = None, cropmasks: list = None,
-        adminlayers: list = None, years: list = None,
-        mask_type: str = 'binary'):
+        boundarylayers: list = None, years: list = None):
     # create querysets
     if products == None:
         product_queryset = Product.objects.all()
@@ -557,115 +556,115 @@ def queue_bulk_stats(
             queryset = CropMask.objects.filter(cropmask_id=cropmask)
             cropmask_queryset = cropmask_queryset | queryset
 
-    if adminlayers == None:
-        adminlayer_queryset = AdminLayer.objects.all()
+    if boundarylayers == None:
+        boundarylayer_queryset = BoundaryLayer.objects.all()
     else:
-        adminlayer_queryset = AdminLayer.objects.none()
-        for adminlayer in adminlayers:
-            queryset = AdminLayer.objects.filter(adminlayer_id=adminlayer)
-            adminlayer_queryset = adminlayer_queryset | queryset
+        boundarylayer_queryset = BoundaryLayer.objects.none()
+        for boundarylayer in boundarylayers:
+            queryset = BoundaryLayer.objects.filter(layer_id=boundarylayer)
+            boundarylayer_queryset = boundarylayer_queryset | queryset
 
-    # loop over combinations of ProductDataset x CropMask x AdminLayer
+    # loop over combinations of ProductRaster x CropmaskRaster x BoundaryRaster
     for product in product_queryset:
-        for layer in adminlayer_queryset:
-            # loop over masks belonging to admin layer
+        for layer in boundarylayer_queryset:
+            # loop over masks belonging to boundary layer
             for cropmask in layer.masks.all():
                 if cropmask in cropmask_queryset:
                     # get product datasets
-                    product_datasets = ProductDataset.objects.filter(
+                    product_rasters = ProductRaster.objects.filter(
                         product=product
                     )
                     for product_ds in tqdm(
-                        product_datasets,
+                        product_rasters,
                         desc=f'{product.product_id}-{cropmask.cropmask_id}-'
-                             f'{layer.adminlayer_id}'):
+                             f'{layer.layer_id}'):
                         # if years are provided, only include datasets within specified years
                         if years:
                             if product_ds.date.year in years:
-                                # try to retreive related admin and mask datasets
+                                # try to retreive related boundary and mask datasets
                                 # if they do not exist, pass
                                 try:
-                                    admin_ds = AdminDataset.objects.get(
-                                        product=product, admin_layer=layer)
-                                    if cropmask.cropmask_id == 'none':
+                                    boundary_ds = BoundaryRaster.objects.get(
+                                        product=product, boundary_layer=layer)
+                                    if cropmask.cropmask_id == 'no-mask':
                                         mask_ds = None
                                     else:
-                                        mask_ds = MaskDataset.objects.get(
+                                        mask_ds = CropmaskRaster.objects.get(
                                             product=product, crop_mask=cropmask)
 
                                     # add to queue
                                     async_task(
-                                        bulk_zonal_stats, product_ds, mask_ds, admin_ds, mask_type, group=product.product_id)
+                                        bulk_zonal_stats, product_ds, mask_ds, boundary_ds, group=product.product_id)
                                     log.debug(f'Queueing Zonal Stats for '
                                               f'{product.product_id}:'
                                               f'{product_ds.date}-'
                                               f'{cropmask.cropmask_id}-'
-                                              f'{layer.adminlayer_id}')
+                                              f'{layer.layer_id}')
                                 except:
                                     log.debug(f'Combination unavailable for '
                                               f'{product.product_id}-'
                                               f'{cropmask.cropmask_id}-'
-                                              f'{layer.adminlayer_id}')
+                                              f'{layer.layer_id}')
                         # if years not specified, queue all dates
                         else:
                             try:
-                                admin_ds = AdminDataset.objects.get(
-                                    product=product, admin_layer=layer)
-                                if cropmask.cropmask_id == 'none':
+                                boundary_ds = BoundaryRaster.objects.get(
+                                    product=product, boundary_layer=layer)
+                                if cropmask.cropmask_id == 'no-mask':
                                     mask_ds = None
                                 else:
-                                    mask_ds = MaskDataset.objects.get(
+                                    mask_ds = CropmaskRaster.objects.get(
                                         product=product, crop_mask=cropmask)
 
                                 # add to queue
                                 async_task(
-                                    bulk_zonal_stats, product_ds, mask_ds, admin_ds, mask_type, group=product.product_id)
+                                    bulk_zonal_stats, product_ds, mask_ds, boundary_ds, group=product.product_id)
                                 log.debug(f'Queueing Zonal Stats for '
                                           f'{product.product_id}:'
                                           f'{product_ds.date}-'
                                           f'{cropmask.cropmask_id}-'
-                                          f'{layer.adminlayer_id}')
+                                          f'{layer.layer_id}')
                             except:
                                 log.debug(f'Combination unavailable for '
                                           f'{product.product_id}-'
                                           f'{cropmask.cropmask_id}-'
-                                          f'{layer.adminlayer_id}')
+                                          f'{layer.layer_id}')
 
 
 def queue_zonal_stats(product_id: str, date: str):
     product = Product.objects.get(product_id=product_id)
     cropmasks = CropMask.objects.all()
-    adminlayers = AdminLayer.objects.all()
+    boundarylayers = BoundaryLayer.objects.all()
 
-    for layer in adminlayers:
-        # loop over masks belonging to admin layer
+    for layer in boundarylayers:
+        # loop over masks belonging to boundary layer
         for cropmask in layer.masks.all():
             if cropmask in cropmasks:
                 # get product datasets
-                product_dataset = ProductDataset.objects.get(
+                product_raster = ProductRaster.objects.get(
                     product=product, date=date)
                 try:
-                    admin_ds = AdminDataset.objects.get(
-                        product=product, admin_layer=layer)
-                    if cropmask.cropmask_id == 'none':
+                    boundary_ds = BoundaryRaster.objects.get(
+                        product=product, boundary_layer=layer)
+                    if cropmask.cropmask_id == 'no-mask':
                         mask_ds = None
                     else:
-                        mask_ds = MaskDataset.objects.get(
+                        mask_ds = CropmaskRaster.objects.get(
                             product=product, crop_mask=cropmask)
 
                     # add to queue
                     async_task(
-                        bulk_zonal_stats, product_dataset, mask_ds, admin_ds, group=product.product_id)
+                        bulk_zonal_stats, product_raster, mask_ds, boundary_ds, group=product.product_id)
                     log.debug(f'Queueing Zonal Stats for '
                               f'{product.product_id}:'
-                              f'{product_dataset.date}-'
+                              f'{product_raster.date}-'
                               f'{cropmask.cropmask_id}-'
-                              f'{layer.adminlayer_id}')
+                              f'{layer.layer_id}')
                 except:
                     log.debug(f'Combination unavailable for '
                               f'{product.product_id}-'
                               f'{cropmask.cropmask_id}-'
-                              f'{layer.adminlayer_id}')
+                              f'{layer.layer_id}')
 
 
 # def remove_duplicate_stats():
@@ -674,33 +673,33 @@ def fill_zonal_stats():
     start = datetime.now()
 
     products = Product.objects.all()
-    adminlayers = AdminLayer.objects.all()
+    boundarylayers = BoundaryLayer.objects.all()
     cropmasks = CropMask.objects.all()
 
     for product in products:
-        for layer in adminlayers:
+        for layer in boundarylayers:
             for cropmask in layer.masks.all():
                 if cropmask in cropmasks:
-                    product_datasets = ProductDataset.objects.filter(
+                    product_rasters = ProductRaster.objects.filter(
                         product=product
                     )
                     for product_ds in tqdm(
-                        product_datasets,
+                        product_rasters,
                         desc=f'{product.product_id}-{cropmask.cropmask_id}-'
-                             f'{layer.adminlayer_id}'):
+                             f'{layer.layer_id}'):
                         try:
-                            admin_ds = AdminDataset.objects.get(
-                                product=product, admin_layer=layer)
-                            if cropmask.cropmask_id == 'none':
+                            boundary_ds = BoundaryRaster.objects.get(
+                                product=product, boundary_layer=layer)
+                            if cropmask.cropmask_id == 'no-mask':
                                 mask_ds = None
                             else:
-                                mask_ds = MaskDataset.objects.get(
+                                mask_ds = CropmaskRaster.objects.get(
                                     product=product, crop_mask=cropmask)
 
                             zs_query = ZonalStats.objects.filter(
-                                product_dataset=product_ds,
-                                mask_dataset=mask_ds,
-                                admin_dataset=admin_ds,
+                                product_raster=product_ds,
+                                cropmask_raster=mask_ds,
+                                boundary_raster=boundary_ds,
                                 date=product_ds.date
                             )
                             if zs_query.count() < 1:
@@ -708,7 +707,7 @@ def fill_zonal_stats():
                                       f'{product.product_id}:'
                                       f'{product_ds.date}-'
                                       f'{cropmask.cropmask_id}-'
-                                      f'{layer.adminlayer_id}')
+                                      f'{layer.layer_id}')
                                 # add to queue
                                 # async_task(
                                 #     bulk_zonal_stats, product_ds, mask_ds, admin_ds, group=product.product_id)
@@ -716,12 +715,12 @@ def fill_zonal_stats():
                                 #         f'{product.product_id}:'
                                 #         f'{product_ds.date}-'
                                 #         f'{cropmask.cropmask_id}-'
-                                #         f'{layer.adminlayer_id}')
+                                #         f'{layer.layer_id}')
                         except:
                             log.debug(f'Combination unavailable for '
                                       f'{product.product_id}-'
                                       f'{cropmask.cropmask_id}-'
-                                      f'{layer.adminlayer_id}')
+                                      f'{layer.layer_id}')
 
     finish = datetime.now()
     duration = finish - start
@@ -732,23 +731,23 @@ def fill_zonal_stats():
 
 # def export_stats():
 
-#     from server.models import ZonalStats
+#     from glam.models import ZonalStats
 #     import pandas as pd
 
 #     filename = 'mod09a1_gaul1.csv'
 
 #     q = ZonalStats.objects.filter(
-#         admin_dataset__admin_layer__adminlayer_id='gaul1',
-#         product_dataset__product__product_id='mod09a1',
+#         boundary_raster__boundary_layer__layer_id='gaul1',
+#         product_raster__product__product_id='mod09a1',
 #         date__gte='2020-01-01'
 #     )
 
 #     l = list(
 #         q.values(
-#             "product_dataset__product__product_id",
-#             "mask_dataset__crop_mask__cropmask_id",
-#             "admin_dataset__admin_layer__adminlayer_id",
-#             "admin_unit_id",
+#             "product_raster__product__product_id",
+#             "cropmask_raster__crop_mask__cropmask_id",
+#             "boundary_raster__boundary_layer__layer_id",
+#             "feature_id",
 #             "arable_pixels",
 #             "mean_value",
 #             "date"
@@ -756,18 +755,18 @@ def fill_zonal_stats():
 #     )
 
 #     lookup_fields = [
-#         "product_dataset__product__product_id",
-#         "mask_dataset__crop_mask__cropmask_id",
-#         "admin_dataset__admin_layer__adminlayer_id",
-#         "admin_unit_id", "arable_pixels", "mean_value", "date"
+#         "product_raster__product__product_id",
+#         "cropmask_raster__crop_mask__cropmask_id",
+#         "boundary_raster__boundary_layer__layer_id",
+#         "feature_id", "arable_pixels", "mean_value", "date"
 #     ]
 
 #     df = pd.DataFrame.from_records(l, columns=lookup_fields)
 
 #     df.rename(columns={
-#         'product_dataset__product__product_id': 'product_id',
-#         'mask_dataset__crop_mask__cropmask_id': 'cropmask_id',
-#         'admin_dataset__admin_layer__adminlayer_id': 'adminlayer_id'
+#         'product_raster__product__product_id': 'product_id',
+#         'cropmask_raster__crop_mask__cropmask_id': 'cropmask_id',
+#         'boundary_raster__boundary_layer__layer_id': 'layer_id'
 #         }, inplace=True)
 
 #     df.to_csv(filename, index=False)

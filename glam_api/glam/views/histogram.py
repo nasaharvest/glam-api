@@ -26,8 +26,8 @@ from drf_yasg import openapi
 from django.shortcuts import get_object_or_404, render
 from django.conf import settings
 
-from ..models import (ProductDataset, AnomalyBaselineDataset,
-                      MaskDataset, Product, CropMask, AdminLayer, AdminUnit)
+from ..models import (ProductRaster, AnomalyBaselineRaster,
+                      CropmaskRaster, Product, CropMask, BoundaryLayer, BoundaryFeature)
 from ..serializers import (HistogramBodySerializer,
                            HistogramGETSerializer,
                            HistogramResponseSerializer)
@@ -36,7 +36,7 @@ from ..utils.helpers import get_closest_to_date
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
-AVAILABLE_ADMINLAYERS = list()
+AVAILABLE_BOUNDARY_LAYERS = list()
 ANOMALY_LENGTH_CHOICES = list()
 ANOMALY_TYPE_CHOICES = list()
 
@@ -55,16 +55,16 @@ except:
     pass
 
 try:
-    adminlayers = AdminLayer.objects.all()
-    for a in adminlayers:
-        AVAILABLE_ADMINLAYERS.append(a.adminlayer_id)
+    boundary_layers = BoundaryLayer.objects.all()
+    for b in boundary_layers:
+        AVAILABLE_BOUNDARY_LAYERS.append(b.layer_id)
 except:
     pass
 
 try:
-    for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+    for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
         ANOMALY_LENGTH_CHOICES.append(length[0])
-    for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+    for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
         ANOMALY_TYPE_CHOICES.append(type[0])
     ANOMALY_TYPE_CHOICES.append('diff')
 except:
@@ -88,19 +88,19 @@ cropmask_param = openapi.Parameter(
     format=openapi.FORMAT_SLUG,
     enum=AVAILABLE_CROPMASKS if len(AVAILABLE_CROPMASKS) > 0 else None)
 
-adminlayer_param = openapi.Parameter(
-    'adminlayer_id',
+boundary_layer_param = openapi.Parameter(
+    'layer_id',
     openapi.IN_PATH,
-    description="A unique character ID to identify Administrative Layer records.",
+    description="A unique character ID to identify Boundary Layer records.",
     required=True,
     type=openapi.TYPE_STRING,
     format=openapi.FORMAT_SLUG,
-    enum=AVAILABLE_ADMINLAYERS if len(AVAILABLE_ADMINLAYERS) > 0 else None)
+    enum=AVAILABLE_BOUNDARY_LAYERS if len(AVAILABLE_BOUNDARY_LAYERS) > 0 else None)
 
-admin_unit_param = openapi.Parameter(
-    'admin_unit',
+boundary_feature_param = openapi.Parameter(
+    'feature_id',
     openapi.IN_PATH,
-    description="Administrative Unit Code.",
+    description="Boundary Feature ID.",
     # required=True,
     type=openapi.TYPE_INTEGER
 )
@@ -245,7 +245,7 @@ class Histogram(PandasViewSet):
         operation_id="custom histogram",
         request_body=HistogramBodySerializer,
         responses={200: resp_200})
-    def custom_hist(self, request):
+    def custom_feature_histogram(self, request):
         """
         Compute histogram for specified polygon. (Using numpy.histogram)
         """
@@ -269,7 +269,7 @@ class Histogram(PandasViewSet):
             diff_year = data.get('diff_year', None)
 
             cropmask = data.get('cropmask_id', None)
-            if cropmask == 'none':
+            if cropmask == 'no-mask':
                 cropmask = None
 
             # histogram parameters
@@ -298,7 +298,7 @@ class Histogram(PandasViewSet):
             month = date.month
             day = date.day
 
-            product_queryset = ProductDataset.objects.filter(
+            product_queryset = ProductRaster.objects.filter(
                 product=product
             )
 
@@ -321,7 +321,7 @@ class Histogram(PandasViewSet):
                         data = feat.as_masked()
 
                     if cropmask:
-                        mask_queryset = MaskDataset.objects.all()
+                        mask_queryset = CropmaskRaster.objects.all()
                         mask_dataset = get_object_or_404(
                             mask_queryset,
                             product__product_id=product_id,
@@ -345,7 +345,7 @@ class Histogram(PandasViewSet):
                             new_year = diff_year
                             new_date = product_dataset.date.replace(
                                 year=new_year)
-                            anomaly_queryset = ProductDataset.objects.filter(
+                            anomaly_queryset = ProductRaster.objects.filter(
                                 product__product_id=product_id)
                             closest = get_closest_to_date(
                                 anomaly_queryset, new_date)
@@ -363,7 +363,7 @@ class Histogram(PandasViewSet):
                                 doy = swi_baselines[idx]
                             if product_id == 'chirps':
                                 doy = int(str(date.month)+f'{date.day:02d}')
-                            anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                            anomaly_queryset = AnomalyBaselineRaster.objects.all()
                             anomaly_dataset = get_object_or_404(
                                 anomaly_queryset,
                                 product__product_id=product_id,
@@ -409,19 +409,19 @@ class Histogram(PandasViewSet):
             return Response(output)
 
     @swagger_auto_schema(
-        operation_id="admin histogram",
+        operation_id="boundary feature histogram",
         manual_parameters=[
-            product_param, cropmask_param, adminlayer_param,
-            admin_unit_param, date_param, format_param,
+            product_param, cropmask_param, boundary_layer_param,
+            boundary_feature_param, date_param, format_param,
             anomaly_param, anomaly_type_param, num_bins_param,
             range_param, weights_param, density_param, add_years_param,
             diff_year_param])
-    def admin_hist(
+    def boundary_feature_histogram(
             self, request, product_id: str = None, cropmask_id: str = None,
-            adminlayer_id: str = None, admin_unit: int = None,
+            layer_id: str = None, feature_id: int = None,
             date: str = None):
         """
-        Compute histogram for admin unit polygon. (Using numpy.histogram)
+        Compute histogram for boundary feature. (Using numpy.histogram)
         """
 
         if request.method == 'GET':
@@ -436,7 +436,7 @@ class Histogram(PandasViewSet):
             diff_year = data.get('diff_year', None)
             # cropmask = data.get('cropmask_id', None)
             cropmask = cropmask_id
-            if cropmask == 'none':
+            if cropmask == 'no-mask':
                 cropmask = None
 
             # histogram parameters
@@ -466,7 +466,7 @@ class Histogram(PandasViewSet):
             month = date.month
             day = date.day
 
-            product_queryset = ProductDataset.objects.filter(
+            product_queryset = ProductRaster.objects.filter(
                 product=product
             )
 
@@ -477,10 +477,10 @@ class Histogram(PandasViewSet):
                 product_dataset = get_closest_to_date(
                     product_queryset, new_date)
 
-                layer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-                admin = AdminUnit.objects.get(
-                    admin_layer=layer,
-                    admin_unit_id=admin_unit
+                boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+                boundary_feature = BoundaryFeature.objects.get(
+                    boundary_layer=boundary_layer,
+                    feature_id=feature_id
                 )
 
                 if not settings.USE_S3_RASTERS:
@@ -488,14 +488,14 @@ class Histogram(PandasViewSet):
                 if settings.USE_S3_RASTERS:
                     path = product_dataset.file_object.url
 
-                geom = json.loads(admin.geom.geojson)
+                geom = json.loads(boundary_feature.geom.geojson)
 
                 with COGReader(path) as product_src:
                     feat = product_src.feature(geom, max_size=1024)
                     data = feat.as_masked()
 
                 if cropmask:
-                    mask_queryset = MaskDataset.objects.all()
+                    mask_queryset = CropmaskRaster.objects.all()
                     mask_dataset = get_object_or_404(
                         mask_queryset,
                         product__product_id=product_id,
@@ -518,7 +518,7 @@ class Histogram(PandasViewSet):
                     if anom_type == 'diff':
                         new_year = diff_year
                         new_date = product_dataset.date.replace(year=new_year)
-                        anomaly_queryset = ProductDataset.objects.filter(
+                        anomaly_queryset = ProductRaster.objects.filter(
                             product__product_id=product_id)
                         closest = get_closest_to_date(
                             anomaly_queryset, new_date)
@@ -536,7 +536,7 @@ class Histogram(PandasViewSet):
                             doy = swi_baselines[idx]
                         if product_id == 'chirps':
                             doy = int(str(date.month)+f'{date.day:02d}')
-                        anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
                         anomaly_dataset = get_object_or_404(
                             anomaly_queryset,
                             product__product_id=product_id,

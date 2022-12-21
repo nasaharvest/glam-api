@@ -1,10 +1,10 @@
 from django_filters import rest_framework as filters
 
-from .models import (AdminLayer, DataSource, Product, ProductDataset, Tag,
+from .models import (BoundaryLayer, DataSource, Product, ProductRaster, Tag,
                      Variable, CropMask, Colormap, ZonalStats)
 
 
-class AdminLayerFilter(filters.FilterSet):
+class BoundaryLayerFilter(filters.FilterSet):
     tag = filters.ModelMultipleChoiceFilter(
         field_name='tags__name',
         to_field_name='name',
@@ -12,7 +12,7 @@ class AdminLayerFilter(filters.FilterSet):
         queryset=Tag.objects.all())
 
     class Meta:
-        model = AdminLayer
+        model = BoundaryLayer
         fields = []
 
 
@@ -95,7 +95,7 @@ class DatasetFilter(filters.FilterSet):
         queryset=Tag.objects.all())
 
     class Meta:
-        model = ProductDataset
+        model = ProductRaster
         fields = []
 
 

@@ -7,7 +7,7 @@ from rest_framework.renderers import BaseRenderer
 import pandas as pd
 import numpy as np
 
-from .models import Product, AdminLayer, AdminUnit, CropMask
+from .models import Product, BoundaryLayer, BoundaryFeature, CropMask
 
 
 class PNGRenderer(BaseRenderer):
@@ -51,20 +51,20 @@ class OldGLAMBaseZStatsRenderer(BaseRenderer):
         params = renderer_context['kwargs']
         product_id = params['product_id']
         cropmask_id = params['cropmask_id']
-        adminlayer_id = params['adminlayer_id']
-        admin_unit = params['admin_unit']
+        layer_id = params['layer_id']
+        feature_id = params['feature_id']
         today = datetime.date.today()
 
         product = Product.objects.get(product_id=product_id)
         product_name = product.pt_display_name
         composite = product.composite_period - 1
 
-        adminlayer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-        adminlayer_name = adminlayer.pt_display_name
+        boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+        boundary_layer_name = boundary_layer.pt_display_name
 
-        adminunit = AdminUnit.objects.get(
-            admin_unit_id=admin_unit, admin_layer=adminlayer)
-        admin_unit_name = adminunit.admin_unit_name
+        boundary_feature = BoundaryFeature.objects.get(
+            feature_id=feature_id, boundary_layer=boundary_layer)
+        boundary_feature_name = boundary_feature.feature_name
 
         cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
         cropmask_name = cropmask.pt_display_name
@@ -111,8 +111,8 @@ class OldGLAMBaseZStatsRenderer(BaseRenderer):
         header.insert(4, {})
         header.insert(5, {'index': 'Product', 1: product_name})
         header.insert(6, {'index': 'Crop Mask', 1: cropmask_name})
-        header.insert(7, {'index': 'Admin Unit ID', 1: admin_unit_name})
-        header.insert(8, {'index': 'Layer ', 1: adminlayer_name})
+        header.insert(7, {'index': 'Feature ID', 1: boundary_feature_name})
+        header.insert(8, {'index': 'Boundary Layer ', 1: boundary_layer_name})
         header.insert(9, {})
 
         header_df = pd.DataFrame(header)
@@ -181,13 +181,13 @@ class OldGLAMBaseHistRenderer(BaseRenderer):
             params = renderer_context['request'].data
         else:
             params = renderer_context['kwargs']
-            adminlayer_id = params['adminlayer_id']
-            admin_unit = params['admin_unit']
-            adminlayer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-            adminlayer_name = adminlayer.pt_display_name
-            adminunit = AdminUnit.objects.get(
-                admin_unit_id=admin_unit, admin_layer=adminlayer)
-            admin_unit_name = adminunit.admin_unit_name
+            layer_id = params['layer_id']
+            feature_id = params['feature_id']
+            boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+            boundary_layer_name = boundary_layer.pt_display_name
+            boundary_feature = BoundaryFeature.objects.get(
+                feature_id=feature_id, boundary_layer=boundary_layer)
+            boundary_feature_name = boundary_feature.feature_name
 
         product_id = params['product_id']
         cropmask_id = params['cropmask_id']
@@ -240,11 +240,13 @@ class OldGLAMBaseHistRenderer(BaseRenderer):
         header.insert(5, {'index': 'Product', 1: product_name})
         header.insert(6, {'index': 'Crop Mask', 1: cropmask_name})
         if renderer_context['request'].method == 'POST':
-            header.insert(7, {'index': 'Admin Unit ID', 1: 'Custom Geometry'})
-            header.insert(8, {'index': 'Layer ', 1: 'Custom Geometry'})
+            header.insert(7, {'index': 'Feature ID', 1: 'Custom Geometry'})
+            header.insert(
+                8, {'index': 'Boundary Layer ', 1: 'Custom Geometry'})
         else:
-            header.insert(7, {'index': 'Admin Unit ID', 1: admin_unit_name})
-            header.insert(8, {'index': 'Layer ', 1: adminlayer_name})
+            header.insert(7, {'index': 'Feature ID', 1: boundary_feature_name})
+            header.insert(
+                8, {'index': 'Boundary Layer ', 1: boundary_layer_name})
         header.insert(9, {})
 
         header_df = pd.DataFrame(header)

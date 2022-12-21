@@ -40,9 +40,9 @@ from rasterio.plot import show
 from ..renderers import PNGRenderer
 from ..serializers import GraphicSerializer, GraphicBodySerializer
 from ..mixins import ListViewSet
-from ..models import (Product, ProductDataset, CropMask,
-                      MaskDataset, AdminUnit, AdminLayer,
-                      AnomalyBaselineDataset, DataSource)
+from ..models import (Product, ProductRaster, CropMask,
+                      CropmaskRaster, BoundaryLayer, BoundaryFeature,
+                      AnomalyBaselineRaster, DataSource)
 
 
 def get_closest_to_dt(qs, dt):
@@ -84,7 +84,7 @@ def scale_from_extent(extent):
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
-AVAILABLE_ADMINLAYERS = list()
+AVAILABLE_BOUNDARY_LAYERS = list()
 ANOMALY_LENGTH_CHOICES = list()
 ANOMALY_TYPE_CHOICES = list()
 BOOL_CHOICES = [True, False]
@@ -119,16 +119,16 @@ except:
     pass
 
 try:
-    adminlayers = AdminLayer.objects.all()
-    for a in adminlayers:
-        AVAILABLE_ADMINLAYERS.append(a.adminlayer_id)
+    boundary_layers = BoundaryLayer.objects.all()
+    for b in boundary_layers:
+        AVAILABLE_BOUNDARY_LAYERS.append(b.layer_id)
 except:
     pass
 
 try:
-    for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+    for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
         ANOMALY_LENGTH_CHOICES.append(length[0])
-    for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+    for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
         ANOMALY_TYPE_CHOICES.append(type[0])
     ANOMALY_TYPE_CHOICES.append('diff')
 except:
@@ -171,19 +171,19 @@ class GraphicsViewSet(viewsets.ViewSet):
         format=openapi.FORMAT_SLUG,
         enum=AVAILABLE_CROPMASKS if len(AVAILABLE_CROPMASKS) > 0 else None)
 
-    adminlayer_param = openapi.Parameter(
-        'adminlayer_id',
+    boundary_layer_param = openapi.Parameter(
+        'layer_id',
         openapi.IN_PATH,
-        description="A unique character ID to identify Administrative Layer records.",
+        description="A unique character ID to identify Boundary Layer records.",
         required=True,
         type=openapi.TYPE_STRING,
         format=openapi.FORMAT_SLUG,
-        enum=AVAILABLE_ADMINLAYERS if len(AVAILABLE_ADMINLAYERS) > 0 else None)
+        enum=AVAILABLE_BOUNDARY_LAYERS if len(AVAILABLE_BOUNDARY_LAYERS) > 0 else None)
 
-    admin_unit_param = openapi.Parameter(
-        'admin_unit',
+    boundary_feature_param = openapi.Parameter(
+        'feature_id',
         openapi.IN_PATH,
-        description="Administrative Unit Code.",
+        description="Boundary Feature ID.",
         # required=True,
         type=openapi.TYPE_INTEGER
     )
@@ -239,15 +239,15 @@ class GraphicsViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         operation_id="graphic",
         manual_parameters=[
-            product_param, date_param, cropmask_param, adminlayer_param,
-            admin_unit_param, anomaly_param, anomaly_type_param,
+            product_param, date_param, cropmask_param, boundary_layer_param,
+            boundary_feature_param, anomaly_param, anomaly_type_param,
             diff_year_param, label_param, legend_param, size_param]
     )
-    def admin_graphic(self, request, product_id: str = None, date: str = None,
-                      cropmask_id: str = None, adminlayer_id: str = None,
-                      admin_unit: int = None):
+    def boundary_feature_graphic(self, request, product_id: str = None, date: str = None,
+                                 cropmask_id: str = None, layer_id: str = None,
+                                 feature_id: int = None):
         """
-        Generate static image for given administrative unit/area.
+        Generate static image for given boundary feature.
         """
         BLUE = '#97b6e1'
         GRAY = '#999999'
@@ -268,27 +268,29 @@ class GraphicsViewSet(viewsets.ViewSet):
         figsize = get_fig_size(size)
 
         product = Product.objects.get(product_id=product_id)
-        product_datasets = ProductDataset.objects.filter(product=product)
+        product_datasets = ProductRaster.objects.filter(product=product)
         product_ds = get_object_or_404(product_datasets, date=date)
         product_scale = product.variable.scale
         if anomaly_type:
-            product_variable = product.variable.en_display_name + ' Anomaly'
+            product_variable = product.variable.display_name + ' Anomaly'
         else:
-            product_variable = product.variable.en_display_name
+            product_variable = product.variable.display_name
 
         def tick_formatter(x, pos):
             t = '{:g}'.format(x * product_scale)
             return t
         formatter = tkr.FuncFormatter(tick_formatter)
 
-        layer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-        admin_units = AdminUnit.objects.filter(admin_layer=layer)
-        admin = get_object_or_404(admin_units, admin_unit_id=admin_unit)
-        admin_name = admin.admin_unit_name
+        boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+        boundary_features = BoundaryFeature.objects.filter(
+            boundary_layer=boundary_layer)
+        boundary_feature = get_object_or_404(
+            boundary_features, feature_id=feature_id)
+        boundary_feature_name = boundary_feature.feature_name
 
-        # extent=admin.geom.extent
-        extent = [admin.geom.extent[0], admin.geom.extent[2],
-                  admin.geom.extent[1], admin.geom.extent[3]]
+        # extent=boundary_feature.geom.extent
+        extent = [boundary_feature.geom.extent[0], boundary_feature.geom.extent[2],
+                  boundary_feature.geom.extent[1], boundary_feature.geom.extent[3]]
         scale = scale_from_extent(extent)
 
         if scale == 'f':
@@ -298,10 +300,11 @@ class GraphicsViewSet(viewsets.ViewSet):
         else:
             scale_factor = 0.01
 
-        admin_geom = admin.geom.simplify(scale_factor)
+        boundary_feature_geom = boundary_feature.geom.simplify(scale_factor)
 
         with COGReader(product_ds.file_object.url) as image:
-            feat = image.feature(json.loads(admin_geom.geojson), max_size=1024)
+            feat = image.feature(json.loads(
+                boundary_feature_geom.geojson), max_size=1024)
 
         image = feat.as_masked()
 
@@ -311,7 +314,7 @@ class GraphicsViewSet(viewsets.ViewSet):
             if anom_type == 'diff':
                 new_year = diff_year
                 new_date = product_ds.date.replace(year=new_year)
-                anomaly_queryset = ProductDataset.objects.filter(
+                anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
                 closest = get_closest_to_dt(anomaly_queryset, new_date)
                 try:
@@ -329,7 +332,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                     doy = swi_baselines[idx]
                 if product_id == 'chirps':
                     doy = int(str(date.month)+f'{date.day:02d}')
-                anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                anomaly_queryset = AnomalyBaselineRaster.objects.all()
                 anomaly_ds = get_object_or_404(
                     anomaly_queryset,
                     product=product,
@@ -339,13 +342,13 @@ class GraphicsViewSet(viewsets.ViewSet):
 
             with COGReader(anomaly_ds.file_object.url) as anom_img:
                 anom_feat = anom_img.feature(
-                    json.loads(admin_geom.geojson), max_size=1024)
+                    json.loads(boundary_feature_geom.geojson), max_size=1024)
 
             image = image - anom_feat.as_masked()
 
-        if cropmask_id != 'none':
+        if cropmask_id != 'no-mask':
             mask = CropMask.objects.get(cropmask_id=cropmask_id)
-            mask_queryset = MaskDataset.objects.all()
+            mask_queryset = CropmaskRaster.objects.all()
             mask_ds = get_object_or_404(
                 mask_queryset,
                 product__product_id=product_id,
@@ -353,18 +356,19 @@ class GraphicsViewSet(viewsets.ViewSet):
 
             with COGReader(mask_ds.file_object.url) as mask_img:
                 mask_feat = mask_img.feature(
-                    json.loads(admin_geom.geojson), max_size=1024)
+                    json.loads(boundary_feature_geom.geojson), max_size=1024)
 
             image = image * mask_feat.as_masked()
 
-        admin_buffer = wkt.loads(admin_geom.buffer(.5).wkt)
-        admin_geom = wkt.loads(admin_geom.wkt)
+        boundary_feature_buffer = wkt.loads(
+            boundary_feature_geom.buffer(.5).wkt)
+        boundary_feature_geom = wkt.loads(boundary_feature_geom.wkt)
 
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(1, 1, 1, frameon=False)
 
         # set wider extent
-        x1, y1, x2, y2 = admin_buffer.bounds
+        x1, y1, x2, y2 = boundary_feature_buffer.bounds
         ax.set_xlim([x1, x2])
         ax.set_ylim([y1, y2])
 
@@ -372,8 +376,8 @@ class GraphicsViewSet(viewsets.ViewSet):
         ax.axes.xaxis.set_visible(False)
         ax.axes.yaxis.set_visible(False)
 
-        extent = [admin_geom.bounds[0], admin_geom.bounds[2],
-                  admin_geom.bounds[1], admin_geom.bounds[3]]
+        extent = [boundary_feature_geom.bounds[0], boundary_feature_geom.bounds[2],
+                  boundary_feature_geom.bounds[1], boundary_feature_geom.bounds[3]]
         # scale = scale_from_extent(extent)
 
         colormap = product.meta['graphic_anomaly'] if anomaly else product.meta['graphic_colormap']
@@ -415,26 +419,26 @@ class GraphicsViewSet(viewsets.ViewSet):
 
         ax.set_facecolor(BLUE)
 
-        # add admin features
-        if adminlayer_id == 'gaul0':
+        # add boundary features
+        if layer_id == 'gaul0':
             ne = 'natural-earth-admin-0'
         else:
             ne = 'natural-earth-admin-1'
 
         if scale == 'c':
-            admin_intersects = AdminUnit.objects.filter(
-                admin_layer__adminlayer_id=ne, geom__intersects=admin.geom.envelope)
+            feature_intersects = BoundaryFeature.objects.filter(
+                boundary_layer__layer_id=ne, geom__intersects=boundary_feature.geom.envelope)
         else:
-            admin_intersects = AdminUnit.objects.filter(
-                admin_layer__adminlayer_id=ne, geom__intersects=admin.geom.envelope.buffer(1))
+            feature_intersects = BoundaryFeature.objects.filter(
+                boundary_layer__layer_id=ne, geom__intersects=boundary_feature.geom.envelope.buffer(1))
 
-        if not adminlayer_id.startswith('gaul'):
-            additional_admins = AdminUnit.objects.filter(
-                admin_layer__adminlayer_id=adminlayer_id, geom__intersects=admin.geom.envelope.buffer(1))
-            admin_intersects = admin_intersects | additional_admins
+        if not layer_id.startswith('gaul'):
+            additional_features = BoundaryFeature.objects.filter(
+                boundary_layer__layer_id=layer_id, geom__intersects=boundary_feature.geom.envelope.buffer(1))
+            feature_intersects = feature_intersects | additional_features
 
-        for admin in admin_intersects:
-            wktgeom = wkt.loads(admin.geom.simplify(scale_factor).wkt)
+        for feature in feature_intersects:
+            wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
             try:
                 patch = PolygonPatch(
                     wktgeom, fc=land, ec='black', linestyle=':', alpha=1, zorder=0)
@@ -442,18 +446,18 @@ class GraphicsViewSet(viewsets.ViewSet):
                 pass
             ax.add_patch(patch)
 
-        admin_fill = PolygonPatch(
-            admin_geom, fc=GRAY, linewidth=0, alpha=.5, zorder=0.5)
-        admin_border = PolygonPatch(
-            admin_geom, color='black', linewidth=1.5, fill=False, alpha=1, zorder=2)
-        ax.add_patch(admin_border)
-        ax.add_patch(admin_fill)
+        feature_fill = PolygonPatch(
+            boundary_feature_geom, fc=GRAY, linewidth=0, alpha=.5, zorder=0.5)
+        feature_border = PolygonPatch(
+            boundary_feature_geom, color='black', linewidth=1.5, fill=False, alpha=1, zorder=2)
+        ax.add_patch(feature_border)
+        ax.add_patch(feature_fill)
 
         if label:
-            admin_label = f'Region: {str(admin_name)}'
+            feature_label = f'Region: {str(boundary_feature_name)}'
             date_label = f'\nDate: {str(date)}'
-            product_label = f'\nProduct: {str(product.en_display_name)}'
-            cropmask_label = f'\nCrop Mask: {str(mask.en_display_name)}' if cropmask_id != 'none' else ''
+            product_label = f'\nProduct: {str(product.display_name)}'
+            cropmask_label = f'\nCrop Mask: {str(mask.display_name)}' if cropmask_id != 'no-mask' else ''
 
             if anomaly_type == 'diff':
                 anomaly_label = f'\nAnomaly: Difference Image vs. {diff_year}'
@@ -465,7 +469,7 @@ class GraphicsViewSet(viewsets.ViewSet):
             anomaly_duration = f' - {anomaly}' if anomaly else ''
             # anomaly_diff = f'{}'
 
-            label = admin_label + date_label + product_label + \
+            label = feature_label + date_label + product_label + \
                 anomaly_label + anomaly_duration + \
                 cropmask_label
 
@@ -511,7 +515,7 @@ class GraphicsViewSet(viewsets.ViewSet):
         request_body=GraphicBodySerializer,
         # responses={200: resp_200}
     )
-    def custom_graphic(self, request):
+    def custom_feature_graphic(self, request):
         """
         Generate static image for custom geometry.
         """
@@ -531,7 +535,7 @@ class GraphicsViewSet(viewsets.ViewSet):
             anomaly = data.get('anomaly', None)
             anomaly_type = data.get('anomaly_type', None)
             diff_year = data.get('diff_year', None)
-            cropmask_id = data.get('cropmask_id', 'none')
+            cropmask_id = data.get('cropmask_id', 'no-mask')
 
             label = data.get('label', True)
             legend = data.get('legend', True)
@@ -539,13 +543,13 @@ class GraphicsViewSet(viewsets.ViewSet):
             figsize = get_fig_size(size)
 
             product = Product.objects.get(product_id=product_id)
-            product_datasets = ProductDataset.objects.filter(product=product)
+            product_datasets = ProductRaster.objects.filter(product=product)
             product_ds = get_object_or_404(product_datasets, date=date)
             product_scale = product.variable.scale
             if anomaly_type:
-                product_variable = product.variable.en_display_name + ' Anomaly'
+                product_variable = product.variable.display_name + ' Anomaly'
             else:
-                product_variable = product.variable.en_display_name
+                product_variable = product.variable.display_name
 
             def tick_formatter(x, pos):
                 t = '{:g}'.format(x * product_scale)
@@ -554,16 +558,16 @@ class GraphicsViewSet(viewsets.ViewSet):
 
             if geom['geometry']['type'] == 'Polygon' or geom['geometry']['type'] == 'MultiPolygon':
 
-                # layer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-                # admin_units = AdminUnit.objects.filter(admin_layer=layer)
-                # admin = get_object_or_404(admin_units, admin_unit_id=admin_unit)
-                # admin_name = admin.admin_unit_name
+                # boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+                # boundary_features = BoundaryFeature.objects.filter(boundary_layer=boundary_layer)
+                # boundary_feature = get_object_or_404(boundary_features, feature_id=feature_id)
+                # boundary_feature_name = boundary_feature.feature_name
                 geometry = shape(geom['geometry'])
-                admin_buffer = wkt.loads(geometry.buffer(.5).wkt)
-                admin_geom = wkt.loads(geometry.wkt)
+                feature_buffer = wkt.loads(geometry.buffer(.5).wkt)
+                feature_geom = wkt.loads(geometry.wkt)
 
-                extent = [admin_geom.bounds[0], admin_geom.bounds[2],
-                          admin_geom.bounds[1], admin_geom.bounds[3]]
+                extent = [feature_geom.bounds[0], feature_geom.bounds[2],
+                          feature_geom.bounds[1], feature_geom.bounds[3]]
                 scale = scale_from_extent(extent)
 
                 if scale == 'f':
@@ -572,8 +576,6 @@ class GraphicsViewSet(viewsets.ViewSet):
                     scale_factor = 0.1
                 else:
                     scale_factor = 0.01
-
-                # # admin_geom = admin.geom.simplify(scale_factor)
 
                 with COGReader(product_ds.file_object.url) as image:
                     feat = image.feature(geom, max_size=1024)
@@ -586,7 +588,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                     if anom_type == 'diff':
                         new_year = diff_year
                         new_date = product_ds.date.replace(year=new_year)
-                        anomaly_queryset = ProductDataset.objects.filter(
+                        anomaly_queryset = ProductRaster.objects.filter(
                             product__product_id=product_id)
                         closest = get_closest_to_dt(anomaly_queryset, new_date)
 
@@ -605,7 +607,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                             doy = swi_baselines[idx]
                         if product_id == 'chirps':
                             doy = int(str(date.month)+f'{date.day:02d}')
-                        anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
                         anomaly_ds = get_object_or_404(
                             anomaly_queryset,
                             product=product,
@@ -618,9 +620,9 @@ class GraphicsViewSet(viewsets.ViewSet):
 
                     image = image - anom_feat.as_masked()
 
-                if cropmask_id != 'none':
+                if cropmask_id != 'no-mask':
                     mask = CropMask.objects.get(cropmask_id=cropmask_id)
-                    mask_queryset = MaskDataset.objects.all()
+                    mask_queryset = CropmaskRaster.objects.all()
                     mask_ds = get_object_or_404(
                         mask_queryset,
                         product__product_id=product_id,
@@ -631,14 +633,14 @@ class GraphicsViewSet(viewsets.ViewSet):
 
                     image = image * mask_feat.as_masked()
 
-                # admin_buffer = wkt.loads(geometry.buffer(.5).wkt)
-                # admin_geom = wkt.loads(geometry.wkt)
+                # feature_buffer = wkt.loads(geometry.buffer(.5).wkt)
+                # feature_geom = wkt.loads(geometry.wkt)
 
                 fig = plt.figure(figsize=figsize)
                 ax = fig.add_subplot(1, 1, 1, frameon=False)
 
                 # # set wider extent
-                x1, y1, x2, y2 = admin_buffer.bounds
+                x1, y1, x2, y2 = feature_buffer.bounds
                 ax.set_xlim([x1, x2])
                 ax.set_ylim([y1, y2])
 
@@ -646,8 +648,8 @@ class GraphicsViewSet(viewsets.ViewSet):
                 ax.axes.xaxis.set_visible(False)
                 ax.axes.yaxis.set_visible(False)
 
-                extent = [admin_geom.bounds[0], admin_geom.bounds[2],
-                          admin_geom.bounds[1], admin_geom.bounds[3]]
+                extent = [feature_geom.bounds[0], feature_geom.bounds[2],
+                          feature_geom.bounds[1], feature_geom.bounds[3]]
                 # # scale = scale_from_extent(extent)
 
                 colormap = product.meta['graphic_anomaly'] if anomaly else product.meta['graphic_colormap']
@@ -687,21 +689,22 @@ class GraphicsViewSet(viewsets.ViewSet):
                 image = ax.imshow(
                     image[0], extent=extent, cmap=colormap, vmin=stretch[0], vmax=stretch[1], zorder=1)
 
-                # # add admin features
+                # add boundary features
                 if scale != 'c':
                     ne = 'natural-earth-admin-1'
                 else:
                     ne = 'natural-earth-admin-0'
 
                 if scale == 'c':
-                    admin_intersects = AdminUnit.objects.filter(
-                        admin_layer__adminlayer_id=ne, geom__intersects=GEOSGeometry(geometry.wkt).envelope)
+                    feature_intersects = BoundaryFeature.objects.filter(
+                        boudary_layer__layer_id=ne, geom__intersects=GEOSGeometry(geometry.wkt).envelope)
                 else:
-                    admin_intersects = AdminUnit.objects.filter(
-                        admin_layer__adminlayer_id=ne, geom__intersects=GEOSGeometry(geometry.wkt).envelope.buffer(1))
+                    feature_intersects = BoundaryFeature.objects.filter(
+                        boudary_layer__layer_id=ne, geom__intersects=GEOSGeometry(geometry.wkt).envelope.buffer(1))
 
-                for admin in admin_intersects:
-                    wktgeom = wkt.loads(admin.geom.simplify(scale_factor).wkt)
+                for feature in feature_intersects:
+                    wktgeom = wkt.loads(
+                        feature.geom.simplify(scale_factor).wkt)
                     try:
                         patch = PolygonPatch(
                             wktgeom, fc=land, ec='black', linestyle=':', alpha=1, zorder=0)
@@ -709,18 +712,18 @@ class GraphicsViewSet(viewsets.ViewSet):
                         pass
                     ax.add_patch(patch)
 
-                admin_fill = PolygonPatch(
-                    admin_geom, fc=GRAY, linewidth=0, alpha=.5, zorder=0.5)
-                admin_border = PolygonPatch(
-                    admin_geom, color='black', linewidth=1.5, fill=False, alpha=1, zorder=2)
-                ax.add_patch(admin_border)
-                ax.add_patch(admin_fill)
+                feature_fill = PolygonPatch(
+                    feature_geom, fc=GRAY, linewidth=0, alpha=.5, zorder=0.5)
+                feature_border = PolygonPatch(
+                    feature_geom, color='black', linewidth=1.5, fill=False, alpha=1, zorder=2)
+                ax.add_patch(feature_border)
+                ax.add_patch(feature_fill)
 
                 if label:
-                    admin_label = f'Region: Custom Geometry'
+                    feature_label = f'Region: Custom Geometry'
                     date_label = f'\nDate: {str(date)}'
-                    product_label = f'\nProduct: {str(product.en_display_name)}'
-                    cropmask_label = f'\nCrop Mask: {str(mask.en_display_name)}' if cropmask_id != 'none' else ''
+                    product_label = f'\nProduct: {str(product.display_name)}'
+                    cropmask_label = f'\nCrop Mask: {str(mask.display_name)}' if cropmask_id != 'no-mask' else ''
 
                     if anomaly_type == 'diff':
                         anomaly_label = f'\nAnomaly: Difference Image vs. {diff_year}'
@@ -732,7 +735,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                     anomaly_duration = f' - {anomaly}' if anomaly else ''
                     # anomaly_diff = f'{}'
 
-                    label = admin_label + date_label + product_label + \
+                    label = feature_label + date_label + product_label + \
                         anomaly_label + anomaly_duration + \
                         cropmask_label
 

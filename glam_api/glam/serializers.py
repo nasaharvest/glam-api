@@ -3,10 +3,9 @@ from rest_framework import serializers
 from rest_pandas.serializers import PandasSerializer
 
 from .utils.cmaps import AVAILABLE_CMAPS
-from .mixins import DatasetStatsHyperlinkedRelatedField
-from .models import (DataSource, ImageExport, Product, ProductDataset,
-                     CropMask, AdminLayer, Tag, Variable, Colormap,
-                     AnomalyBaselineDataset, ZonalStats, AdminUnit,
+from .models import (DataSource, ImageExport, Product, ProductRaster,
+                     CropMask, BoundaryLayer, Tag, Variable, Colormap,
+                     AnomalyBaselineRaster, ZonalStats, BoundaryFeature,
                      Announcement)
 
 
@@ -16,26 +15,26 @@ class TagSerializer(serializers.ModelSerializer):
         fields = ['name']
 
 
-class AdminLayerSerializer(serializers.HyperlinkedModelSerializer):
+class BoundaryLayerSerializer(serializers.HyperlinkedModelSerializer):
     tags = serializers.StringRelatedField(many=True)
-    # source = serializers.HyperlinkedRelatedField(
-    #     view_name='datasource-detail',
-    #     lookup_field='source_id',
-    #     read_only=True)
+    source = serializers.HyperlinkedRelatedField(
+        view_name='datasource-detail',
+        lookup_field='source_id',
+        read_only=True)
 
     class Meta:
-        model = AdminLayer
+        model = BoundaryLayer
         fields = [
-            'adminlayer_id', 'display_name', 'desc', 'tags', 'meta',
-            'source', 'admin_units', 'date_created', 'date_added'
+            'layer_id', 'display_name', 'desc', 'meta', 'source', 'features',
+            'vector_file', 'date_created', 'date_added', 'tags'
         ]
 
 
-class AdminUnitSerializer(serializers.ModelSerializer):
+class BoundaryFeatureSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = AdminUnit
-        fields = ['admin_unit_id', 'admin_unit_name']
+        model = BoundaryFeature
+        fields = ['feature_id', 'feature_name']
 
 
 class ColormapSerializer(serializers.ModelSerializer):
@@ -44,7 +43,7 @@ class ColormapSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Colormap
-        fields = ['name', 'desc', 'colormap_type']
+        fields = ['name', 'colormap_type']
 
 
 class GetColormapSerializer(serializers.Serializer):
@@ -68,12 +67,12 @@ class GetColormapSerializer(serializers.Serializer):
 
 
 class CropMaskSerializer(serializers.HyperlinkedModelSerializer):
-    # crop_type = serializers.StringRelatedField()
-    # source = serializers.HyperlinkedRelatedField(
-    #     view_name='datasource-detail',
-    #     lookup_field='source_id',
-    #     read_only=True)
-    # tags = serializers.StringRelatedField(many=True)
+    crop_type = serializers.StringRelatedField()
+    source = serializers.HyperlinkedRelatedField(
+        view_name='datasource-detail',
+        lookup_field='source_id',
+        read_only=True)
+    tags = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = CropMask
@@ -86,12 +85,10 @@ class CropMaskSerializer(serializers.HyperlinkedModelSerializer):
 class DatasetSerializer(serializers.ModelSerializer):
     product_id = serializers.StringRelatedField(
         source='product')
-    # dataset_stats = DatasetStatsHyperlinkedRelatedField(
-    #     source='raster_stats')
 
     class Meta:
-        model = ProductDataset
-        fields = ['id', 'product_id', 'date', 'meta']
+        model = ProductRaster
+        fields = ['id', 'product_id', 'date', 'prelim', 'meta']
 
 
 class PointValueSerializer(serializers.Serializer):
@@ -100,9 +97,9 @@ class PointValueSerializer(serializers.Serializer):
     ANOMALY_TYPE_CHOICES = list()
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -163,9 +160,9 @@ class FeatureBodySerializer(serializers.Serializer):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -258,9 +255,9 @@ class GraphicBodySerializer(serializers.Serializer):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -363,9 +360,9 @@ class HistogramBodySerializer(serializers.Serializer):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
     except:
         pass
@@ -468,9 +465,9 @@ class HistogramGETSerializer(serializers.Serializer):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
     except:
         pass
@@ -627,9 +624,9 @@ class GraphicSerializer(serializers.Serializer):
     SIZE_CHOICES = ['tiny', 'small', 'regular', 'large', 'xlarge']
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -659,15 +656,40 @@ class GraphicSerializer(serializers.Serializer):
         allow_null=True)
 
 
-class FeatureAdminSerializer(serializers.Serializer):
+class ExtractBoundaryFeatureSerializer(serializers.Serializer):
     ANOMALY_LENGTH_CHOICES = list()
     ANOMALY_TYPE_CHOICES = list()
     SIZE_CHOICES = ['tiny', 'small', 'regular', 'large', 'xlarge']
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
+            ANOMALY_TYPE_CHOICES.append(type[0])
+        ANOMALY_TYPE_CHOICES.append('diff')
+    except:
+        pass
+
+    anomaly = serializers.ChoiceField(
+        choices=ANOMALY_LENGTH_CHOICES,
+        required=False)
+    anomaly_type = serializers.ChoiceField(
+        choices=ANOMALY_TYPE_CHOICES,
+        required=False)
+    diff_year = serializers.IntegerField(
+        required=False
+    )
+
+
+class ExportBoundaryFeatureSerializer(serializers.Serializer):
+    ANOMALY_LENGTH_CHOICES = list()
+    ANOMALY_TYPE_CHOICES = list()
+    SIZE_CHOICES = ['tiny', 'small', 'regular', 'large', 'xlarge']
+
+    try:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
+            ANOMALY_LENGTH_CHOICES.append(length[0])
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -697,9 +719,9 @@ class TilesSerializer(serializers.Serializer):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -744,7 +766,7 @@ class SourceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = DataSource
         fields = [
-            'source_id', 'tags', 'display_name', 'desc', 'link', 'logo'
+            'source_id', 'display_name', 'desc', 'link', 'logo', 'tags'
         ]
 
 
@@ -760,26 +782,26 @@ class VariableSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ZStatsSerializer(serializers.ModelSerializer):
-    admin_unit = serializers.IntegerField(source='admin_unit_id')
+    feature_id = serializers.IntegerField(source='feature_id')
     # mean_value = serializers.FloatField(source='value')
     mean_value = serializers.SerializerMethodField(method_name='get_value')
 
     class Meta:
         model = ZonalStats
         fields = [
-            'admin_unit', 'date', 'arable_pixels', 'percent_arable',
+            'feature_id', 'date', 'arable_pixels', 'percent_arable',
             'mean_value'
         ]
 
     def get_value(self, obj):
-        scale = obj.product_dataset.product.variable.scale
+        scale = obj.product_raster.product.variable.scale
         value = obj.mean_value
 
         return scale * value
 
 
 class ZStatsPandasSerializer(serializers.ModelSerializer):
-    admin_unit = serializers.IntegerField(source='admin_unit_id')
+    # feature_id = serializers.IntegerField(source='feature_id')
     # mean_value = serializers.FloatField(source='value')
     mean_value = serializers.SerializerMethodField(method_name='get_value')
 
@@ -787,12 +809,12 @@ class ZStatsPandasSerializer(serializers.ModelSerializer):
         model = ZonalStats
         list_serializer_class = PandasSerializer
         fields = [
-            'admin_unit', 'date', 'arable_pixels', 'percent_arable',
+            'feature_id', 'date', 'arable_pixels', 'percent_arable',
             'mean_value'
         ]
 
     def get_value(self, obj):
-        scale = obj.product_dataset.product.variable.scale
+        scale = obj.product_raster.product.variable.scale
         value = obj.mean_value
 
         return scale * value

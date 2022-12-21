@@ -1,6 +1,6 @@
 from modeltranslation.translator import translator, TranslationOptions
 from .models import (Announcement, DataSource, Variable,
-                     Product, CropMask, AdminLayer)
+                     Product, CropMask, BoundaryLayer)
 
 # for Announcement model
 
@@ -25,7 +25,7 @@ class CropMaskTranslationOptions(TranslationOptions):
     fields = ['display_name', 'desc']
 
 
-class AdminLayerTranslationOptions(TranslationOptions):
+class BoundaryLayerTranslationOptions(TranslationOptions):
     fields = ['display_name', 'desc']
 
 
@@ -34,4 +34,4 @@ translator.register(DataSource, DataSourceTranslationOptions)
 translator.register(Variable, VariableTranslationOptions)
 translator.register(Product, ProductTranslationOptions)
 translator.register(CropMask, CropMaskTranslationOptions)
-translator.register(AdminLayer, AdminLayerTranslationOptions)
+translator.register(BoundaryLayer, BoundaryLayerTranslationOptions)

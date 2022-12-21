@@ -24,7 +24,7 @@ from affine import Affine
 import pyproj
 from pyproj import CRS
 
-from ..models import (ProductDataset, ImageExport)
+from ..models import (ProductRaster, ImageExport)
 
 
 def image_export(export_id, data):
@@ -36,10 +36,10 @@ def image_export(export_id, data):
     anomaly_type = data.get('anomaly_type', None)
     diff_year = data.get('diff_year', None)
     cropmask = data.get('cropmask_id', None)
-    if cropmask == 'none':
+    if cropmask == 'no-mask':
         cropmask = None
 
-    product_queryset = ProductDataset.objects.filter(
+    product_queryset = ProductRaster.objects.filter(
         product__product_id=product_id
     )
     product_dataset = get_object_or_404(
@@ -105,7 +105,7 @@ def upload_export(task):
     with open(filename, 'rb') as f:
         export.file_object = File(f, name=os.path.basename(f.name))
         export.save()
-    
+
     export = ImageExport.objects.get(id=export_id)
-    export.completed=datetime.datetime.now()
+    export.completed = datetime.datetime.now()
     export.save()

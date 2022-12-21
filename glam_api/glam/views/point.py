@@ -12,10 +12,11 @@ from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
-from ..models import (Product, ProductDataset, 
-                      AnomalyBaselineDataset, CropMask, MaskDataset)
-from ..serializers import (PointValueSerializer, 
+from ..models import (Product, ProductRaster,
+                      AnomalyBaselineRaster, CropMask, CropmaskRaster)
+from ..serializers import (PointValueSerializer,
                            PointResponseSerializer)
+
 
 def get_closest_to_dt(qs, dt):
     greater = qs.filter(date__gte=dt).order_by("date").first()
@@ -25,6 +26,7 @@ def get_closest_to_dt(qs, dt):
         return greater if abs(greater.date - dt) < abs(less.date - dt) else less
     else:
         return greater or less
+
 
 class PointValue(viewsets.ViewSet):
 
@@ -48,9 +50,9 @@ class PointValue(viewsets.ViewSet):
         pass
 
     try:
-        for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+        for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
             ANOMALY_LENGTH_CHOICES.append(length[0])
-        for type in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+        for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append('diff')
     except:
@@ -87,7 +89,7 @@ class PointValue(viewsets.ViewSet):
         description="Latitude (y) in Decimal Degrees",
         type=openapi.TYPE_NUMBER,
         format=openapi.FORMAT_FLOAT)
-    
+
     cropmask_param = openapi.Parameter(
         'cropmask_id',
         openapi.IN_QUERY,
@@ -110,7 +112,7 @@ class PointValue(viewsets.ViewSet):
         description="String representing anomaly type",
         type=openapi.TYPE_STRING,
         enum=ANOMALY_TYPE_CHOICES if len(ANOMALY_TYPE_CHOICES) > 0 else None)
-    
+
     diff_year_param = openapi.Parameter(
         'diff_year',
         openapi.IN_QUERY,
@@ -123,7 +125,6 @@ class PointValue(viewsets.ViewSet):
         examples={'application/json': {'value': 69.420}}
     )
 
-
     @swagger_auto_schema(
         manual_parameters=[product_param, date_param, lon_param, lat_param,
                            cropmask_param, anomaly_param, anomaly_type_param,
@@ -131,19 +132,18 @@ class PointValue(viewsets.ViewSet):
         operation_id="get point value",
         responses={200: resp_200})
     def retrieve(
-            self, request, product_id: str = None, date: str = None, 
+            self, request, product_id: str = None, date: str = None,
             lat: float = None, lon: float = None, cropmask_id: str = None,
             anomaly: str = None, anomaly_type: str = None):
-        
         """
         Return pixel value for specified coordinates and dataset parameters.
         """
 
-        product_queryset = ProductDataset.objects.filter(
+        product_queryset = ProductRaster.objects.filter(
             product__product_id=product_id
         )
         product_dataset = get_object_or_404(
-            product_queryset,  
+            product_queryset,
             date=date
         )
 
@@ -155,9 +155,9 @@ class PointValue(viewsets.ViewSet):
         anomaly_type = data.get('anomaly_type', None)
         diff_year = data.get('diff_year', None)
         cropmask = data.get('cropmask_id', None)
-        if cropmask == 'none':
+        if cropmask == 'no-mask':
             cropmask = None
-       
+
         if not settings.USE_S3_RASTERS:
             path = product_dataset.file_object.path
         if settings.USE_S3_RASTERS:
@@ -165,33 +165,33 @@ class PointValue(viewsets.ViewSet):
 
         dataset_value = None
 
-        if cropmask:            
-            mask_queryset = MaskDataset.objects.all()
+        if cropmask:
+            mask_queryset = CropmaskRaster.objects.all()
             mask_dataset = get_object_or_404(
                 mask_queryset,
-                product__product_id=product_id, 
+                product__product_id=product_id,
                 crop_mask__cropmask_id=cropmask)
-            
+
             if not settings.USE_S3_RASTERS:
                 mask_path = mask_dataset.file_object.path
             if settings.USE_S3_RASTERS:
                 mask_path = mask_dataset.file_object.url
 
             with COGReader(mask_path) as src:
-                mask_data = src.point(lon,lat)
+                mask_data = src.point(lon, lat)
 
         with COGReader(path) as src:
-            data = src.point(lon,lat)
+            data = src.point(lon, lat)
             if data[0] == src.nodata:
-                dataset_value = None      
-                result = {'value': 'No Data'}  
+                dataset_value = None
+                result = {'value': 'No Data'}
                 return Response(result)
             else:
                 if cropmask:
                     data = (mask_data[0] * data[0])
                 else:
                     data = data[0]
-                dataset_value = data 
+                dataset_value = data
 
         if anomaly_type:
             anom_type = anomaly_type if anomaly_type else 'mean'
@@ -199,12 +199,12 @@ class PointValue(viewsets.ViewSet):
             if anom_type == 'diff':
                 new_year = diff_year
                 new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductDataset.objects.filter(
+                anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
                 closest = get_closest_to_dt(anomaly_queryset, new_date)
                 try:
                     anomaly_dataset = get_object_or_404(
-                        product_queryset,  
+                        product_queryset,
                         date=new_date)
                 except:
                     anomaly_dataset = closest
@@ -212,11 +212,11 @@ class PointValue(viewsets.ViewSet):
                 doy = product_dataset.date.timetuple().tm_yday
                 if product_id == 'swi':
                     swi_baselines = np.arange(1, 366, 5)
-                    idx = (np.abs(swi_baselines - doy)).argmin() 
+                    idx = (np.abs(swi_baselines - doy)).argmin()
                     doy = swi_baselines[idx]
                 if product_id == 'chirps':
                     doy = int(str(date.month)+f'{date.day:02d}')
-                anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                anomaly_queryset = AnomalyBaselineRaster.objects.all()
                 anomaly_dataset = get_object_or_404(
                     anomaly_queryset,
                     product__product_id=product_id,
@@ -224,7 +224,6 @@ class PointValue(viewsets.ViewSet):
                     baseline_length=anomaly,
                     baseline_type=anom_type,
                 )
-                
 
             if not settings.USE_S3_RASTERS:
                 baseline_path = anomaly_dataset.file_object.path
@@ -232,7 +231,7 @@ class PointValue(viewsets.ViewSet):
                 baseline_path = anomaly_dataset.file_object.url
 
             with COGReader(baseline_path) as baseline_img:
-                baseline_data = baseline_img.point(lon,lat)
+                baseline_data = baseline_img.point(lon, lat)
 
                 if baseline_data[0] == baseline_img.nodata:
                     result = {'value': 'No Data'}
@@ -241,15 +240,17 @@ class PointValue(viewsets.ViewSet):
                         baseline_value = (mask_data[0] * baseline_data[0])
                     else:
                         baseline_value = baseline_data[0]
-                    diff = dataset_value - baseline_value     
-                    result = {'value': float(Decimal(str(diff)) * Decimal(str(product_dataset.product.variable.scale)))}         
+                    diff = dataset_value - baseline_value
+                    result = {'value': float(
+                        Decimal(str(diff)) * Decimal(str(product_dataset.product.variable.scale)))}
 
             return Response(result)
 
-        else: 
-            if dataset_value: 
-                result = {'value': float(Decimal(str(dataset_value)) * Decimal(str(product_dataset.product.variable.scale)))} 
+        else:
+            if dataset_value:
+                result = {'value': float(Decimal(
+                    str(dataset_value)) * Decimal(str(product_dataset.product.variable.scale)))}
             else:
-                result = {'value': 'No Data'}                   
+                result = {'value': 'No Data'}
 
             return Response(result)

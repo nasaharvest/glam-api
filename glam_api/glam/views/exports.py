@@ -20,13 +20,12 @@ from drf_yasg import openapi
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
-from ..models import (Product, ProductDataset, CropMask,
-                      MaskDataset, AdminUnit, AdminLayer,
-                      AnomalyBaselineDataset, DataSource,
+from ..models import (Product, ProductRaster, CropMask,
+                      CropmaskRaster, BoundaryLayer, BoundaryFeature,
+                      AnomalyBaselineRaster, DataSource,
                       ImageExport)
 from ..serializers import (ExportBodySerializer, ExportSerializer,
-                           FeatureResponseSerializer,
-                           FeatureAdminSerializer)
+                           ExportBoundaryFeatureSerializer)
 
 
 def get_closest_to_dt(qs, dt):
@@ -41,7 +40,7 @@ def get_closest_to_dt(qs, dt):
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
-AVAILABLE_ADMINLAYERS = list()
+AVAILABLE_BOUNDARY_LAYERS = list()
 ANOMALY_LENGTH_CHOICES = list()
 ANOMALY_TYPE_CHOICES = list()
 
@@ -60,16 +59,16 @@ except:
     pass
 
 try:
-    adminlayers = AdminLayer.objects.all()
-    for a in adminlayers:
-        AVAILABLE_ADMINLAYERS.append(a.adminlayer_id)
+    boundary_layers = BoundaryLayer.objects.all()
+    for b in boundary_layers:
+        AVAILABLE_BOUNDARY_LAYERS.append(b.layer_id)
 except:
     pass
 
 try:
-    for length in AnomalyBaselineDataset.BASELINE_LENGTH_CHOICES:
+    for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
         ANOMALY_LENGTH_CHOICES.append(length[0])
-    for t in AnomalyBaselineDataset.BASELINE_TYPE_CHOICES:
+    for t in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
         ANOMALY_TYPE_CHOICES.append(t[0])
     ANOMALY_TYPE_CHOICES.append('diff')
 except:
@@ -95,19 +94,19 @@ class ImageExportViewSet(viewsets.ViewSet):
         type=openapi.TYPE_STRING,
         format=openapi.FORMAT_DATE)
 
-    adminlayer_param = openapi.Parameter(
-        'adminlayer_id',
+    boundary_layer_param = openapi.Parameter(
+        'layer_id',
         openapi.IN_PATH,
-        description="A unique character ID to identify Administrative Layer records.",
+        description="A unique character ID to identify Boundary Layer records.",
         required=True,
         type=openapi.TYPE_STRING,
         format=openapi.FORMAT_SLUG,
-        enum=AVAILABLE_ADMINLAYERS if len(AVAILABLE_ADMINLAYERS) > 0 else None)
+        enum=AVAILABLE_BOUNDARY_LAYERS if len(AVAILABLE_BOUNDARY_LAYERS) > 0 else None)
 
-    admin_unit_param = openapi.Parameter(
-        'admin_unit',
+    boundary_feature_param = openapi.Parameter(
+        'feature_id',
         openapi.IN_PATH,
-        description="Administrative Unit Code.",
+        description="Boundary Feature ID.",
         # required=True,
         type=openapi.TYPE_INTEGER
     )
@@ -115,7 +114,7 @@ class ImageExportViewSet(viewsets.ViewSet):
     @swagger_auto_schema(
         operation_id="custom export",
         request_body=ExportBodySerializer)
-    def custom_export(self, request):
+    def custom_feature_export(self, request):
         """
         Export imagery using provided geometry.
         """
@@ -139,8 +138,8 @@ class ImageExportViewSet(viewsets.ViewSet):
                 }
                 print(data)
                 task = async_task(
-                    'server.utils.export.image_export', export_id, data,
-                    hook='server.utils.export.upload_export')
+                    'glam.utils.export.image_export', export_id, data,
+                    hook='glam.utils.export.upload_export')
                 return Response(result)
 
             else:
@@ -148,19 +147,19 @@ class ImageExportViewSet(viewsets.ViewSet):
                     "Geometry must be of type 'Polygon' or 'MultiPolygon")
 
     @swagger_auto_schema(
-        operation_id="admin feature",
+        operation_id="boundary feature export",
         manual_parameters=[
-            product_param, date_param, adminlayer_param,
-            admin_unit_param]
+            product_param, date_param, boundary_layer_param,
+            boundary_feature_param]
     )
-    def admin_export(self, request, product_id: str = None, date: str = None,
-                     cropmask_id: str = None, adminlayer_id: str = None,
-                     admin_unit: int = None):
+    def boundary_feature_export(self, request, product_id: str = None, date: str = None,
+                                cropmask_id: str = None, layer_id: str = None,
+                                feature_id: int = None):
         """
-        Return basic raster statistics for admin polygon.
+        Return basic raster statistics for boundary feature.
         """
 
-        params = FeatureAdminSerializer(data=request.query_params)
+        params = ExportBoundaryFeatureSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
         data = params.validated_data
 
@@ -168,7 +167,7 @@ class ImageExportViewSet(viewsets.ViewSet):
         anomaly_type = data.get('anomaly_type', None)
         diff_year = data.get('diff_year', None)
 
-        product_queryset = ProductDataset.objects.filter(
+        product_queryset = ProductRaster.objects.filter(
             product__product_id=product_id
         )
 
@@ -177,10 +176,12 @@ class ImageExportViewSet(viewsets.ViewSet):
             date=date
         )
 
-        layer = AdminLayer.objects.get(adminlayer_id=adminlayer_id)
-        admin_units = AdminUnit.objects.filter(admin_layer=layer)
-        admin = get_object_or_404(admin_units, admin_unit_id=admin_unit)
-        admin_name = admin.admin_unit_name
+        boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+        boundary_features = BoundaryFeature.objects.filter(
+            boundary_layer=boundary_layer)
+        boundary_feature = get_object_or_404(
+            boundary_features, feature_id=feature_id)
+        boundary_feature_name = boundary_feature.feature_name
 
         if not settings.USE_S3_RASTERS:
             path = product_dataset.file_object.path
@@ -189,7 +190,7 @@ class ImageExportViewSet(viewsets.ViewSet):
 
         with COGReader(path) as product_src:
             feat = product_src.feature(json.loads(
-                admin.geom.geojson), max_size=1024)
+                boundary_feature.geom.geojson), max_size=1024)
             data = feat.as_masked()
 
             if type(data.mean()) == np.ma.core.MaskedConstant:
@@ -206,8 +207,8 @@ class ImageExportViewSet(viewsets.ViewSet):
             stdev = float(Decimal(str(data.std())) *
                           Decimal(str(product_dataset.product.variable.scale)))
 
-        if cropmask_id != 'none':
-            mask_queryset = MaskDataset.objects.all()
+        if cropmask_id != 'no-mask':
+            mask_queryset = CropmaskRaster.objects.all()
             mask_dataset = get_object_or_404(
                 mask_queryset,
                 product__product_id=product_id,
@@ -220,7 +221,7 @@ class ImageExportViewSet(viewsets.ViewSet):
 
             with COGReader(mask_path) as mask_src:
                 mask_feat = mask_src.feature(
-                    json.loads(admin.geom.geojson), max_size=1024)
+                    json.loads(boundary_feature.geom.geojson), max_size=1024)
                 mask_data = mask_feat.as_masked()
 
                 data = data * mask_data
@@ -240,7 +241,7 @@ class ImageExportViewSet(viewsets.ViewSet):
             if anom_type == 'diff':
                 new_year = diff_year
                 new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductDataset.objects.filter(
+                anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
                 closest = get_closest_to_dt(anomaly_queryset, new_date)
                 try:
@@ -257,7 +258,7 @@ class ImageExportViewSet(viewsets.ViewSet):
                     doy = swi_baselines[idx]
                 if product_id == 'chirps':
                     doy = int(str(date.month)+f'{date.day:02d}')
-                anomaly_queryset = AnomalyBaselineDataset.objects.all()
+                anomaly_queryset = AnomalyBaselineRaster.objects.all()
                 anomaly_dataset = get_object_or_404(
                     anomaly_queryset,
                     product__product_id=product_id,
@@ -273,10 +274,10 @@ class ImageExportViewSet(viewsets.ViewSet):
 
             with COGReader(baseline_path) as baseline_src:
                 baseline_feat = baseline_src.feature(
-                    json.loads(admin.geom.geojson), max_size=1024)
+                    json.loads(boundary_feature.geom.geojson), max_size=1024)
                 baseline_data = baseline_feat.as_masked()
 
-            if cropmask_id != 'none':
+            if cropmask_id != 'no-mask':
                 # mask baseline data
                 baseline_data = baseline_data * mask_data
 
