@@ -7,12 +7,21 @@ Modified from Terracotta (https://github.com/DHI-GRAS/terracotta)
 
 from typing import Dict
 import os
+import logging
 
 import numpy as np
+
+from django.core.files import File
 
 from django.conf import settings
 
 from ...models import Colormap
+
+logging.basicConfig(
+    format='%(asctime)s - %(message)s',
+    datefmt='%d-%b-%y %H:%M:%S',
+    level=settings.LOG_LEVELS[settings.LOG_LEVEL])
+log = logging.getLogger(__name__)
 
 
 SUFFIX = '_rgba.npy'
@@ -20,6 +29,96 @@ EXTRA_CMAP_FOLDER = os.environ.get('TC_EXTRA_CMAP_FOLDER', '')
 
 # terracotta was not installed, fall back to file system
 PACKAGE_DIR = os.path.join(os.path.dirname(__file__), 'cmap_data')
+
+cmap_categories = {'perceptually-uniform-sequential': ['viridis',
+                                                       'plasma',
+                                                       'inferno',
+                                                       'magma',
+                                                       'cividis'],
+                   'sequential': ['Greys',
+                                  'Purples',
+                                  'Blues',
+                                  'Greens',
+                                  'Oranges',
+                                  'Reds',
+                                  'YlOrBr',
+                                  'YlOrRd',
+                                  'OrRd',
+                                  'PuRd',
+                                  'RdPu',
+                                  'BuPu',
+                                  'GnBu',
+                                  'PuBu',
+                                  'YlGnBu',
+                                  'PuBuGn',
+                                  'BuGn',
+                                  'YlGn'],
+                   'sequential-2': ['binary',
+                                    'gist_yarg',
+                                    'gist_gray',
+                                    'gray',
+                                    'bone',
+                                    'pink',
+                                    'spring',
+                                    'summer',
+                                    'autumn',
+                                    'winter',
+                                    'cool',
+                                    'Wistia',
+                                    'hot',
+                                    'afmhot',
+                                    'gist_heat',
+                                    'copper'],
+                   'diverging': ['PiYG',
+                                 'PRGn',
+                                 'BrBG',
+                                 'PuOr',
+                                 'RdGy',
+                                 'RdBu',
+                                 'RdYlBu',
+                                 'RdYlGn',
+                                 'Spectral',
+                                 'coolwarm',
+                                 'bwr',
+                                 'seismic'],
+                   'cyclic': ['twilight', 'twilight_shifted', 'hsv'],
+                   'qualitative': ['Pastel1',
+                                   'Pastel2',
+                                   'Paired',
+                                   'Accent',
+                                   'Dark2',
+                                   'Set1',
+                                   'Set2',
+                                   'Set3',
+                                   'tab10',
+                                   'tab20',
+                                   'tab20b',
+                                   'tab20c'],
+                   'miscellaneous': ['flag',
+                                     'prism',
+                                     'ocean',
+                                     'gist_earth',
+                                     'terrain',
+                                     'gist_stern',
+                                     'gnuplot',
+                                     'gnuplot2',
+                                     'CMRmap',
+                                     'cubehelix',
+                                     'brg',
+                                     'gist_rainbow',
+                                     'rainbow',
+                                     'jet',
+                                     'nipy_spectral',
+                                     'gist_ncar']}
+
+
+def _get_cmap_category(cmap):
+    cmap_category = 'Miscellaneous'
+    for category in cmap_categories:
+        cmap_list = cmap_categories[category]
+        if cmap in cmap_list:
+            cmap_category = category
+    return cmap_category
 
 
 def _get_cmap_files() -> Dict[str, str]:
@@ -52,6 +151,21 @@ def _get_cmap_files() -> Dict[str, str]:
         cmap_files[cmap_name] = f_path
 
     return cmap_files
+
+
+def load_colormaps_from_file():
+    files = _get_cmap_files()
+    for cmap in files:
+        colormap = Colormap(
+            name=cmap,
+            colormap_type=_get_cmap_category(cmap)
+        )
+
+        filepath = files[cmap]
+        cmap_file = open(filepath, 'rb')
+        colormap.file_object.save(os.path.basename(filepath), File(cmap_file))
+        colormap.save()
+        logging.info(f'Successfully saved: {cmap}')
 
 
 if settings.USE_S3:
