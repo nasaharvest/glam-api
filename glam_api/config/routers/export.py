@@ -22,7 +22,7 @@ class CacheRouter:
         return None
 
 
-class DjangoQRouter:
+class ExportRouter:
     """ Router to control django_q operations """
 
     def db_for_read(self, model, **hints):
