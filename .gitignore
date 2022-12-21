@@ -176,3 +176,4 @@ cython_debug/
 
 ### Custom ###
 local_settings/
+local_files/
