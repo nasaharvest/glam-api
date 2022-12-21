@@ -4,7 +4,7 @@ import time
 import gzip
 import shutil
 import logging
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import requests
 import subprocess
 
@@ -421,12 +421,14 @@ class GlamDownloader(object):
                 for ds in sds:
                     if "VNP" in self.product:
                         log.info("Try creating cogs")
-                        ds_files = [] 
+                        ds_files = []
                         for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
                             dataset = rasterio.open(file)
-                            ds_files.append(create_sds_geotiff(self.product, dataset, ds, out_dir, mask=False))
-                        
-                        ds_mosaic = self._create_mosaic_cog_from_tifs(date_obj, ds_files, out_dir)
+                            ds_files.append(create_sds_geotiff(
+                                self.product, dataset, ds, out_dir, mask=False))
+
+                        ds_mosaic = self._create_mosaic_cog_from_tifs(
+                            date_obj, ds_files, out_dir)
                         output.append(ds_mosaic)
                         for file in ds_files:
                             os.remove(file)
@@ -606,7 +608,7 @@ class GlamDownloader(object):
                     latest = latest+timedelta(days=15)
                     # once we're in next month, slam the day back down to 01
                     latest = datetime.strptime(
-                        latest.strftime("%Y-%m")+"-01", "%Y-%m-%d").date()
+                        latest.strftime("%Y-%m")+"-01", "%Y-%m-%d")
                 else:
                     # 01 becomes 11, 11 becomes 21
                     latest = latest+timedelta(days=10)
@@ -678,7 +680,7 @@ class GlamDownloader(object):
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 1
-            
+
             elif self.product == "MCD12Q1":
                 # get all possible dates
                 if latest is None:
@@ -690,7 +692,7 @@ class GlamDownloader(object):
                 if latest is None:
                     latest = datetime.strptime("2012.017", "%Y.%j")
                 delta = 8
-            
+
             elif self.product == "VNP09A1":
                 # get all possible dates
                 if latest is None:
