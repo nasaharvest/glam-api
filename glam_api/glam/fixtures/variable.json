@@ -1,0 +1,122 @@
+[
+{
+    "model": "glam.variable",
+    "pk": 1,
+    "fields": {
+        "name": "CHIRPS Precipitation",
+        "variable_id": "chirps-precipitation",
+        "display_name": "Precipitation",
+        "display_name_en": "Precipitation",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "CHIRPS Precipitation",
+        "desc_en": "CHIRPS Precipitation",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 1.0,
+        "units": "mm/dekad",
+        "unit_abbr": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.variable",
+    "pk": 2,
+    "fields": {
+        "name": "Copernicus Soil Water Index",
+        "variable_id": "copernicus-soil-water-index",
+        "display_name": "SWI",
+        "display_name_en": "SWI",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Soil Water Index (Soil Moisture)",
+        "desc_en": "Soil Water Index (Soil Moisture)",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 0.5,
+        "units": "%",
+        "unit_abbr": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.variable",
+    "pk": 3,
+    "fields": {
+        "name": "MERRA-2 Temperature",
+        "variable_id": "merra-2-temperature",
+        "display_name": "Temperature",
+        "display_name_en": "Temperature",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "MERRA-2 Temperature",
+        "desc_en": "MERRA-2 Temperature",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 1.0,
+        "units": "Kelvin",
+        "unit_abbr": "K",
+        "tags": []
+    }
+},
+{
+    "model": "glam.variable",
+    "pk": 4,
+    "fields": {
+        "name": "MODIS NDVI",
+        "variable_id": "modis-ndvi",
+        "display_name": "NDVI",
+        "display_name_en": "NDVI",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "MODIS NDVI",
+        "desc_en": "MODIS NDVI",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 0.0001,
+        "units": "NDVI",
+        "unit_abbr": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.variable",
+    "pk": 5,
+    "fields": {
+        "name": "MODIS NDWI",
+        "variable_id": "modis-ndwi",
+        "display_name": "NDWI",
+        "display_name_en": "NDWI",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "MODIS NDWI",
+        "desc_en": "MODIS NDWI",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 0.0001,
+        "units": "NDWI",
+        "unit_abbr": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.variable",
+    "pk": 6,
+    "fields": {
+        "name": "VIIRS NDVI",
+        "variable_id": "viirs-ndvi",
+        "display_name": "NDVI",
+        "display_name_en": "NDVI",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "VIIRS NDVI",
+        "desc_en": "VIIRS NDVI",
+        "desc_es": "",
+        "desc_pt": "",
+        "scale": 0.0001,
+        "units": "NDVI",
+        "unit_abbr": null,
+        "tags": []
+    }
+}
+]

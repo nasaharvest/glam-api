@@ -1,0 +1,232 @@
+[
+{
+    "model": "glam.datasource",
+    "pk": 1,
+    "fields": {
+        "name": "GLAM",
+        "source_id": "glam",
+        "display_name": "Global Agriculture Monitoring (GLAM) System",
+        "desc": "NASA Harvest Global Agriculture Monitoring (GLAM) System",
+        "desc_en": "NASA Harvest Global Agriculture Monitoring (GLAM) System",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://glam.nasaharvest.org/",
+        "logo": "logos/GLAM2-Logo.png",
+        "tags": [
+            1
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 2,
+    "fields": {
+        "name": "NASA Harvest",
+        "source_id": "nasa-harvest",
+        "display_name": "NASA Harvest",
+        "desc": "NASA Harvest’s mission is to enable and advance adoption of satellite Earth observations by public and private organizations to benefit food security, agriculture, and human and environmental resiliency in the US and worldwide.",
+        "desc_en": "NASA Harvest’s mission is to enable and advance adoption of satellite Earth observations by public and private organizations to benefit food security, agriculture, and human and environmental resiliency in the US and worldwide.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://nasaharvest.org/",
+        "logo": "logos/harvest.png",
+        "tags": [
+            2
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 3,
+    "fields": {
+        "name": "NASA ESDS",
+        "source_id": "nasa-esds",
+        "display_name": "NASA Earth Science Data Systems (ESDS) Program",
+        "desc": "NASA's Earth Science Data Systems (ESDS) Program oversees the life cycle of NASA’s Earth science data — from acquisition through processing and distribution. The primary goal of ESDS is to maximize the scientific return from NASA's missions and experiments for research and applied scientists, decision makers, and society at large.\r\n\r\nESDS data system and science products continuously evolve through a combination of competitive awards and sustained and strategic investments in open data, international and interagency partnerships, and a set of standards that ensure consistency and interoperability. Since 1994, Earth science data have been free and open to all users for any purpose, and since 2015, all data systems software developed through research and technology awards have been made available to the public as Open Source Software (OSS).\r\n\r\nESDS falls within the purview of the Earth Science Division (ESD), under the Science Mission Directorate (SMD) at NASA Headquarters.\r\n\r\n- https://www.earthdata.nasa.gov/esds",
+        "desc_en": "NASA's Earth Science Data Systems (ESDS) Program oversees the life cycle of NASA’s Earth science data — from acquisition through processing and distribution. The primary goal of ESDS is to maximize the scientific return from NASA's missions and experiments for research and applied scientists, decision makers, and society at large.\r\n\r\nESDS data system and science products continuously evolve through a combination of competitive awards and sustained and strategic investments in open data, international and interagency partnerships, and a set of standards that ensure consistency and interoperability. Since 1994, Earth science data have been free and open to all users for any purpose, and since 2015, all data systems software developed through research and technology awards have been made available to the public as Open Source Software (OSS).\r\n\r\nESDS falls within the purview of the Earth Science Division (ESD), under the Science Mission Directorate (SMD) at NASA Headquarters.\r\n\r\n- https://www.earthdata.nasa.gov/esds",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.earthdata.nasa.gov/",
+        "logo": "logos/nasa.png",
+        "tags": [
+            3,
+            4
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 4,
+    "fields": {
+        "name": "GEOGLAM",
+        "source_id": "geoglam",
+        "display_name": "GEOGLAM",
+        "desc": "The purpose of Group on Earth Observations Global Agricultural Monitoring Initiative (GEOGLAM) is to increase market transparency and improve food security by producing and disseminating relevant, timely, and actionable information on agricultural conditions and outlooks of production at national, regional, and global scales. It achieves this by strengthening the international community’s capacity to utilize coordinated, comprehensive, and sustained Earth observations.",
+        "desc_en": "The purpose of Group on Earth Observations Global Agricultural Monitoring Initiative (GEOGLAM) is to increase market transparency and improve food security by producing and disseminating relevant, timely, and actionable information on agricultural conditions and outlooks of production at national, regional, and global scales. It achieves this by strengthening the international community’s capacity to utilize coordinated, comprehensive, and sustained Earth observations.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.earthobservations.org/",
+        "logo": "logos/geoglam_logo.png",
+        "tags": [
+            5
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 5,
+    "fields": {
+        "name": "Crop Monitor",
+        "source_id": "crop-monitor",
+        "display_name": "GEOGLAM Crop Monitor",
+        "desc": "Open, timely, and science-driven information on crop conditions in support of market transparency and early warning of production shortfalls.\r\n\r\nThe Crop Monitors were designed to provide a public good of open, timely, science-driven information on crop conditions in support of market transparency for the G20 Agricultural Market Information System (AMIS). Reflecting an international, multi-source, consensus assessment of crop growing conditions, status, and agro-climatic factors likely to impact global production, focusing on the major producing and trading countries for the four primary crops monitored by AMIS (wheat, maize, rice, and soybeans). The Crop Monitor for AMIS brings together over 40 partners from national, regional (i.e. sub-continental), and global monitoring systems, space agencies, agriculture organizations and universities.\r\n\r\nSince its launch in September 2013, the Crop Monitor for AMIS has grown extensively and has become an internationally recognized source of information on global crop prospects, widely quoted by public and private agencies as well as top tier media. It represents the first time that the international community comes together on a monthly basis to produce joint crop assessments.\r\n\r\nIn line with the goals of the GEOGLAM initiative, the Crop Monitor methods were then adapted and applied to countries at risk of food production shortfalls. The need for an assessment that is prepared horizontally by different international, regional, and national agencies, with overlapping regions, is fundamental in unstable and fragile countries where food security is extremely vulnerable. The success or the failure of a crop for such countries sometimes mean famines, political unrest and the need to import from other countries. These countries, which principally complement geographically the large market producers, are monitored and reported on in the Crop Monitor for Early Warning (CM4EW) reports.\r\n\r\n- https://cropmonitor.org/index.php/about/aboutus/",
+        "desc_en": "Open, timely, and science-driven information on crop conditions in support of market transparency and early warning of production shortfalls.\r\n\r\nThe Crop Monitors were designed to provide a public good of open, timely, science-driven information on crop conditions in support of market transparency for the G20 Agricultural Market Information System (AMIS). Reflecting an international, multi-source, consensus assessment of crop growing conditions, status, and agro-climatic factors likely to impact global production, focusing on the major producing and trading countries for the four primary crops monitored by AMIS (wheat, maize, rice, and soybeans). The Crop Monitor for AMIS brings together over 40 partners from national, regional (i.e. sub-continental), and global monitoring systems, space agencies, agriculture organizations and universities.\r\n\r\nSince its launch in September 2013, the Crop Monitor for AMIS has grown extensively and has become an internationally recognized source of information on global crop prospects, widely quoted by public and private agencies as well as top tier media. It represents the first time that the international community comes together on a monthly basis to produce joint crop assessments.\r\n\r\nIn line with the goals of the GEOGLAM initiative, the Crop Monitor methods were then adapted and applied to countries at risk of food production shortfalls. The need for an assessment that is prepared horizontally by different international, regional, and national agencies, with overlapping regions, is fundamental in unstable and fragile countries where food security is extremely vulnerable. The success or the failure of a crop for such countries sometimes mean famines, political unrest and the need to import from other countries. These countries, which principally complement geographically the large market producers, are monitored and reported on in the Crop Monitor for Early Warning (CM4EW) reports.\r\n\r\n- https://cropmonitor.org/index.php/about/aboutus/",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://cropmonitor.org/",
+        "logo": "logos/cropmonitor_logo.png",
+        "tags": [
+            5,
+            6
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 6,
+    "fields": {
+        "name": "geoBoundaries",
+        "source_id": "geoboundaries",
+        "display_name": "geoBoundaries",
+        "desc": "Built by the community and William & Mary geoLab, the geoBoundaries Global Database of Political Administrative Boundaries Database is an online, open license resource of boundaries (i.e., state, county) for every country in the world. We currently track approximately 1 million boundaries within over 200 entities, including all 195 UN member states. \r\n\r\nhttps://www.geoboundaries.org",
+        "desc_en": "Built by the community and William & Mary geoLab, the geoBoundaries Global Database of Political Administrative Boundaries Database is an online, open license resource of boundaries (i.e., state, county) for every country in the world. We currently track approximately 1 million boundaries within over 200 entities, including all 195 UN member states. \r\n\r\nhttps://www.geoboundaries.org",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.geoboundaries.org/",
+        "logo": "logos/wm_geolab.png",
+        "tags": [
+            7
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 7,
+    "fields": {
+        "name": "UCSB Climate Hazards Center",
+        "source_id": "ucsb-climate-hazards-center",
+        "display_name": "UCSB Climate Hazards Center",
+        "desc": "The Climate Hazards Center is a 15-year old alliance of multidisciplinary scientists and food security analysts from the UC Santa Barbara Geography Department, Africa, and Latin America working alongside partners in the US Geological Survey (USGS), the National Aeronautics and Space Administration (NASA), the Famine Early Warning Systems Network (FEWS NET), the National Oceanic and Atmospheric Administration (NOAA), and the United States Department of Agriculture (USDA). This cooperative is unique in its high potential for high-profile international outreach, which includes collaborations with organizations like The Regional Centre for Mapping of Resources for Development (RCMRD), AGRHYMET Regional Centre, IGAD Climate Predicition and Applications Centre (ICPAC), the Southern African Development Community's (SADC) Climate Services (CSC), and the World Food Programme (WFP).",
+        "desc_en": "The Climate Hazards Center is a 15-year old alliance of multidisciplinary scientists and food security analysts from the UC Santa Barbara Geography Department, Africa, and Latin America working alongside partners in the US Geological Survey (USGS), the National Aeronautics and Space Administration (NASA), the Famine Early Warning Systems Network (FEWS NET), the National Oceanic and Atmospheric Administration (NOAA), and the United States Department of Agriculture (USDA). This cooperative is unique in its high potential for high-profile international outreach, which includes collaborations with organizations like The Regional Centre for Mapping of Resources for Development (RCMRD), AGRHYMET Regional Centre, IGAD Climate Predicition and Applications Centre (ICPAC), the Southern African Development Community's (SADC) Climate Services (CSC), and the World Food Programme (WFP).",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.chc.ucsb.edu/",
+        "logo": "logos/chc_ucsb_logo.png",
+        "tags": []
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 8,
+    "fields": {
+        "name": "Copernicus Global Land Service",
+        "source_id": "copernicus-global-land-service",
+        "display_name": "Copernicus Global Land Service",
+        "desc": "The Copernicus Global Land Service (CGLS) is a component of the Land Monitoring Core Service (LMCS) of Copernicus, the European flagship programme on Earth Observation. The Global Land Service systematically produces a series of qualified bio-geophysical products on the status and evolution of the land surface, at global scale and at mid to low spatial resolution, complemented by the constitution of long term time series. The products are used to monitor the vegetation, the water cycle, the energy budget and the terrestrial cryosphere.",
+        "desc_en": "The Copernicus Global Land Service (CGLS) is a component of the Land Monitoring Core Service (LMCS) of Copernicus, the European flagship programme on Earth Observation. The Global Land Service systematically produces a series of qualified bio-geophysical products on the status and evolution of the land surface, at global scale and at mid to low spatial resolution, complemented by the constitution of long term time series. The products are used to monitor the vegetation, the water cycle, the energy budget and the terrestrial cryosphere.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://land.copernicus.eu/global/",
+        "logo": "logos/Copernicus_logo.png",
+        "tags": [
+            8
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 9,
+    "fields": {
+        "name": "Conab",
+        "source_id": "conab",
+        "display_name": "Conab",
+        "desc": "Companhia Nacional de Abastecimento (Conab) is a public company based in Brasilia, linked to the Ministry of Agriculture, Livestock and Supply (Mapa).",
+        "desc_en": "Companhia Nacional de Abastecimento (Conab) is a public company based in Brasilia, linked to the Ministry of Agriculture, Livestock and Supply (Mapa).",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.conab.gov.br/",
+        "logo": "logos/conab-logo.png",
+        "tags": [
+            9
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 10,
+    "fields": {
+        "name": "Instituto Nacional de Tecnología Agropecuaria (INTA)",
+        "source_id": "inta",
+        "display_name": "Instituto Nacional de Tecnología Agropecuaria (INTA)",
+        "desc": "The National Agricultural Technology Institute (Spanish: Instituto Nacional de Tecnología Agropecuaria), commonly known as INTA, is an Argentine federal extension agency in charge of the generation, adaptation and diffusion of technologies, knowledge and learning procedures for the agriculture, forest and agro-industrial activities within an ecologically clean environment.",
+        "desc_en": "The National Agricultural Technology Institute (Spanish: Instituto Nacional de Tecnología Agropecuaria), commonly known as INTA, is an Argentine federal extension agency in charge of the generation, adaptation and diffusion of technologies, knowledge and learning procedures for the agriculture, forest and agro-industrial activities within an ecologically clean environment.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.argentina.gob.ar/inta",
+        "logo": "logos/inta-argentina.png",
+        "tags": [
+            10
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 11,
+    "fields": {
+        "name": "Ministerio de Agricultura, Ganadería y Pesca",
+        "source_id": "magyp",
+        "display_name": "Ministerio de Agricultura, Ganadería y Pesca",
+        "desc": "The Ministry of Agriculture, Livestock and Fisheries (Spanish: Ministerio de Agricultura, Ganadería y Pesca) of Argentina, commonly known simply as the Ministry of Agriculture, is a ministry of the national executive power that oversees production, commerce and health regulations in the agricultural, livestock and fishing industries.",
+        "desc_en": "The Ministry of Agriculture, Livestock and Fisheries (Spanish: Ministerio de Agricultura, Ganadería y Pesca) of Argentina, commonly known simply as the Ministry of Agriculture, is a ministry of the national executive power that oversees production, commerce and health regulations in the agricultural, livestock and fishing industries.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.argentina.gob.ar/agricultura",
+        "logo": "logos/Minagriculturaarg.png",
+        "tags": []
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 12,
+    "fields": {
+        "name": "Instituto de Investigaciones Agropecuarias (INIA)",
+        "source_id": "inia",
+        "display_name": "Instituto de Investigaciones Agropecuarias (INIA)",
+        "desc": "With 56 years of history, the Instituto de Investigaciones Agropecuarias (INIA) is the research, development and innovation (R + D + I) institution linked to the Ministry of Agriculture of Chile, a leader in sustainable agri-food development, creating value and proposing solutions technologies for the benefit of farmers, strategic partners, and society.",
+        "desc_en": "With 56 years of history, the Instituto de Investigaciones Agropecuarias (INIA) is the research, development and innovation (R + D + I) institution linked to the Ministry of Agriculture of Chile, a leader in sustainable agri-food development, creating value and proposing solutions technologies for the benefit of farmers, strategic partners, and society.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.inia.cl/",
+        "logo": "logos/inia-chile.png",
+        "tags": [
+            11
+        ]
+    }
+},
+{
+    "model": "glam.datasource",
+    "pk": 13,
+    "fields": {
+        "name": "RESOLVE",
+        "source_id": "resolve",
+        "display_name": "RESOLVE",
+        "desc": "RESOLVE was established in 1977 with the original mission: to mediate solutions to environmental problems and promote the effective use of consensus-building tools in decision-making on public policy.",
+        "desc_en": "RESOLVE was established in 1977 with the original mission: to mediate solutions to environmental problems and promote the effective use of consensus-building tools in decision-making on public policy.",
+        "desc_es": "",
+        "desc_pt": "",
+        "link": "https://www.resolve.ngo/",
+        "logo": "logos/resolve.png",
+        "tags": []
+    }
+}
+]

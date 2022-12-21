@@ -1,0 +1,494 @@
+[
+{
+    "model": "glam.product",
+    "pk": 1,
+    "fields": {
+        "name": "MOD09Q1 NDVI",
+        "product_id": "mod09q1-ndvi",
+        "display_name": "MODIS/Terra NDVI 8-Day",
+        "display_name_en": "MODIS/Terra NDVI 8-Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the MOD09Q1 (Collection 6.1) product - an estimate of the surface spectral reflectance of Terra Moderate Resolution Imaging Spectroradiometer (MODIS) Bands 1 and 2, corrected for atmospheric conditions.\r\n\r\nVermote, E. (2021). MODIS/Terra Surface Reflectance 8-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD09Q1.061",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the MOD09Q1 (Collection 6.1) product - an estimate of the surface spectral reflectance of Terra Moderate Resolution Imaging Spectroradiometer (MODIS) Bands 1 and 2, corrected for atmospheric conditions.\r\n\r\nVermote, E. (2021). MODIS/Terra Surface Reflectance 8-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD09Q1.061",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 4,
+        "link": "https://lpdaac.usgs.gov/products/mod09q1v061/",
+        "date_start": "2000-02-24",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 8,
+        "tags": [
+            3,
+            4
+        ]
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 2,
+    "fields": {
+        "name": "MOD13Q1 NDVI",
+        "product_id": "mod13q1-ndvi",
+        "display_name": "MODIS/Terra NDVI 16 Day",
+        "display_name_en": "MODIS/Terra NDVI 16 Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the Terra Moderate Resolution Imaging Spectroradiometer (MODIS) Vegetation Indices (MOD13Q1) Collection 6.1, generated every 16 days at 250 meter (m) spatial resolution.\r\n\r\nDidan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD13Q1.061",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the Terra Moderate Resolution Imaging Spectroradiometer (MODIS) Vegetation Indices (MOD13Q1) Collection 6.1, generated every 16 days at 250 meter (m) spatial resolution.\r\n\r\nDidan, K. (2021). MODIS/Terra Vegetation Indices 16-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD13Q1.061",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 4,
+        "link": "https://lpdaac.usgs.gov/products/mod13q1v061/",
+        "date_start": "2000-02-18",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 16,
+        "tags": [
+            3,
+            4
+        ]
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 3,
+    "fields": {
+        "name": "MOD13Q4N NDVI",
+        "product_id": "mod13q4n-ndvi",
+        "display_name": "MODIS/Terra Near Real Time (NRT) NDVI",
+        "display_name_en": "MODIS/Terra Near Real Time (NRT) NDVI",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the MODIS Near Real Time (NRT) level-3 Vegetation Indices Daily Rolling 8-Day data - MOD13Q4N.",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the MODIS Near Real Time (NRT) level-3 Vegetation Indices Daily Rolling 8-Day data - MOD13Q4N.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 4,
+        "link": "https://modaps.modaps.eosdis.nasa.gov/services/about/products/c6-nrt/MOD13Q4N.html",
+        "date_start": "2015-12-07",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 8,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 4,
+    "fields": {
+        "name": "MYD09Q1 NDVI",
+        "product_id": "myd09q1-ndvi",
+        "display_name": "MODIS/Aqua NDVI 8 Day",
+        "display_name_en": "MODIS/Aqua NDVI 8 Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the MYD09Q1 Collection 6.1 product - an estimate of the surface spectral reflectance of Aqua Moderate Resolution Imaging Spectroradiometer (MODIS) Bands 1 and 2, corrected for atmospheric conditions.\r\n\r\nVermote, E. (2021). MODIS/Aqua Surface Reflectance 8-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MYD09Q1.061",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the MYD09Q1 Collection 6.1 product - an estimate of the surface spectral reflectance of Aqua Moderate Resolution Imaging Spectroradiometer (MODIS) Bands 1 and 2, corrected for atmospheric conditions.\r\n\r\nVermote, E. (2021). MODIS/Aqua Surface Reflectance 8-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MYD09Q1.061",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 4,
+        "link": "https://lpdaac.usgs.gov/products/mod13q1v061/",
+        "date_start": "2002-07-04",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 8,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 5,
+    "fields": {
+        "name": "MYD13Q1 NDVI",
+        "product_id": "myd13q1-ndvi",
+        "display_name": "MODIS/Aqua NDVI 16 Day",
+        "display_name_en": "MODIS/Aqua NDVI 16 Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the Aqua Moderate Resolution Imaging Spectroradiometer (MODIS) Vegetation Indices (MYD13Q1) Collection 6.1, generated every 16 days at 250 meter (m) spatial resolution.\r\n\r\nDidan, K. (2021). MODIS/Aqua Vegetation Indices 16-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MYD13Q1.061",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the Aqua Moderate Resolution Imaging Spectroradiometer (MODIS) Vegetation Indices (MYD13Q1) Collection 6.1, generated every 16 days at 250 meter (m) spatial resolution.\r\n\r\nDidan, K. (2021). MODIS/Aqua Vegetation Indices 16-Day L3 Global 250m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MYD13Q1.061",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 4,
+        "link": "https://lpdaac.usgs.gov/products/myd13q1v061/",
+        "date_start": "2002-07-04",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 16,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 6,
+    "fields": {
+        "name": "MOD09A1 NDWI",
+        "product_id": "mod09a1-ndwi",
+        "display_name": "MODIS/Terra NDWI 8 Day",
+        "display_name_en": "MODIS/Terra NDWI 8 Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Water Index (NDWI) derived from the MOD09Q1 Collection 6.1 product -  an estimate of the surface spectral reflectance of Terra MODIS Bands 1 through 7 corrected for atmospheric conditions such as gasses, aerosols, and Rayleigh scattering.\r\n\r\nVermote, E. (2021). MODIS/Terra Surface Reflectance 8-Day L3 Global 500m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD09A1.061",
+        "desc_en": "Normalized Difference Water Index (NDWI) derived from the MOD09Q1 Collection 6.1 product -  an estimate of the surface spectral reflectance of Terra MODIS Bands 1 through 7 corrected for atmospheric conditions such as gasses, aerosols, and Rayleigh scattering.\r\n\r\nVermote, E. (2021). MODIS/Terra Surface Reflectance 8-Day L3 Global 500m SIN Grid V061 [Data set]. NASA EOSDIS Land Processes DAAC. https://doi.org/10.5067/MODIS/MOD09A1.061",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -5000,
+                5000
+            ],
+            "default_stretch": [
+                -10000,
+                10000
+            ],
+            "graphic_anomaly": "RdBu",
+            "anomaly_colormap": "rdbu",
+            "default_colormap": "gist_earth_r",
+            "graphic_colormap": "gist_earth_r"
+        },
+        "source": 3,
+        "variable": 5,
+        "link": "https://lpdaac.usgs.gov/products/myd09q1v061/",
+        "date_start": "2000-02-24",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 8,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 7,
+    "fields": {
+        "name": "VNP09H1 NDVI",
+        "product_id": "vnp09h1-ndvi",
+        "display_name": "VIIRS NDVI 8 Day",
+        "display_name_en": "VIIRS NDVI 8 Day",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Normalized Difference Vegetation Index (NDVI) derived from the 8-Day Visible Infrared Imaging Radiometer Suite (VIIRS) Surface Reflectance (VNP09H1) Version 1 composite product. - an estimate of land surface reflectance from the Suomi National Polar-orbiting Partnership (Suomi NPP) VIIRS sensor for three imagery bands (I1, I2, I3) at nominal 500 meter resolution (~463 meter). The 500 meter dataset is derived through resampling the native 375 meter VIIRS resolution in the L2 input product. The data are corrected for atmospheric conditions such as the effects of molecular gases, including ozone and water vapor, and for the effects of atmospheric aerosols. Each pixel represents the best possible Level 2G observation during an 8-day period, which is selected on the basis of high observation coverage, low sensor angle, the absence of clouds or cloud shadow, and aerosol loading.",
+        "desc_en": "Normalized Difference Vegetation Index (NDVI) derived from the 8-Day Visible Infrared Imaging Radiometer Suite (VIIRS) Surface Reflectance (VNP09H1) Version 1 composite product. - an estimate of land surface reflectance from the Suomi National Polar-orbiting Partnership (Suomi NPP) VIIRS sensor for three imagery bands (I1, I2, I3) at nominal 500 meter resolution (~463 meter). The 500 meter dataset is derived through resampling the native 375 meter VIIRS resolution in the L2 input product. The data are corrected for atmospheric conditions such as the effects of molecular gases, including ozone and water vapor, and for the effects of atmospheric aerosols. Each pixel represents the best possible Level 2G observation during an 8-day period, which is selected on the basis of high observation coverage, low sensor angle, the absence of clouds or cloud shadow, and aerosol loading.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 8,
+            "default_bins": 100,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -2500,
+                2500
+            ],
+            "default_stretch": [
+                0,
+                10000
+            ],
+            "graphic_anomaly": "RdYlGn",
+            "anomaly_colormap": "rdylgn",
+            "default_colormap": "ndvi",
+            "graphic_colormap": "RdYlGn"
+        },
+        "source": 3,
+        "variable": 6,
+        "link": "https://lpdaac.usgs.gov/products/vnp09h1v001/",
+        "date_start": "2012-01-17",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 8,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 8,
+    "fields": {
+        "name": "CHIRPS",
+        "product_id": "chirps-precip",
+        "display_name": "CHIRPS Precipitation",
+        "display_name_en": "CHIRPS Precipitation",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Climate Hazards Group InfraRed Precipitation with Station data: 10-day rainfall estimates, incorporating climatology, satellite observations, and in-situ measurements.",
+        "desc_en": "Climate Hazards Group InfraRed Precipitation with Station data: 10-day rainfall estimates, incorporating climatology, satellite observations, and in-situ measurements.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 1,
+            "optimal_cores": 10,
+            "anomaly_stretch": [
+                -100,
+                100
+            ],
+            "default_stretch": [
+                0,
+                200
+            ],
+            "graphic_anomaly": "Spectral",
+            "anomaly_colormap": "spectral",
+            "default_colormap": "ylgnbu",
+            "graphic_colormap": "YlGnBu"
+        },
+        "source": 7,
+        "variable": 1,
+        "link": "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_dekad/",
+        "date_start": "2000-01-01",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 10,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 9,
+    "fields": {
+        "name": "Copernicus Soil Water Index",
+        "product_id": "copernicus-swi",
+        "display_name": "Copernicus Soil Water Index",
+        "display_name_en": "Copernicus Soil Water Index",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "10-day (by soil depth) Soil Water Index, based on Surface Soil Moisture (SSM) from MetOp-ASCAT.\\r\\n\\r\\nThe Soil Water Index quantifies the moisture condition at various depths in the soil. It is mainly driven by the precipitation via the process of infiltration. Soil moisture is a very heterogeneous variable and varies on small scales with soil properties and drainage patterns. Satellite measurements integrate over relative large-scale areas, with the presence of vegetation adding complexity to the interpretation.\\r\\n\\r\\nThe soil moisture, up to 5cm soil depth, is recognized as an Essential Climate Variable (ECV) by the Global Climate Observing System (GCOS).",
+        "desc_en": "10-day (by soil depth) Soil Water Index, based on Surface Soil Moisture (SSM) from MetOp-ASCAT.\\r\\n\\r\\nThe Soil Water Index quantifies the moisture condition at various depths in the soil. It is mainly driven by the precipitation via the process of infiltration. Soil moisture is a very heterogeneous variable and varies on small scales with soil properties and drainage patterns. Satellite measurements integrate over relative large-scale areas, with the presence of vegetation adding complexity to the interpretation.\\r\\n\\r\\nThe soil moisture, up to 5cm soil depth, is recognized as an Essential Climate Variable (ECV) by the Global Climate Observing System (GCOS).",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 2,
+            "optimal_cores": 20,
+            "anomaly_stretch": [
+                -100,
+                100
+            ],
+            "default_stretch": [
+                0,
+                200
+            ],
+            "graphic_anomaly": "BrBg",
+            "anomaly_colormap": "brbg",
+            "default_colormap": "pubugn",
+            "graphic_colormap": "PuBuGn"
+        },
+        "source": 8,
+        "variable": 2,
+        "link": "https://land.copernicus.eu/global/products/swi",
+        "date_start": "2007-01-01",
+        "date_added": "2022-12-09",
+        "composite": true,
+        "composite_period": 10,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 10,
+    "fields": {
+        "name": "MERRA-2 Minimum Temperature",
+        "product_id": "merra-2-min-temp",
+        "display_name": "MERRA-2 Minimum Temperature",
+        "display_name_en": "MERRA-2 Minimum Temperature",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_en": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 1,
+            "optimal_cores": 2,
+            "anomaly_stretch": [
+                -10,
+                10
+            ],
+            "default_stretch": [
+                255,
+                320
+            ],
+            "graphic_anomaly": "bwr",
+            "anomaly_colormap": "bwr",
+            "default_colormap": "coolwarm",
+            "graphic_colormap": "coolwarm"
+        },
+        "source": 3,
+        "variable": 3,
+        "link": "https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/",
+        "date_start": "2000-01-03",
+        "date_added": "2022-12-09",
+        "composite": false,
+        "composite_period": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 11,
+    "fields": {
+        "name": "MERRA-2 Mean Temperature",
+        "product_id": "merra-2-mean-temp",
+        "display_name": "MERRA-2 Mean Temperature",
+        "display_name_en": "MERRA-2 Mean Temperature",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_en": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 1,
+            "optimal_cores": 2,
+            "anomaly_stretch": [
+                -10,
+                10
+            ],
+            "default_stretch": [
+                255,
+                320
+            ],
+            "graphic_anomaly": "bwr",
+            "anomaly_colormap": "bwr",
+            "default_colormap": "coolwarm",
+            "graphic_colormap": "coolwarm"
+        },
+        "source": 3,
+        "variable": 3,
+        "link": "https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/",
+        "date_start": "2000-01-03",
+        "date_added": "2022-12-09",
+        "composite": false,
+        "composite_period": null,
+        "tags": []
+    }
+},
+{
+    "model": "glam.product",
+    "pk": 12,
+    "fields": {
+        "name": "MERRA-2 Max Temperature",
+        "product_id": "merra-2-max-temp",
+        "display_name": "MERRA-2 Max Temperature",
+        "display_name_en": "MERRA-2 Max Temperature",
+        "display_name_es": null,
+        "display_name_pt": null,
+        "desc": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_en": "Daily 2-meter air temperature, based on atmospheric reanalysis of the modern satellite era by NASA’s Global Modeling and Assimilation Office.",
+        "desc_es": "",
+        "desc_pt": "",
+        "meta": {
+            "optimal_bsf": 1,
+            "optimal_cores": 2,
+            "anomaly_stretch": [
+                -10,
+                10
+            ],
+            "default_stretch": [
+                255,
+                320
+            ],
+            "graphic_anomaly": "bwr",
+            "anomaly_colormap": "bwr",
+            "default_colormap": "coolwarm",
+            "graphic_colormap": "coolwarm"
+        },
+        "source": 3,
+        "variable": 3,
+        "link": "https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/",
+        "date_start": "2000-01-03",
+        "date_added": "2022-12-09",
+        "composite": false,
+        "composite_period": null,
+        "tags": []
+    }
+}
+]
