@@ -35,14 +35,6 @@ tag_param = openapi.Parameter(
     enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None
 )
 
-i18n_param = openapi.Parameter(
-    'i18n',
-    openapi.IN_QUERY,
-    description="Optional parameter to force language if available",
-    required=False,
-    type=openapi.TYPE_STRING,
-    enum=settings.LANGUAGES)
-
 
 class SourcePagination(PageNumberPagination):
     page_size = 100
@@ -50,20 +42,17 @@ class SourcePagination(PageNumberPagination):
 
 
 # @method_decorator(name='list', decorator=cache_page(60*60*24*7))
-@method_decorator(name='list', decorator=vary_on_headers('Accept-Language'))
 @method_decorator(
     name='list',
     decorator=swagger_auto_schema(
         operation_id="datasource list",
         operation_description="Return list of available Sources.",
-        manual_parameters=[tag_param, i18n_param]))
+        manual_parameters=[tag_param]))
 # @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
-@method_decorator(name='retrieve', decorator=vary_on_headers('Accept-Language'))
 @method_decorator(
     name='retrieve',
     decorator=swagger_auto_schema(
         operation_id="datasource detail",
-        manual_parameters=[i18n_param],
         operation_description="Return details for specified Source."))
 class SourceViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DataSource.objects.all().prefetch_related(

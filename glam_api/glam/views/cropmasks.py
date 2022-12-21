@@ -35,14 +35,6 @@ tag_param = openapi.Parameter(
     type=openapi.TYPE_STRING,
     enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None)
 
-i18n_param = openapi.Parameter(
-    'i18n',
-    openapi.IN_QUERY,
-    description="Optional parameter to force language if available",
-    required=False,
-    type=openapi.TYPE_STRING,
-    enum=settings.LANGUAGES)
-
 
 class CropMaskPagination(PageNumberPagination):
     page_size = 100
@@ -50,24 +42,23 @@ class CropMaskPagination(PageNumberPagination):
 
 
 # @method_decorator(name='list', decorator=cache_page(60*60*24*7))
-@method_decorator(name='list', decorator=vary_on_headers('Accept-Language'))
+# @method_decorator(name='list', decorator=vary_on_headers('Accept-Language'))
 @method_decorator(
     name='list',
     decorator=swagger_auto_schema(
         operation_id="cropmask list",
-        manual_parameters=[tag_param, i18n_param],
+        manual_parameters=[tag_param],
         operation_description="Return list of available Cropmasks."))
 # @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
-@method_decorator(name='retrieve', decorator=vary_on_headers('Accept-Language'))
+# @method_decorator(name='retrieve', decorator=vary_on_headers('Accept-Language'))
 @method_decorator(
     name='retrieve',
     decorator=swagger_auto_schema(
         operation_id="cropmask detail",
-        manual_parameters=[i18n_param],
         operation_description="Return details for specified Cropmask."))
 class CropMaskViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = CropMask.objects.all().prefetch_related(
-        'crop_type', 'tags', 'source', 'interface'
+        'crop_type', 'tags', 'source'
     ).order_by('id')
     lookup_field = 'cropmask_id'
     serializer_class = CropMaskSerializer
