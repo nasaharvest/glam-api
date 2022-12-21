@@ -1,6 +1,6 @@
 import datetime
 
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, APIRootView
 
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -11,19 +11,31 @@ from .views.sources import SourceViewSet
 from .views.products import ProductViewSet, VariableViewSet
 from .views.datasets import DatasetViewSet
 from .views.cropmasks import CropMaskViewSet
-from .views.adminlayers import AdminLayerViewSet
+from .views.boundarylayers import BoundaryLayerViewSet
 from .views.tiles import Tiles
 from .views.colormap import ColormapViewSet, GenerateColormap
-# from .views.dataset_stats import DatasetStatsViewSet
 from .views.tags import TagViewSet
 from .views.point import PointValue
-from .views.feature import FeatureValue
+from .views.extract import ExtractRasterValue
 from .views.histogram import Histogram
 from .views.zonal_stats import ZonalStatsViewSet
 from .views.graphics import GraphicsViewSet
-from .views.adminunits import AdminUnitViewSet
+from .views.boundaryfeatures import BoundaryFeatureViewSet
 from .views.announcements import AnnouncementViewSet
 from .views.exports import ImageExportViewSet, GetExportViewSet
+
+
+class APIHomeView(APIRootView):
+    """
+    Browse select API endpoints below.
+    """
+
+
+class CustomRouter(DefaultRouter):
+    """
+    A router for read-only APIs, which doesn't use trailing slashes.
+    """
+    APIRootView = APIHomeView
 
 
 class IsoDateConverter:
@@ -49,60 +61,67 @@ class FloatConverter:
 register_converter(IsoDateConverter, 'isodate')
 register_converter(FloatConverter, 'float')
 
+get_boundary_features = BoundaryFeatureViewSet.as_view({'get': 'retrieve'})
 get_tiles = Tiles.as_view({'get': 'retrieve'})
 preview_tiles = Tiles.as_view({'get': 'preview'})
-get_admin_units = AdminUnitViewSet.as_view({'get': 'retrieve'})
 get_colormap = GenerateColormap.as_view({'get': 'retrieve'})
-# get_dataset_stats = DatasetStatsViewSet.as_view({'get': 'retrieve'})
 get_point = PointValue.as_view({'get': 'retrieve'})
-get_feature = FeatureValue.as_view({'post': 'retrieve'})
-get_admin_feature = FeatureValue.as_view({'get': 'admin_feature'})
-get_custom_histogram = Histogram.as_view({'post': 'custom_hist'})
-get_admin_histogram = Histogram.as_view({'get': 'admin_hist'})
+get_custom_feature_value = ExtractRasterValue.as_view(
+    {'post': 'extract_custom_feature'})
+get_boundary_feature_value = ExtractRasterValue.as_view(
+    {'get': 'extract_boundary_feature'})
+get_custom_feature_histogram = Histogram.as_view(
+    {'post': 'custom_feature_histogram'})
+get_boundary_feature_histogram = Histogram.as_view(
+    {'get': 'boundary_feature_histogram'})
 get_zonal_stats = ZonalStatsViewSet.as_view({'get': 'list'})
-get_custom_graphic = GraphicsViewSet.as_view({'post': 'custom_graphic'})
-get_admin_graphic = GraphicsViewSet.as_view({'get': 'admin_graphic'})
-generate_custom_export = ImageExportViewSet.as_view({'post': 'custom_export'})
+get_custom_feature_graphic = GraphicsViewSet.as_view(
+    {'post': 'custom_feature_graphic'})
+get_boundary_feature_graphic = GraphicsViewSet.as_view(
+    {'get': 'boundary_feature_graphic'})
+generate_custom_export = ImageExportViewSet.as_view(
+    {'post': 'custom_feature_export'})
 
-router = DefaultRouter()
-router.register(r'admin-layers', AdminLayerViewSet)
+router = CustomRouter()
+router.register(r'announcements', AnnouncementViewSet)
+router.register(r'boundary-layers', BoundaryLayerViewSet)
 router.register(r'colormaps', ColormapViewSet)
 router.register(r'cropmasks', CropMaskViewSet)
 router.register(r'datasets', DatasetViewSet)
+router.register(r'exports', GetExportViewSet)
 router.register(r'products', ProductViewSet)
 router.register(r'sources', SourceViewSet)
 router.register(r'tags', TagViewSet)
 router.register(r'variables', VariableViewSet)
-router.register(r'announcements', AnnouncementViewSet)
-router.register(r'exports', GetExportViewSet)
+
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('admin-units/<slug:adminlayer_id>/',
-         get_admin_units, name='admin-units'),
+    # path('', include(router.urls)),
     path('colormap', get_colormap, name='colormap'),
-    #     path('dataset-stats/<slug:product_id>/<isodate:date>/', get_dataset_stats,
-    #          name='dataset-stats'),
-    path('graphic/', get_custom_graphic, name='custom-graphic'),
+    path('boundary-features/<slug:layer_id>/',
+         get_boundary_features, name='boundary-features'),
+    path('graphic/', get_custom_feature_graphic, name='custom-feature-graphic'),
     path('graphic/<slug:product_id>/<isodate:date>/<slug:cropmask_id>/'
-         '<slug:adminlayer_id>/<int:admin_unit>', get_admin_graphic, name='admin-graphic'),
-    path('histogram/', get_custom_histogram, name='custom-histogram'),
+         '<slug:layer_id>/<int:feature_id>', get_boundary_feature_graphic, name='boundary-feature-graphic'),
+    path('histogram/', get_custom_feature_histogram,
+         name='custom-feature-histogram'),
     path('histogram/<slug:product_id>/<isodate:date>/<slug:cropmask_id>/'
-         '<slug:adminlayer_id>/<int:admin_unit>/',
-         get_admin_histogram, name='admin-histogram'),
+         '<slug:layer_id>/<int:feature_id>/',
+         get_boundary_feature_histogram, name='boundary-feature-histogram'),
     path('point/<slug:product_id>/<isodate:date>/<float:lon>/<float:lat>/',
          get_point, name='point'),
-    path('feature/', get_feature, name='feature'),
-    path('feature/<slug:product_id>/<isodate:date>/<slug:cropmask_id>/'
-         '<slug:adminlayer_id>/<int:admin_unit>/', get_admin_feature, name='admin-feature'),
+    path('extract/', get_custom_feature_value, name='feature'),
+    path('extract/<slug:product_id>/<isodate:date>/<slug:cropmask_id>/'
+         '<slug:layer_id>/<int:feature_id>/', get_boundary_feature_value, name='extract-boundary-feature'),
     path('export/', generate_custom_export, name='custom-export'),
     path('tiles/<slug:product_id>/<isodate:date>/preview.png',
          preview_tiles, name='tiles-preview'),
     path('tiles/<slug:product_id>/<isodate:date>/<int:z>/<int:x>/<int:y>.png',
          get_tiles, name='tiles'),
     path('zonal-stats/<slug:product_id>/<slug:cropmask_id>/'
-         '<slug:adminlayer_id>/<int:admin_unit>', get_zonal_stats, name='zonal-stats')
+         '<slug:layer_id>/<int:feature_id>', get_zonal_stats, name='zonal-stats')
 ]
+urlpatterns += router.urls
 
 schema_view = get_schema_view(
     openapi.Info(title="GLAM API",
