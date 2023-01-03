@@ -553,7 +553,7 @@ def create_matching_mask_raster(product_id, cropmask_id):
             cropmask_ds = rioxarray.open_rasterio(cropmask_raster)
 
             cropmask_match_ds = cropmask_ds.rio.reproject_match(
-                product_ds, resampling=Resampling.average)
+                product_ds)
 
             # define out file
             tempname = product.product_id + '.' + cropmask.cropmask_id+'_temp.tif'
