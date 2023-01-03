@@ -3,7 +3,7 @@ from ...utils.ingest import add_boundary_rasters
 
 
 class Command(BaseCommand):
-    help = 'bulk add bonudary layer raster datasets'
+    help = 'bulk add boundary layer raster datasets'
 
     def handle(self, *args, **options):
         add_boundary_rasters()
