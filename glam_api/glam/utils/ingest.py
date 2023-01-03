@@ -154,9 +154,9 @@ def add_legacy_product_rasters(product):
                 except ProductRaster.DoesNotExist:
                     # if it doesn't exist, make it
                     prelim = False
-                    if 'prelim' in valid_product:
+                    if 'prelim' in filename:
                         prelim = True
-                        valid_product = valid_product.split('-')[0]
+                        valid_product = filename.split('-')[0]
                     new_dataset = ProductRaster(
                         product=valid_product,
                         prelim=prelim,
@@ -515,10 +515,80 @@ def upload_baselines_by_date(product_name, date):
 #                         in_memory=False
 #                     )
 
-def create_boundary_raster(product_id, layer_id, feature_id_field_name):
+def create_matching_mask_raster(product_id, cropmask_id):
+    """
+    function to create a resampled cropmask raster dataset that mathches size and resolution of product raster for zonal statistics calculation
+    """
     import os
     import time
     import tqdm
+    import shutil
+    from django.conf import settings
+
+    import rasterio
+    from rasterio.enums import Resampling
+
+    from rio_cogeo.cogeo import cog_translate
+    from rio_cogeo.profiles import cog_profiles
+
+    import rioxarray
+
+    from ..models import Product, CropMask, ProductRaster, BoundaryLayer, BoundaryRaster
+
+    try:
+        product = Product.objects.get(product_id=product_id)
+        try:
+            cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
+
+            # get sample product dataset to copy metadata
+            sample_product_ds = ProductRaster.objects.filter(
+                product__product_id=product, prelim=False)[0]
+            product_raster = sample_product_ds.file_object.url
+
+            product_ds = rioxarray.open_rasterio(product_raster)
+
+            # get cropmask raster
+            cropmask_raster = cropmask.raster_file.url
+
+            cropmask_ds = rioxarray.open_rasterio(cropmask_raster)
+
+            cropmask_match_ds = cropmask_ds.rio.reproject_match(
+                product_ds, resampling=Resampling.average)
+
+            # define out file
+            tempname = product.product_id + '.' + cropmask.cropmask_id+'_temp.tif'
+            filename = product.product_id + '.' + cropmask.cropmask_id+'.tif'
+            temp_path = os.path.join(
+                settings.MASK_DATASET_LOCAL_PATH, tempname)
+            out_path = os.path.join(
+                settings.MASK_DATASET_LOCAL_PATH, filename)
+
+            cropmask_match_ds[0].rio.to_raster(temp_path)
+
+            temp = rasterio.open(temp_path)
+
+            # prepare cog definition
+            cog_options = cog_profiles.get("deflate")
+            out_meta = temp.meta.copy()
+            out_meta.update(cog_options)
+
+            cog_translate(
+                temp,
+                out_path,
+                out_meta,
+                in_memory=False
+            )
+
+            os.remove(temp_path)
+
+        except Product.DoesNotExist:
+            logging.info(f'No valid crop mask exists matching {cropmask_id}')
+    except Product.DoesNotExist:
+        logging.info(f'No valid product exists matching {product_id}')
+
+
+def create_boundary_raster(product_id, layer_id, feature_id_field_name, feature_func=None):
+    import os
     from django.conf import settings
     import rasterio
     from rasterio.io import MemoryFile
@@ -526,9 +596,8 @@ def create_boundary_raster(product_id, layer_id, feature_id_field_name):
     from rio_cogeo.cogeo import cog_translate
     from rio_cogeo.profiles import cog_profiles
     from pyproj import CRS
-    import numpy as np
     import geopandas as gpd
-    from ..models import Product, Variable, ProductRaster, BoundaryLayer, BoundaryFeature, BoundaryRaster
+    from ..models import Product, ProductRaster, BoundaryLayer, BoundaryRaster
 
     try:
         product = Product.objects.get(product_id=product_id)
@@ -567,8 +636,9 @@ def create_boundary_raster(product_id, layer_id, feature_id_field_name):
         new_vector['geometry'] = new_vector['geometry'].to_crs(raster_crs)
 
         # get feature id as integer
-        new_vector[feature_id_field_name] = vector[feature_id_field_name].astype(str).str.split(
-            '-').str[-1].str.split('B').str[-1].astype('int64')
+        if feature_func:
+            new_vector[feature_id_field_name] = feature_func(
+                vector, feature_id_field_name)
 
         # get list of values (feature ids)
         zone_vals = []
@@ -616,6 +686,14 @@ def create_boundary_raster(product_id, layer_id, feature_id_field_name):
     except Product.DoesNotExist:
         logging.info(
             f'{product_id} is not a valid product id in the system. Please try again')
+
+
+def geoboundaries_feature_func(vector, field_name):
+    """
+    function to parse geoboundaries shapeID for raster creation
+    """
+    return vector[field_name].astype(str).str.split(
+        '-').str[-1].str.split('B').str[-1].astype('int64')
 
 
 def ingest_geoboundaries_layers(gb_directory, adm_level):
