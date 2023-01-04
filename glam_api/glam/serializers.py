@@ -77,7 +77,7 @@ class CropMaskSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = CropMask
         fields = [
-            'cropmask_id', 'display_name', 'crop_type', 'desc', 'tags',
+            'cropmask_id', 'display_name', 'crop_type', 'coverage', 'mask_type', 'desc', 'tags',
             'meta', 'source', 'date_created', 'date_added'
         ]
 
