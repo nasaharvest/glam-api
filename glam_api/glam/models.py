@@ -61,7 +61,7 @@ class Announcement(models.Model):
 
 class DataSource(models.Model):
     """
-    Model to store details on the sources of products, 
+    Model to store details on the sources of products,
     masks, boundary layers, or GLAM partners
     """
     name = models.CharField(max_length=256, help_text="Source name.")
@@ -220,6 +220,12 @@ class CropMask(models.Model):
     Crop Mask Model
     Details of available crop masks and the original raster files
     """
+
+    MASK_TYPE_CHOICES = [
+        ('binary', 'Binary (Crop or No Crop)'),
+        ('percent', 'Percent Crop')
+    ]
+
     name = models.CharField(max_length=256, help_text="Cropmask name.")
     cropmask_id = models.SlugField(blank=True, unique=True, max_length=256,
                                    help_text="A unique character ID to identify Crop Mask records.")
@@ -227,6 +233,8 @@ class CropMask(models.Model):
         Crop, on_delete=models.PROTECT, help_text="Crop that the mask represents.")
     coverage = models.CharField(
         max_length=256, help_text="Text representation of spatial coverage/extent of crop mask.", default="Global")
+    mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
+                                 help_text="Type of values present in mask raster (binary or percent crop).")
     display_name = models.CharField(
         max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
@@ -419,7 +427,7 @@ class CropmaskRaster(models.Model):
     """
 
     MASK_TYPE_CHOICES = [
-        ('binary', 'Binary (Crop or No Crop'),
+        ('binary', 'Binary (Crop or No Crop)'),
         ('percent', 'Percent Crop')
     ]
 
