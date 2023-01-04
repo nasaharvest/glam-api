@@ -214,7 +214,7 @@ class Tiles(viewsets.ViewSet):
         anomaly = data.get('anomaly', None)
         anomaly_type = data.get('anomaly_type', None)
         diff_year = data.get('diff_year', None)
-        cropmask = data.get('cropmask_id', None)
+        cropmask_id = data.get('cropmask_id', None)
         cropmask_threshold = data.get('cropmask_threshold', None)
         colormap = data.get('colormap', None)
         stretch_min = data.get('stretch_min', None)
@@ -289,29 +289,20 @@ class Tiles(viewsets.ViewSet):
                 mask=img.mask
             )
 
-        if cropmask:
-            mask_queryset = CropmaskRaster.objects.all()
-            mask_dataset = get_object_or_404(
-                mask_queryset,
-                product__product_id=product_id,
-                crop_mask__cropmask_id=cropmask
-            )
-            with COGReader(mask_dataset.file_object.url) as cog:
+        if cropmask_id:
+            cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
+
+            with COGReader(cropmask.raster_file.url) as cog:
                 cm_img = cog.tile(x, y, z, tilesize=tile_size,
                                   resampling_method='bilinear')
 
-            if mask_dataset.crop_mask.meta:
-                try:
-                    mask_type = mask_dataset.crop_mask.meta['mask_type']
-                except:
-                    mask_type = 'binary'
-            else:
-                mask_type = 'binary'
+            mask_type = cropmask.mask_type
 
             print(mask_type)
             if mask_type == 'percent':
                 if cropmask_threshold:
-                    threshold = cropmask_threshold
+                    threshold = cropmask_threshold / 100
+                    print(threshold)
                 else:
                     threshold = 0.5
                 cm_img.mask[np.where(cm_img.data[0] < threshold)] = 0
