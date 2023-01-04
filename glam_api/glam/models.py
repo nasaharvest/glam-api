@@ -448,7 +448,7 @@ class CropmaskRaster(models.Model):
         auto_now_add=True, help_text="Date dataset added to system.")
     local_path = models.FilePathField(
         path=settings.MASK_DATASET_LOCAL_PATH,
-        match=".*\.tif$", recursive=True,
+        match=".*\.tif$", recursive=True, max_length=256,
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
@@ -522,7 +522,7 @@ class BoundaryRaster(models.Model):
         auto_now_add=True, help_text="Date dataset added to system.")
     local_path = models.FilePathField(
         path=settings.BOUNDARY_RASTER_LOCAL_PATH,
-        match=".*\.tif$", recursive=True,
+        match=".*\.tif$", recursive=True, max_length=256,
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
@@ -615,7 +615,7 @@ class AnomalyBaselineRaster(models.Model):
         blank=True, help_text="Date Baseline dataset updated/added to.")
     local_path = models.FilePathField(
         path=settings.ANOMALY_BASELINE_LOCAL_PATH,
-        match=".*\.tif$", recursive=True, max_length=200,
+        match=".*\.tif$", recursive=True, max_length=256,
         help_text="Path to dataset on current machine. "
                   "Used to upload dataset file_object.")
     file_object = models.FileField(
