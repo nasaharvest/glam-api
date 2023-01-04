@@ -545,12 +545,14 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 product__product_id=product, prelim=False)[0]
             product_raster = sample_product_ds.file_object.url
 
-            product_ds = rioxarray.open_rasterio(product_raster, cache=False)
+            product_ds = rioxarray.open_rasterio(
+                product_raster, chunks="auto", cache=False)
 
             # get cropmask raster
             cropmask_raster = cropmask.raster_file.url
 
-            cropmask_ds = rioxarray.open_rasterio(cropmask_raster, cache=False)
+            cropmask_ds = rioxarray.open_rasterio(
+                cropmask_raster, chunks="auto", cache=False)
 
             cropmask_match_ds = cropmask_ds.rio.reproject_match(
                 product_ds)
@@ -564,7 +566,7 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 settings.MASK_DATASET_LOCAL_PATH, filename)
 
             cropmask_match_ds[0].rio.to_raster(
-                temp_path, driver="COG", windowed=True)
+                temp_path, compress="deflate", windowed=True)
 
             temp = rasterio.open(temp_path)
 
@@ -577,6 +579,8 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 temp,
                 out_path,
                 out_meta,
+                allow_intermediate_compression=True,
+                quiet=False,
                 in_memory=False
             )
 
