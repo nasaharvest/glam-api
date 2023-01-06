@@ -125,9 +125,9 @@ def add_legacy_product_rasters(product):
         elif product == 'mod13q1':
             product = 'mod13q1-ndvi'
         elif product == 'myd09q1':
-            product == 'myd09q1-ndvi'
+            product = 'myd09q1-ndvi'
         elif product == 'myd13q1':
-            product == 'myd13q1-ndvi'
+            product = 'myd13q1-ndvi'
         elif product == 'mod13q4n':
             product = 'mod13q4n-ndvi'
         elif product == 'vnp09h1':
