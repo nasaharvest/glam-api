@@ -549,7 +549,7 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 product_raster, chunks="auto", cache=False)
 
             # get cropmask raster
-            cropmask_raster = cropmask.raster_file.url
+            cropmask_raster = cropmask.stats_raster.url
 
             cropmask_ds = rioxarray.open_rasterio(
                 cropmask_raster, chunks="auto", cache=False)
