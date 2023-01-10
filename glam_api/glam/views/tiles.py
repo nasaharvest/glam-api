@@ -292,7 +292,7 @@ class Tiles(viewsets.ViewSet):
         if cropmask_id:
             cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
 
-            with COGReader(cropmask.raster_file.url) as cog:
+            with COGReader(cropmask.map_raster.url) as cog:
                 cm_img = cog.tile(x, y, z, tilesize=tile_size,
                                   resampling_method='bilinear')
 
