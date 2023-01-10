@@ -250,8 +250,10 @@ class CropMask(models.Model):
         help_text="Date cropmask added to the system.")
     source_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
                                    null=True, help_text="Original source file(s). Raster or Vector. (If Available)")
-    raster_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
+    map_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
                                    null=True, help_text="Cloud Optimized Geotiff to be used for visualization in TMS.")
+    stats_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
+                                   null=True, help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.")
 
     def __str__(self):
         return self.cropmask_id
