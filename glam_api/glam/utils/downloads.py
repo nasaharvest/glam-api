@@ -115,7 +115,7 @@ class GlamDownloader(object):
 
         return True
 
-    def _download_chirps(self, date, out_dir, **kwargs):
+    def _download_chirps_precip(self, date, out_dir, **kwargs):
         """
         Given date of chirps product, downloads file to directory
         Returns file path or None if download failed
@@ -124,7 +124,7 @@ class GlamDownloader(object):
         try:
             # define file locations
             # output location for final file
-            file_unzipped = os.path.join(out_dir, f"chirps.{date}.tif")
+            file_unzipped = os.path.join(out_dir, f"chirps-precip.{date}.tif")
             file_zipped = file_unzipped+".gz"  # initial location for zipped version of file
 
             # get url to be downloaded
@@ -189,7 +189,7 @@ class GlamDownloader(object):
         """
         try:
             # create formatted output filename
-            file_out = os.path.join(out_dir, f"chirps-prelim.{date}.tif")
+            file_out = os.path.join(out_dir, f"chirps-precip.{date}.prelim.tif")
 
             # get url to be downloaded
             c_date = datetime.strptime(date, "%Y-%m-%d")
@@ -240,7 +240,7 @@ class GlamDownloader(object):
                 f"Unhandled error downloading chirps-prelim for {date}")
             return ()
 
-    def _download_swi(self, date, out_dir, **kwargs):
+    def _download_copernicus_swi(self, date, out_dir, **kwargs):
         """
         Given date of swi product, downloads file to directory if possible
         Returns tuple containing file path or empty list if download failed
@@ -248,7 +248,7 @@ class GlamDownloader(object):
         """
 
         # where final output will be written to disk
-        out = os.path.join(out_dir, f"swi.{date}.tif")
+        out = os.path.join(out_dir, f"copernicus-swi.{date}.tif")
         # convert string date to datetime object
         dateObj = datetime.strptime(date, "%Y-%m-%d")
         year = dateObj.strftime("%Y")  # extract year
@@ -292,9 +292,10 @@ class GlamDownloader(object):
         optimized = self._cloud_optimize(raster, out, nodata=False)
 
         if optimized:
+            os.remove(file_nc)
             return out
 
-    def _download_merra2(self, date, out_dir, **kwargs):
+    def _download_merra_2(self, date, out_dir, **kwargs):
         merra2_urls = []
         for i in range(5):  # we are collecting the requested date along with 4 previous days
             m_date = datetime.strptime(date, "%Y-%m-%d") - timedelta(days=i)
@@ -368,8 +369,8 @@ class GlamDownloader(object):
             merra_out = []
 
             for metric in merra_datasets.keys():
-                out = os.path.join(os.path.join(
-                    out_dir, f'merra-2-{metric}'), f"merra-2.{date}.{metric}.tif")
+                out = os.path.join(
+                    out_dir, f"merra-2.{date}.{metric}-temp.tif")
 
                 dataset_list = merra_datasets[metric]
                 mosaic, out_transform = merge(dataset_list)
@@ -387,6 +388,8 @@ class GlamDownloader(object):
                 optimized = self._cloud_optimize(raster, out, nodata=False)
                 if optimized:
                     merra_out.append(out)
+
+            os.remove(out_netcdf)
 
             return merra_out
 
@@ -487,7 +490,7 @@ class GlamDownloader(object):
                     f"Failed to parse input '{date}' as a date. Please use format YYYY-MM-DD or YYYY.DOY")
 
         # merra-2 always requires special behavior
-        if self.product == "merra-2":
+        if "merra-2" in self.product:
             for i in range(5):  # we are collecting the requested date along with 4 previous days
                 m_date = datetime.strptime(
                     date, "%Y-%m-%d") - timedelta(days=i)
@@ -508,7 +511,7 @@ class GlamDownloader(object):
                     return False
             return True
 
-        elif self.product == "chirps":
+        elif self.product == "chirps-precip":
             # get url to be downloaded
             c_date = datetime.strptime(date, "%Y-%m-%d")
             c_year = c_date.strftime("%Y")
@@ -530,7 +533,7 @@ class GlamDownloader(object):
             req = requests.get(url)
             return req.ok
 
-        elif self.product == "swi":
+        elif self.product == "copernicus-swi":
             # convert string date to datetime object
             date_obj = datetime.strptime(date, "%Y-%m-%d")
             year = date_obj.strftime("%Y")
@@ -600,7 +603,7 @@ class GlamDownloader(object):
                 log.debug(
                     f"Found missing file in valid date range: merra-2 for {latest.strftime('%Y-%m-%d')}")
                 raw_dates.append(latest.strftime("%Y-%m-%d"))
-        elif self.product == "chirps":
+        elif self.product == "chirps-precip":
             # get all possible dates
             while latest < today:
                 if int(latest.strftime("%d")) > 12:
@@ -630,7 +633,7 @@ class GlamDownloader(object):
                 log.debug(
                     f"Found missing file in valid date range: chirps-prelim for {latest.strftime('%Y-%m-%d')}")
                 raw_dates.append(latest.strftime("%Y-%m-%d"))
-        elif self.product == "swi":
+        elif self.product == "copernicus-swi":
             # get all possible dates
             while latest < today:
                 latest = latest + timedelta(days=5)
@@ -746,18 +749,25 @@ class GlamDownloader(object):
         # can call actions[{prod}](*args). This is what we do in the return
         # statement below
         actions = {
-            "chirps": self._download_chirps,
+            "chirps-precip": self._download_chirps_precip,
             "chirps-prelim": self._download_chirps_prelim,
-            "swi": self._download_swi,
-            "merra-2": self._download_merra2,
+            "copernicus-swi": self._download_copernicus_swi,
+            "merra-2": self._download_merra_2,
         }
         for prod in NASA_PRODUCTS:
             actions.update({prod: self._download_nasa_product})
 
         return actions[self.product](date, out_dir, **kwargs)
 
-    # def download_available_from_date(self, date: str, out_dir: str) -> tuple :
+    def download_available_from_date(self, date: str, out_dir: str, **kwargs):
+        log.info('Retreiving list of datasets available for download.')
+        available = self.list_available_for_download(date)
 
+        for d in tqdm(available, desc="Downloading available datasets."):
+            self.download_single_date(d, out_dir, **kwargs)
+
+        log.info("Download complete.")
+        return True
 
 # def download_new_by_product(product_name):
 #     try:
