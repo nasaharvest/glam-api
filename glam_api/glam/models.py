@@ -362,7 +362,7 @@ class ProductRaster(models.Model):
         auto_now_add=True, help_text="Date dataset added to system.")
     local_path = models.FilePathField(path=settings.PRODUCT_DATASET_LOCAL_PATH, match=".*\.tif$", max_length=256,
                                       recursive=True, help_text="Path to dataset on current machine. Used to upload dataset file_object.")
-    file_object = models.FileField(upload_to='products', storage=raster_storage, blank=True,
+    file_object = models.FileField(upload_to='rasters', storage=raster_storage, blank=True,
                                    help_text="Stored dataset file. When dataset object is saved, the file_object is created using the local_path.")
 
     def __str__(self):
