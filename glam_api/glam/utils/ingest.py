@@ -555,7 +555,7 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 cropmask_raster, chunks="auto", cache=False)
 
             cropmask_match_ds = cropmask_ds.rio.reproject_match(
-                product_ds)
+                product_ds, resampling=Resampling.cubic)
 
             # define out file
             tempname = product.product_id + '.' + cropmask.cropmask_id+'_temp.tif'
