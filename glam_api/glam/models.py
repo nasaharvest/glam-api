@@ -234,7 +234,9 @@ class CropMask(models.Model):
     coverage = models.CharField(
         max_length=256, help_text="Text representation of spatial coverage/extent of crop mask.", default="Global")
     mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
-                                 help_text="Type of values present in mask raster (binary or percent crop).")
+                                 help_text="Type of values present in mask raster for map visualization (binary or percent crop).")
+    stats_mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
+                                 help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).")
     display_name = models.CharField(
         max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
