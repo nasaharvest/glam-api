@@ -69,8 +69,13 @@ def add_cropmask_rasters():
     # loop over the available files in the cropmask_dataset directory
     for filename in tqdm(os.listdir(dataset_directory)):
         if filename.endswith(".tif"):
+
             # get the file's product and cropmask
-            file_product, file_mask, _ = filename.split('.')
+            file_parts = filename.split('.')
+            file_product = file_parts[0]
+            file_mask = file_parts[1]
+            file_mask_type = file_parts[2]
+
             # slugify names
             file_product = slugify(file_product)
             file_mask = slugify(file_mask)
@@ -84,13 +89,16 @@ def add_cropmask_rasters():
                 try:
                     CropmaskRaster.objects.get(
                         crop_mask=cropmask,
-                        product=product)
+                        product=product,
+                        mask_type=file_mask_type
+                        )
                     pass
                 except CropmaskRaster.DoesNotExist as e2:
                     # if it doesn't exist, make it
                     new_dataset = CropmaskRaster(
                         crop_mask=cropmask,
                         product=product,
+                        mask_type=file_mask_type,
                         date_created=datetime.date.today(),
                         local_path=os.path.join(dataset_directory, filename))
                     logging.info(f'saving {filename}')
@@ -558,8 +566,9 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 product_ds, resampling=Resampling.cubic)
 
             # define out file
-            tempname = product.product_id + '.' + cropmask.cropmask_id+'_temp.tif'
-            filename = product.product_id + '.' + cropmask.cropmask_id+'.tif'
+            basename = product.product_id + '.' + cropmask.cropmask_id + '.' + cropmask.stats_mask_type
+            tempname = basename + '_temp.tif'
+            filename = basename + '.tif'
             temp_path = os.path.join(
                 settings.MASK_DATASET_LOCAL_PATH, tempname)
             out_path = os.path.join(
@@ -683,6 +692,8 @@ def create_boundary_raster(product_id, layer_id, feature_id_field_name, feature_
                     mem,
                     out_path,
                     out_meta,
+                    allow_intermediate_compression=True,
+                    quiet=False,
                     in_memory=False
                 )
 
