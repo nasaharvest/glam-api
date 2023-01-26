@@ -738,6 +738,24 @@ class ZonalStats(models.Model):
         verbose_name = "zonal stats"
         verbose_name_plural = "zonal stats"
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    'product_raster', 'cropmask_raster',
+                    'boundary_layer', 'feature_id',
+                    'date'
+                ],
+                name='unique_stats_record'),
+            models.UniqueConstraint(
+                fields=[
+                    'product_raster', 'boundary_layer',
+                    'feature_id', 'date'
+                ],
+                condition=models.Q(cropmask_raster__isnull=True),
+                name='unique_stats_record_null_cropmask'
+            )
+        ]
+
         indexes = [
             models.Index(
                 fields=[
