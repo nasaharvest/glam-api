@@ -120,7 +120,7 @@ class ZonalStatsViewSet(PandasViewSet):
     queryset = ZonalStats.objects.all().prefetch_related(
         'product_raster', 'product_raster__product',
         'cropmask_raster', 'cropmask_raster__crop_mask',
-        'boundary_raster', 'boundary_raster__boundary_layer'
+        'boundary_layer',
     )
     pagination_class = ZStatsPagination
     serializer_class = ZStatsPandasSerializer
@@ -148,20 +148,20 @@ class ZonalStatsViewSet(PandasViewSet):
             queryset = self.get_queryset().filter(
                 product_raster__product__product_id=product_id,
                 cropmask_raster=None,
-                boundary_raster__boundary_layer__layer_id=layer_id,
+                boundary_layer__layer_id=layer_id,
                 feature_id=feature_id).order_by('date')
         else:
             queryset = self.get_queryset().filter(
                 product_raster__product__product_id=product_id,
                 cropmask_raster__crop_mask__cropmask_id=cropmask_id,
-                boundary_raster__boundary_layer__layer_id=layer_id,
+                boundary_layer__layer_id=layer_id,
                 feature_id=feature_id).order_by('date')
 
-        # remove duplicate records
-        queryset = queryset.distinct(
-            'product_raster', 'cropmask_raster', 'boundary_raster',
-            'feature_id', 'arable_pixels', 'percent_arable',
-            'mean_value', 'date')
+        # # remove duplicate records
+        # queryset = queryset.distinct(
+        #     'product_raster', 'cropmask_raster', 'boundary_layer',
+        #     'feature_id', 'pixel_count', 'percent_arable',
+        #     'mean_value', 'date')
 
         params = ZStatsParamSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)

@@ -782,41 +782,59 @@ class VariableSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ZStatsSerializer(serializers.ModelSerializer):
-    feature_id = serializers.IntegerField(source='feature_id')
-    # mean_value = serializers.FloatField(source='value')
-    mean_value = serializers.SerializerMethodField(method_name='get_value')
+    min = serializers.SerializerMethodField(method_name='get_min')
+    max = serializers.SerializerMethodField(method_name='get_max')
+    mean = serializers.SerializerMethodField(method_name='get_mean')
 
     class Meta:
         model = ZonalStats
         fields = [
-            'feature_id', 'date', 'arable_pixels', 'percent_arable',
-            'mean_value'
+            'feature_id', 'date', 'pixel_count', 'percent_arable',
+            'min', 'max', 'mean', 'std'
         ]
 
-    def get_value(self, obj):
+    def get_min(self, obj):
         scale = obj.product_raster.product.variable.scale
-        value = obj.mean_value
+        value = obj.min
+        return scale * value
 
+    def get_max(self, obj):
+        scale = obj.product_raster.product.variable.scale
+        value = obj.max
+        return scale * value
+
+    def get_mean(self, obj):
+        scale = obj.product_raster.product.variable.scale
+        value = obj.mean
         return scale * value
 
 
 class ZStatsPandasSerializer(serializers.ModelSerializer):
-    # feature_id = serializers.IntegerField(source='feature_id')
-    # mean_value = serializers.FloatField(source='value')
-    mean_value = serializers.SerializerMethodField(method_name='get_value')
+    min = serializers.SerializerMethodField(method_name='get_min')
+    max = serializers.SerializerMethodField(method_name='get_max')
+    mean = serializers.SerializerMethodField(method_name='get_mean')
 
     class Meta:
         model = ZonalStats
         list_serializer_class = PandasSerializer
         fields = [
-            'feature_id', 'date', 'arable_pixels', 'percent_arable',
-            'mean_value'
+            'feature_id', 'date', 'pixel_count', 'percent_arable',
+            'min', 'max', 'mean', 'std'
         ]
 
-    def get_value(self, obj):
+    def get_min(self, obj):
         scale = obj.product_raster.product.variable.scale
-        value = obj.mean_value
+        value = obj.min
+        return scale * value
 
+    def get_max(self, obj):
+        scale = obj.product_raster.product.variable.scale
+        value = obj.max
+        return scale * value
+
+    def get_mean(self, obj):
+        scale = obj.product_raster.product.variable.scale
+        value = obj.mean
         return scale * value
 
 
