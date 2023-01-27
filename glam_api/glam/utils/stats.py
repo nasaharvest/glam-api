@@ -69,7 +69,7 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
         mask_type=cropmask_raster.mask_type if cropmask_raster else "binary")
 
     # Use Pool.startmap method to map over chunks of features and execute zonal stats calculation.
-    stats_lists = p.starmap(zonal_stats_partial, params)
+    stats_lists = p.starmap(zonal_stats_partial, tqdm(params))
     # Combine results into a single list.
     stats = list(itertools.chain(*stats_lists))
     # Zip results into list of tuples with corresponding boundary feautre.
