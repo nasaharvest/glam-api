@@ -723,13 +723,17 @@ class ZonalStats(models.Model):
         help_text="Percent of the feature pixels with valid data for the "
                   "product and mask dataset combination.")
     min = models.FloatField(
-        "Minimum value derived from zonal statistics calculation.")
+        null=True, blank=True,
+        help_text="Minimum value derived from zonal statistics calculation.")
     max = models.FloatField(
-        "Maximum value derived from zonal statistics calculatin.")
+        null=True, blank=True,
+        help_text="Maximum value derived from zonal statistics calculatin.")
     mean = models.FloatField(
+        null=True, blank=True,
         help_text="Mean value derived from zonal statistics calculation.")
     std = models.FloatField(
-        "Standard deviation derived from zonal statistics calculation.")
+        null=True, blank=True,
+        help_text="Standard deviation derived from zonal statistics calculation.")
     date = models.DateField(
         db_index=True,
         help_text="Date the ZonalStats represent, derived from the product dataset")
