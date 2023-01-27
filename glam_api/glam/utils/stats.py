@@ -54,22 +54,25 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
         boundary_layer=boundary_layer)
 
     # Open raster and get CRS to transform vector geometry.
-    raster_dataset = rasterio.open(product_raster.file_object.url)
+    raster_dataset = rasterio.open(product_raster.local_path)
     crs_wkt = raster_dataset.crs.wkt
 
     geoms = [json.loads(feature.geom.transform(crs_wkt, clone=True).geojson)
              for feature in boundary_features]
 
+    # Divide features for processing across N number of cores.
     params = chunks(
         features=geoms,
         cores=n_cores,
-        product_raster_path=product_raster.file_object.url,
-        cropmask_raster_path=cropmask_raster.file_object.url if cropmask_raster else None,
+        product_raster_path=product_raster.local_path,
+        cropmask_raster_path=cropmask_raster.local_path if cropmask_raster else None,
         mask_type=cropmask_raster.mask_type if cropmask_raster else "binary")
 
+    # Use Pool.startmap method to map over chunks of features and execute zonal stats calculation.
     stats_lists = p.starmap(zonal_stats_partial, params)
+    # Combine results into a single list.
     stats = list(itertools.chain(*stats_lists))
-
+    # Zip results into list of tuples with corresponding boundary feautre.
     results = list(zip(boundary_features, stats))
 
     # Create list of ZonalStats records for bulk_create.
