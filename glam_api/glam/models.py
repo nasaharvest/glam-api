@@ -236,7 +236,7 @@ class CropMask(models.Model):
     mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
                                  help_text="Type of values present in mask raster for map visualization (binary or percent crop).")
     stats_mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
-                                 help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).")
+                                       help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).")
     display_name = models.CharField(
         max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
@@ -253,9 +253,9 @@ class CropMask(models.Model):
     source_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
                                    null=True, help_text="Original source file(s). Raster or Vector. (If Available)")
     map_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
-                                   null=True, help_text="Cloud Optimized Geotiff to be used for visualization in TMS.")
+                                  null=True, help_text="Cloud Optimized Geotiff to be used for visualization in TMS.")
     stats_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
-                                   null=True, help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.")
+                                    null=True, help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.")
 
     def __str__(self):
         return self.cropmask_id
@@ -707,25 +707,33 @@ class ZonalStats(models.Model):
     """
     product_raster = models.ForeignKey(
         ProductRaster, on_delete=models.CASCADE,
-        help_text="Product dataset of ZonalStats.")
+        help_text="Raster dataset of Product.")
     cropmask_raster = models.ForeignKey(
         CropmaskRaster, null=True, on_delete=models.CASCADE,
-        help_text="Cropmask dataset of ZonalStats.")
-    boundary_raster = models.ForeignKey(
-        BoundaryRaster, on_delete=models.CASCADE,
-        help_text="Boundary Layer dataset of ZonalStats.")
+        help_text="Raster Dataset of CropMask.")
+    boundary_layer = models.ForeignKey(
+        BoundaryLayer, on_delete=models.CASCADE,
+        help_text="BoundaryLayer")
     feature_id = models.IntegerField(
         db_index=True,
-        help_text="Feature of ZonalStats.")
-    arable_pixels = models.FloatField(
-        help_text="Number of pixels representing arable land "
-                  "within the specified feature.")
+        help_text="ID of feature within BoundaryLayer.")
+    pixel_count = models.FloatField(
+        help_text="Number of pixels representing the specified feature.")
     percent_arable = models.FloatField(
-        help_text="Percent of arable pixels for the "
-                  "product and mask dataset comination.")
-    mean_value = models.FloatField(
-        help_text="Mean calculated for specified feature "
-                  "using the product and mask dataset combination.")
+        help_text="Percent of the feature pixels with valid data for the "
+                  "product and mask dataset combination.")
+    min = models.FloatField(
+        null=True, blank=True,
+        help_text="Minimum value derived from zonal statistics calculation.")
+    max = models.FloatField(
+        null=True, blank=True,
+        help_text="Maximum value derived from zonal statistics calculatin.")
+    mean = models.FloatField(
+        null=True, blank=True,
+        help_text="Mean value derived from zonal statistics calculation.")
+    std = models.FloatField(
+        null=True, blank=True,
+        help_text="Standard deviation derived from zonal statistics calculation.")
     date = models.DateField(
         db_index=True,
         help_text="Date the ZonalStats represent, derived from the product dataset")
@@ -734,18 +742,36 @@ class ZonalStats(models.Model):
         verbose_name = "zonal stats"
         verbose_name_plural = "zonal stats"
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    'product_raster', 'cropmask_raster',
+                    'boundary_layer', 'feature_id',
+                    'date'
+                ],
+                name='unique_stats_record'),
+            models.UniqueConstraint(
+                fields=[
+                    'product_raster', 'boundary_layer',
+                    'feature_id', 'date'
+                ],
+                condition=models.Q(cropmask_raster__isnull=True),
+                name='unique_stats_record_null_cropmask'
+            )
+        ]
+
         indexes = [
             models.Index(
                 fields=[
                     'product_raster', 'cropmask_raster',
-                    'boundary_raster', 'feature_id',
+                    'boundary_layer', 'feature_id',
                     'date'
                 ], name='zstats_idx'
             ),
             models.Index(
                 fields=[
                     'product_raster', 'cropmask_raster',
-                    'boundary_raster', 'feature_id'
+                    'boundary_layer', 'feature_id'
                 ], name='zstats_idx_no_date'
             )
         ]
