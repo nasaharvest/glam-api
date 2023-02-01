@@ -36,8 +36,11 @@ LADS_DAAC_URL = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
 LANCE_NRT_URL = 'https://nrt3.modaps.eosdis.nasa.gov/archive/allData/'
 
 NASA_PRODUCTS = ["MOD09Q1", "MYD09Q1", "MOD13Q1", "MYD13Q1", "MOD09A1", "MYD09A1",
-                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG", 
+                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG",
                  "MCD12Q1"]
+
+# WKT of default Sinusoidal Projection
+SINUS_WKT = 'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",DATUM["Not_specified_based_on_custom_spheroid",SPHEROID["Custom spheroid",6371007.181,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
 
 
 def get_collection(product):
@@ -98,6 +101,7 @@ def get_dtype_from_sds_name(sds_name):
     elif sds_name == 'LC_Type1':
         return 'uint8'
 
+
 def get_h5_geo_info(file):
     # Get info from the StructMetadata Object
     metadata = file['HDFEOS INFORMATION']['StructMetadata.0'][()].split()
@@ -105,11 +109,12 @@ def get_h5_geo_info(file):
     metadata_byte2str = [s.decode('utf-8') for s in metadata]
     # Get upper left points
     ulc = [i for i in metadata_byte2str if 'UpperLeftPointMtrs' in i]
-    ulc_lon = float(ulc[0].replace('=', ',').replace('(', '') \
-            .replace(')', '').split(',')[1])
-    ulc_lat = float(ulc[0].replace('=', ',').replace('(', '') \
-            .replace(')', '').split(',')[2])
-    return((ulc_lon,  0.0 , ulc_lat, 0.0 ))
+    ulc_lon = float(ulc[0].replace('=', ',').replace('(', '')
+                    .replace(')', '').split(',')[1])
+    ulc_lat = float(ulc[0].replace('=', ',').replace('(', '')
+                    .replace(')', '').split(',')[2])
+    return ((ulc_lon,  0.0, ulc_lat, 0.0))
+
 
 def is_nrt(product):
     if product[-1] == "N":
@@ -670,6 +675,7 @@ def create_ndvi_geotiff(dataset, out_dir):
 
     file_path = dataset.name
     file_name = os.path.basename(file_path)
+    ext = file_name.split('.')[-1]
 
     # calculate ndvi and export to geotiff
     ndvi_array, ndvi_nodata = get_ndvi_array(dataset)
@@ -677,7 +683,7 @@ def create_ndvi_geotiff(dataset, out_dir):
     # apply mask
     ndvi_array = apply_mask(ndvi_array, dataset, ndvi_nodata)
 
-    out_name = file_name.replace('.hdf', '.ndvi.tif')
+    out_name = file_name.replace(ext, 'ndvi.tif')
     output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
@@ -688,7 +694,26 @@ def create_ndvi_geotiff(dataset, out_dir):
     profile = rasterio.open(dataset.subdatasets[0]).profile.copy()
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndvi_nodata})
 
-    #  create cog
+    if "VNP" in file_name:
+        print(file_path)
+        f = h5py.File(file_path, 'r')
+        geo_info = get_h5_geo_info(f)
+        print(geo_info)
+        if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
+            yRes = -926.6254330555555
+            xRes = 926.6254330555555
+        elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
+            yRes = -463.31271652777775
+            xRes = 463.31271652777775
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        profile.update({"transform": new_transform})
+
+    # assign CRS if None
+    if profile['crs'] == None:
+        profile.update({"crs": SINUS_WKT})
+
+    # create cog
     with MemoryFile() as memfile:
         with memfile.open(**profile) as mem:
             mem.write(ndvi_array)
@@ -707,6 +732,7 @@ def create_ndvi_geotiff(dataset, out_dir):
 def create_ndwi_geotiff(dataset, out_dir):
     file_path = dataset.name
     file_name = os.path.basename(file_path)
+    ext = file_name.split('.')[-1]
 
     # calculate ndvi and export to geotiff
     ndwi_array, ndwi_nodata = get_ndwi_array(dataset)
@@ -714,7 +740,7 @@ def create_ndwi_geotiff(dataset, out_dir):
     # apply mask
     ndwi_array = apply_mask(ndwi_array, dataset, ndwi_nodata)
 
-    out_name = file_name.replace('.hdf', '.ndwi.tif')
+    out_name = file_name.replace(ext, 'ndwi.tif')
     output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
@@ -725,7 +751,26 @@ def create_ndwi_geotiff(dataset, out_dir):
     profile = rasterio.open(dataset.subdatasets[0]).profile.copy()
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndwi_nodata})
 
-    #  create cog
+    if "VNP" in file_name:
+        print(file_path)
+        f = h5py.File(file_path, 'r')
+        geo_info = get_h5_geo_info(f)
+        print(geo_info)
+        if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
+            yRes = -926.6254330555555
+            xRes = 926.6254330555555
+        elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
+            yRes = -463.31271652777775
+            xRes = 463.31271652777775
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        profile.update({"transform": new_transform})
+
+    # assign CRS if None
+    if profile['crs'] == None:
+        profile.update({"crs": SINUS_WKT})
+
+    # create cog
     with MemoryFile() as memfile:
         with memfile.open(**profile) as mem:
             mem.write(ndwi_array)
@@ -775,12 +820,13 @@ def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
         out_name = file_name.replace('.h5', f'.{sds_name}.tif')
         output = os.path.join(out_dir, out_name)
         if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
-            yRes = -926.6254330555555    
+            yRes = -926.6254330555555
             xRes = 926.6254330555555
         elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
             yRes = -463.31271652777775
             xRes = 463.31271652777775
-        new_transform = rasterio.Affine(xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
         profile.update({"transform": new_transform})
         tags = dataset.tags()
         for tag in tags:
@@ -788,10 +834,9 @@ def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
                 sds_nodata = tags[tag]
         profile.update({"nodata": int(sds_nodata)})
 
-
     # assign CRS if None
     if profile['crs'] == None:
-        profile.update({"crs": 'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",DATUM["Not_specified_based_on_custom_spheroid",SPHEROID["Custom spheroid",6371007.181,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'})
+        profile.update({"crs": SINUS_WKT})
 
     #  create cog
     with MemoryFile() as memfile:
