@@ -41,6 +41,8 @@ class GlamDownloader(object):
     def __init__(self, product):
         if product in ["merra-2-min", "merra-2-max", "merra-2-mean"]:
             self.product = "merra-2"
+        elif product.upper() in NASA_PRODUCTS:
+            self.product = product.upper()
         else:
             self.product = product
 
@@ -189,7 +191,8 @@ class GlamDownloader(object):
         """
         try:
             # create formatted output filename
-            file_out = os.path.join(out_dir, f"chirps-precip.{date}.prelim.tif")
+            file_out = os.path.join(
+                out_dir, f"chirps-precip.{date}.prelim.tif")
 
             # get url to be downloaded
             c_date = datetime.strptime(date, "%Y-%m-%d")
