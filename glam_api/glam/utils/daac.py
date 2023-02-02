@@ -74,31 +74,18 @@ def get_dtype_from_sds_name(sds_name):
     # given name of sds return string representation of dtype
     if 'sur_refl_b' in sds_name:
         return 'int16'
-    elif sds_name == 'sur_refl_qc_500m':
+    elif sds_name in ['sur_refl_qc_500m']:
         return 'uint32'
-    elif sds_name == 'sur_refl_szen':
+    elif sds_name in [
+        'sur_refl_szen', 'sur_refl_vzen', 'sur_refl_raz', 'RelativeAzimuth',
+        'SolarZenith', 'SensorZenith', 'SurfReflect_I1', 'SurfReflect_I2',
+            'SurfReflect_I3']:
         return 'int16'
-    elif sds_name == 'sur_refl_vzen':
-        return 'int16'
-    elif sds_name == 'sur_refl_raz':
-        return 'int16'
-    elif sds_name == 'sur_refl_state_500m':
+    elif sds_name in [
+        'sur_refl_state_500m', 'sur_refl_day_of_year', 'sur_refl_state_250m', 'sur_refl_qc_250m',
+            'SurfReflect_Day_Of_Year', 'SurfReflect_State_500m', 'SurfReflect_QC_500m']:
         return 'uint16'
-    elif sds_name == 'sur_refl_day_of_year':
-        return 'uint16'
-    elif sds_name == 'sur_refl_state_250m':
-        return 'uint16'
-    elif sds_name == 'sur_refl_qc_250m':
-        return 'uint16'
-    elif sds_name == 'RelativeAzimuth':
-        return 'int16'
-    elif sds_name == 'SolarZenith':
-        return 'int16'
-    elif sds_name == 'SensorZenith':
-        return 'int16'
-    elif sds_name == 'SurfReflect_Day_Of_Year':
-        return 'uint16'
-    elif sds_name == 'LC_Type1':
+    elif sds_name in ['LC_Type1']:
         return 'uint8'
 
 
