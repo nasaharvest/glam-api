@@ -4,9 +4,11 @@ import time
 import gzip
 import shutil
 import logging
+import functools
 from datetime import datetime, timedelta
 import requests
 import subprocess
+from multiprocessing import Pool
 
 from tqdm import tqdm
 
@@ -427,11 +429,19 @@ class GlamDownloader(object):
                 for ds in sds:
                     if "VNP" in self.product:
                         log.info("Try creating cogs")
-                        ds_files = []
-                        for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
-                            dataset = rasterio.open(file)
-                            ds_files.append(create_sds_geotiff(
-                                self.product, dataset, ds, out_dir, mask=False))
+                        # ds_files = []
+                        # for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
+                        #     dataset = rasterio.open(file)
+                        #     ds_files.append(create_sds_geotiff(
+                        #         self.product, dataset, ds, out_dir, mask=False))
+                        pool = Pool(settings.N_CORES)
+                        ds_files = list(tqdm(pool.imap(functools.partial(
+                            create_sds_geotiff,
+                            product=self.product,
+                            sds_name=ds,
+                            mask=False,
+                            out_dir=out_dir
+                        ), hdf_files), desc=f'Creating intermediate {ds} COGs.'))
 
                         ds_mosaic = self._create_mosaic_cog_from_tifs(
                             date_obj, ds_files, out_dir)
@@ -460,21 +470,26 @@ class GlamDownloader(object):
             for file in hdf_files:
                 os.remove(file)
         else:
-            vi_files = []
-            for file in tqdm(hdf_files, desc=f'Creating {vi} files.'):
-                dataset = rasterio.open(file)
-                vi_files.append(vi_functions[vi](dataset, out_dir))
+            pool = Pool(settings.N_CORES)
+            vi_function = vi_functions[vi]
+            vi_files = list(tqdm(pool.imap(functools.partial(
+                vi_function, out_dir=out_dir
+            ), hdf_files), desc=f'Creating intermediate {vi} COGs.'))
+
+            # Remove hdf files after tiffs are created.
+            for file in hdf_files:
                 os.remove(file)
 
             vi_mosaic = self._create_mosaic_cog_from_tifs(
                 date_obj, vi_files, out_dir)
             output.append(vi_mosaic)
-            # remove tiffs after mosaic creation
+
+            # Remove tiffs after mosaic creation.
             for file in vi_files:
                 os.remove(file)
         end = time.time()
         duration = end-start
-        print(duration)
+        log.info(f'Download time: {str(timedelta(seconds=duration))}')
 
         return output
 

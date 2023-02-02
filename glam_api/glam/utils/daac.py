@@ -671,7 +671,8 @@ def get_available_dates(product: str, date_obj: str) -> list:
     return out_list
 
 
-def create_ndvi_geotiff(dataset, out_dir):
+def create_ndvi_geotiff(file, out_dir):
+    dataset = rasterio.open(file)
 
     file_path = dataset.name
     file_name = os.path.basename(file_path)
@@ -695,10 +696,8 @@ def create_ndvi_geotiff(dataset, out_dir):
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndvi_nodata})
 
     if "VNP" in file_name:
-        print(file_path)
         f = h5py.File(file_path, 'r')
         geo_info = get_h5_geo_info(f)
-        print(geo_info)
         if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
             yRes = -926.6254330555555
             xRes = 926.6254330555555
@@ -729,7 +728,9 @@ def create_ndvi_geotiff(dataset, out_dir):
     return output
 
 
-def create_ndwi_geotiff(dataset, out_dir):
+def create_ndwi_geotiff(file, out_dir):
+    dataset = rasterio.open(file)
+
     file_path = dataset.name
     file_name = os.path.basename(file_path)
     ext = file_name.split('.')[-1]
@@ -752,10 +753,8 @@ def create_ndwi_geotiff(dataset, out_dir):
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndwi_nodata})
 
     if "VNP" in file_name:
-        print(file_path)
         f = h5py.File(file_path, 'r')
         geo_info = get_h5_geo_info(f)
-        print(geo_info)
         if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
             yRes = -926.6254330555555
             xRes = 926.6254330555555
@@ -786,7 +785,9 @@ def create_ndwi_geotiff(dataset, out_dir):
     return output
 
 
-def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
+def create_sds_geotiff(file, product, sds_name, out_dir, mask=True):
+    dataset = rasterio.open(file)
+
     file_path = dataset.name
     file_name = os.path.basename(file_path)
 
@@ -813,10 +814,8 @@ def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": sds_nodata})
 
     if "VNP" in product:
-        print(file_path)
         f = h5py.File(file_path, 'r')
         geo_info = get_h5_geo_info(f)
-        print(geo_info)
         out_name = file_name.replace('.h5', f'.{sds_name}.tif')
         output = os.path.join(out_dir, out_name)
         if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
