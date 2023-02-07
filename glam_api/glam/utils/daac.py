@@ -405,9 +405,11 @@ def get_ndvi_array(dataset):
     if suffix == "09Q4" or suffix == "13Q4":
         band_name = "250m 8 days NDVI"
         ndvi_array, ndvi_nodata = get_sds(dataset, band_name)
+        return (ndvi_array, ndvi_nodata)
     elif suffix == "13Q1":
         band_name = "250m 16 days NDVI"
         ndvi_array, ndvi_nodata = get_sds(dataset, band_name)
+        return (ndvi_array, ndvi_nodata)
     elif suffix == "09CM":
         if ext == "hdf":
             red_name = "Coarse Resolution Surface Reflectance Band 1"
@@ -420,6 +422,7 @@ def get_ndvi_array(dataset):
         nir_band, nir_nodata = get_sds(dataset, nir_name)
 
         ndvi_array = calc_ndvi(red_band, nir_band)
+        return (ndvi_array, red_nodata)
     else:
         if ext == "hdf":
             red_name = "sur_refl_b01"
@@ -447,7 +450,7 @@ def get_ndvi_array(dataset):
 
         ndvi_array = calc_ndvi(red_band, nir_band)
 
-    return (ndvi_array, red_nodata)
+        return (ndvi_array, red_nodata)
 
 
 def get_ndwi_array(dataset):
@@ -487,9 +490,31 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
     nrt = is_nrt(product)
 
     lp_date = date_obj.strftime("%Y.%m.%d")
-
+    out_list = []
+    paths = []
     if nrt:
-        pass
+        headers = {
+            "Athorization": f"Bearer {CREDENTIALS['NRT_TOKEN']}"
+        }
+        doy = date_obj.strftime("%j")
+        csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection[1:]}/{product}/{date_obj.year}/{doy}?fields=all&format=csv"
+        print(csv_url)
+        r = requests.get(csv_url, headers=headers)
+        file_csv = StringIO(r.text)
+        reader = csv.DictReader(file_csv)
+
+        for row in reader:
+            url = row['downloadsLink']
+            ext = url.split('.')[-1]
+            if ext == 'hdf':
+                paths.append(url)
+
+        print(len(paths))
+        total_files = len(paths)
+        if total_files < 1:
+            raise exceptions.UnavailableError(
+                f"Download failed. No files available.")
+
     else:
         # Scrape LP DAAC Data Pool
         # https: // e4ftl01.cr.usgs.gov/MOLT/MOD13Q1.061/2022.08.29/
@@ -511,54 +536,60 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
         headers = {
             "Athorization": f'Bearer {CREDENTIALS["LP_TOKEN"]}'
         }
-        out_list = []
-        session = FuturesSession()
-        reqs = []
-        for path in paths:
-            r = session.get(path, headers=headers)
-            reqs.append((3, path, r))
 
-        # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
-        pbar = tqdm(total=total_files)
-        while reqs:
-            tries, url, req = reqs.pop(0)
-            try:
-                resp = req.result()
-                file_name = resp.url.split('/')[-1]
-                resp_headers = resp.headers
-                if resp.ok:
-                    output = os.path.join(out_dir, file_name)
-                    with open(output, "wb") as f:
-                        for chunk in resp.iter_content(chunk_size=1024*1024):
-                            f.write(chunk)
-                    # checksum
-                    # size of downloaded file (bytes)
-                    observed_size = int(os.stat(output).st_size)
-                    # size anticipated from header (bytes)
-                    expected_size = int(resp_headers['Content-Length'])
+    session = FuturesSession()
+    reqs = []
+    for path in paths:
+        r = session.get(path, headers=headers)
+        reqs.append((3, path, r))
 
-                    # if checksum is failed, log and return empty
-                    if int(observed_size) != int(expected_size):
-                        w = f"\nExpected file size:\t{expected_size} bytes\nObserved file size:\t{observed_size} bytes"
+    # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
+    pbar = tqdm(total=total_files)
+    while reqs:
 
-                    out_list.append(output)
-                    pbar.update(1)
-            except:
-                log.info(
-                    f"HDF download failed for {url}, will retry. {tries} tries remaining.")
-                if tries > 0:
-                    reqs.append((tries-1, url, req))
-                else:
-                    log.info(f"{tries}, {url}")
-                    log.info(f"Download failed for URL: {url}")
-                    break
+        tries, url, req = reqs.pop(0)
+        print(url)
+        try:
+            resp = req.result()
+            file_name = resp.url.split('/')[-1]
+            resp_headers = resp.headers
+            if resp.ok:
+                print('jere')
+                output = os.path.join(out_dir, file_name)
+                with open(output, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1024*1024):
+                        f.write(chunk)
+                # checksum
+                # size of downloaded file (bytes)
+                observed_size = int(os.stat(output).st_size)
+                # size anticipated from header (bytes)
+                expected_size = int(resp_headers['Content-Length'])
 
-        pbar.close()
-        if len(out_list) != total_files:
-            for file in out_list:
-                os.remove(file)
-            raise exceptions.UnavailableError(
-                f"Download failed.")
+                # if checksum is failed, log and return empty
+                if int(observed_size) != int(expected_size):
+                    w = f"\nExpected file size:\t{expected_size} bytes\nObserved file size:\t{observed_size} bytes"
+
+                out_list.append(output)
+                pbar.update(1)
+            else:
+                print(resp.status_code)
+        except:
+            log.info(
+                f"HDF download failed for {url}, will retry. {tries} tries remaining.")
+            if tries > 0:
+                reqs.append((tries-1, url, req))
+            else:
+                log.info(f"{tries}, {url}")
+                log.info(f"Download failed for URL: {url}")
+                break
+
+    pbar.close()
+    print(len(out_list), total_files)
+    if len(out_list) != total_files:
+        for file in out_list:
+            os.remove(file)
+        raise exceptions.UnavailableError(
+            f"Download failed.")
     return out_list
 
 
@@ -592,21 +623,20 @@ def get_available_dates(product: str, date_obj: str) -> list:
 
         try:
             if nrt:
+                headers = {
+                    "Athorization": f"Bearer {CREDENTIALS['NRT_TOKEN']}"
+                }
                 out_list = []
-                # # get and parse CSV
-                # csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection}/{product}/{year}/?fields=all&format=csv"
-                # dir_files = [f for f in csv.DictReader(
-                #     StringIO(pull(csv_url)), skipinitialspace=True)]
+                # get and parse CSV
+                csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection[1:]}/{product}/{year}/?fields=all&format=csv"
+                r = requests.get(csv_url, headers=headers)
+                nrt_csv = StringIO(r.text)
+                dir_files = [f for f in csv.DictReader(nrt_csv)]
+                # extract valid days of year from CSV
+                for d in dir_files:
+                    doy = d['name']
+                    out_list.append(doy)
 
-                # # extract valid days of year from CSV
-                # for d in dir_files:
-                #     doy = d['name']
-                #     doycsv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection}/{product}/{year}/{doy}/?fields=all&format=csv"
-                #     doy_files = [f for f in csv.DictReader(
-                #         StringIO(pull(doycsv_url)), skipinitialspace=True)]
-                #     if len(doy_files) == 0:
-                #         continue
-                #     out_list.append(doy)
             else:
                 # Scrape LP DAAC Data Pool
                 # https: // e4ftl01.cr.usgs.gov/MOLT/MOD13Q1.061/2022.08.29/
