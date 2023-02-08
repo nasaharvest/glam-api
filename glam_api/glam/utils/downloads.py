@@ -4,9 +4,11 @@ import time
 import gzip
 import shutil
 import logging
+import functools
 from datetime import datetime, timedelta
 import requests
 import subprocess
+from multiprocessing import Pool
 
 from tqdm import tqdm
 
@@ -41,6 +43,8 @@ class GlamDownloader(object):
     def __init__(self, product):
         if product in ["merra-2-min", "merra-2-max", "merra-2-mean"]:
             self.product = "merra-2"
+        elif product.upper() in NASA_PRODUCTS:
+            self.product = product.upper()
         else:
             self.product = product
 
@@ -48,15 +52,18 @@ class GlamDownloader(object):
 
         out_path = vrt_path.replace('vrt', 'tif')
 
-        profile = cog_profiles.get("deflate")
-        log.info("Creating global mosaic & cloud optimizing.")
-        cog_translate(
-            vrt_path,
-            out_path,
-            profile,
-            allow_intermediate_compression=True,
-            quiet=False
-        )
+        translate_command = ["gdal_translate", "-of", "COG", "-co",
+                             "COMPRESS=DEFLATE", "-co", "BIGTIFF=IF_SAFER", vrt_path, out_path]
+        subprocess.call(translate_command)
+        # profile = cog_profiles.get("deflate")
+        # log.info("Creating global mosaic & cloud optimizing.")
+        # cog_translate(
+        #     vrt_path,
+        #     out_path,
+        #     profile,
+        #     allow_intermediate_compression=True,
+        #     quiet=False
+        # )
 
         os.remove(vrt_path)
 
@@ -189,7 +196,8 @@ class GlamDownloader(object):
         """
         try:
             # create formatted output filename
-            file_out = os.path.join(out_dir, f"chirps-precip.{date}.prelim.tif")
+            file_out = os.path.join(
+                out_dir, f"chirps-precip.{date}.prelim.tif")
 
             # get url to be downloaded
             c_date = datetime.strptime(date, "%Y-%m-%d")
@@ -423,12 +431,10 @@ class GlamDownloader(object):
             if type(sds) == list:
                 for ds in sds:
                     if "VNP" in self.product:
-                        log.info("Try creating cogs")
                         ds_files = []
-                        for file in tqdm(hdf_files, desc=f'Creating {ds} files.'):
-                            dataset = rasterio.open(file)
+                        for file in tqdm(hdf_files, desc=f'Creating intermediate {ds} cogs.'):
                             ds_files.append(create_sds_geotiff(
-                                self.product, dataset, ds, out_dir, mask=False))
+                                file, self.product, ds, out_dir, mask=False))
 
                         ds_mosaic = self._create_mosaic_cog_from_tifs(
                             date_obj, ds_files, out_dir)
@@ -459,19 +465,22 @@ class GlamDownloader(object):
         else:
             vi_files = []
             for file in tqdm(hdf_files, desc=f'Creating {vi} files.'):
-                dataset = rasterio.open(file)
-                vi_files.append(vi_functions[vi](dataset, out_dir))
+                vi_files.append(vi_functions[vi](file, out_dir))
+
+            # Remove hdf files after tiffs are created.
+            for file in hdf_files:
                 os.remove(file)
 
             vi_mosaic = self._create_mosaic_cog_from_tifs(
                 date_obj, vi_files, out_dir)
             output.append(vi_mosaic)
-            # remove tiffs after mosaic creation
+
+            # Remove tiffs after mosaic creation.
             for file in vi_files:
                 os.remove(file)
         end = time.time()
         duration = end-start
-        print(duration)
+        log.info(f'Download time: {str(timedelta(seconds=duration))}')
 
         return output
 
@@ -643,60 +652,70 @@ class GlamDownloader(object):
 
         elif self.product in NASA_PRODUCTS:
             if self.product == "MOD09Q1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2000.049", "%Y.%j")
                 delta = 8
 
             elif self.product == "MYD09Q1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 8
 
             elif self.product == "MOD13Q1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2000.049", "%Y.%j")
                 delta = 16
 
             elif self.product == "MYD13Q1":
+                start_doy = 9
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 16
 
             elif self.product == "MOD09A1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2000.049", "%Y.%j")
                 delta = 8
 
             elif self.product == "MYD09A1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 8
 
             elif self.product == "MOD13Q4N":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 1
 
             elif self.product == "MCD12Q1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2001.001", "%Y.%j")
                 delta = 366
 
             elif self.product == "VNP09H1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2012.017", "%Y.%j")
                 delta = 8
 
             elif self.product == "VNP09A1":
+                start_doy = 1
                 # get all possible dates
                 if latest is None:
                     latest = datetime.strptime("2012.017", "%Y.%j")
@@ -706,12 +725,13 @@ class GlamDownloader(object):
                 raise exceptions.BadInputError(
                     f"Product '{self.product}' not recognized")
 
-            d = datetime(latest.year, 1, 1)
+            d = datetime(latest.year, 1, start_doy)
+            raw_dates.append(d.strftime("%Y-%m-%d"))
             while d < today:
                 old_year = d.year
                 d = d + timedelta(days=delta)
                 if d.year != old_year:
-                    d = d.replace(day=1)
+                    d = d.replace(day=start_doy)
                 if d >= latest:
                     log.debug(
                         f"Found missing file in valid date range: {self.product} for {latest.strftime('%Y-%m-%d')}")

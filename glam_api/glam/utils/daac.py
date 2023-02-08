@@ -4,6 +4,7 @@ import sys
 import csv
 import h5py
 import requests
+import subprocess
 from requests_futures.sessions import FuturesSession
 from concurrent.futures import as_completed
 import logging
@@ -36,8 +37,11 @@ LADS_DAAC_URL = 'https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/'
 LANCE_NRT_URL = 'https://nrt3.modaps.eosdis.nasa.gov/archive/allData/'
 
 NASA_PRODUCTS = ["MOD09Q1", "MYD09Q1", "MOD13Q1", "MYD13Q1", "MOD09A1", "MYD09A1",
-                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG", 
+                 "MOD09Q1N", "MOD13Q4N", "MOD09CMG", "VNP09H1", "VNP09A1", "VNP09CMG",
                  "MCD12Q1"]
+
+# WKT of default Sinusoidal Projection
+SINUS_WKT = 'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",DATUM["Not_specified_based_on_custom_spheroid",SPHEROID["Custom spheroid",6371007.181,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
 
 
 def get_collection(product):
@@ -71,32 +75,20 @@ def get_dtype_from_sds_name(sds_name):
     # given name of sds return string representation of dtype
     if 'sur_refl_b' in sds_name:
         return 'int16'
-    elif sds_name == 'sur_refl_qc_500m':
+    elif sds_name in ['sur_refl_qc_500m']:
         return 'uint32'
-    elif sds_name == 'sur_refl_szen':
+    elif sds_name in [
+        'sur_refl_szen', 'sur_refl_vzen', 'sur_refl_raz', 'RelativeAzimuth',
+        'SolarZenith', 'SensorZenith', 'SurfReflect_I1', 'SurfReflect_I2',
+            'SurfReflect_I3']:
         return 'int16'
-    elif sds_name == 'sur_refl_vzen':
-        return 'int16'
-    elif sds_name == 'sur_refl_raz':
-        return 'int16'
-    elif sds_name == 'sur_refl_state_500m':
+    elif sds_name in [
+        'sur_refl_state_500m', 'sur_refl_day_of_year', 'sur_refl_state_250m', 'sur_refl_qc_250m',
+            'SurfReflect_Day_Of_Year', 'SurfReflect_State_500m', 'SurfReflect_QC_500m']:
         return 'uint16'
-    elif sds_name == 'sur_refl_day_of_year':
-        return 'uint16'
-    elif sds_name == 'sur_refl_state_250m':
-        return 'uint16'
-    elif sds_name == 'sur_refl_qc_250m':
-        return 'uint16'
-    elif sds_name == 'RelativeAzimuth':
-        return 'int16'
-    elif sds_name == 'SolarZenith':
-        return 'int16'
-    elif sds_name == 'SensorZenith':
-        return 'int16'
-    elif sds_name == 'SurfReflect_Day_Of_Year':
-        return 'uint16'
-    elif sds_name == 'LC_Type1':
+    elif sds_name in ['LC_Type1']:
         return 'uint8'
+
 
 def get_h5_geo_info(file):
     # Get info from the StructMetadata Object
@@ -105,11 +97,12 @@ def get_h5_geo_info(file):
     metadata_byte2str = [s.decode('utf-8') for s in metadata]
     # Get upper left points
     ulc = [i for i in metadata_byte2str if 'UpperLeftPointMtrs' in i]
-    ulc_lon = float(ulc[0].replace('=', ',').replace('(', '') \
-            .replace(')', '').split(',')[1])
-    ulc_lat = float(ulc[0].replace('=', ',').replace('(', '') \
-            .replace(')', '').split(',')[2])
-    return((ulc_lon,  0.0 , ulc_lat, 0.0 ))
+    ulc_lon = float(ulc[0].replace('=', ',').replace('(', '')
+                    .replace(')', '').split(',')[1])
+    ulc_lat = float(ulc[0].replace('=', ',').replace('(', '')
+                    .replace(')', '').split(',')[2])
+    return ((ulc_lon,  0.0, ulc_lat, 0.0))
+
 
 def is_nrt(product):
     if product[-1] == "N":
@@ -177,7 +170,7 @@ def apply_mask(in_array, source_dataset, nodata):
     # product-conditional behavior
 
     # MODIS pre-generated VI masking
-    if suffix == "13Q1" or suffix == "13Q4":
+    if suffix in ["13Q1", "13Q4", "13Q4N"]:
         if suffix[-1] == "1":
             pr_arr, pr_nodata = get_sds(
                 source_dataset, "250m 16 days pixel reliability")
@@ -410,12 +403,14 @@ def get_ndvi_array(dataset):
     suffix = file_name.split(".")[0][3:]
     ext = file_name.split(".")[-1]
 
-    if suffix == "09Q4" or suffix == "13Q4":
+    if suffix in ["09Q4", "13Q4", "13Q4N"]:
         band_name = "250m 8 days NDVI"
         ndvi_array, ndvi_nodata = get_sds(dataset, band_name)
+        return (ndvi_array, ndvi_nodata)
     elif suffix == "13Q1":
         band_name = "250m 16 days NDVI"
         ndvi_array, ndvi_nodata = get_sds(dataset, band_name)
+        return (ndvi_array, ndvi_nodata)
     elif suffix == "09CM":
         if ext == "hdf":
             red_name = "Coarse Resolution Surface Reflectance Band 1"
@@ -428,6 +423,7 @@ def get_ndvi_array(dataset):
         nir_band, nir_nodata = get_sds(dataset, nir_name)
 
         ndvi_array = calc_ndvi(red_band, nir_band)
+        return (ndvi_array, red_nodata)
     else:
         if ext == "hdf":
             red_name = "sur_refl_b01"
@@ -455,7 +451,7 @@ def get_ndvi_array(dataset):
 
         ndvi_array = calc_ndvi(red_band, nir_band)
 
-    return (ndvi_array, red_nodata)
+        return (ndvi_array, red_nodata)
 
 
 def get_ndwi_array(dataset):
@@ -495,9 +491,36 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
     nrt = is_nrt(product)
 
     lp_date = date_obj.strftime("%Y.%m.%d")
+    out_list = []
 
     if nrt:
-        pass
+        reqs = []
+        doy = date_obj.strftime("%j")
+        csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection[1:]}/{product}/{date_obj.year}/{doy}?fields=all&format=csv"
+        r = requests.get(csv_url)
+        file_csv = StringIO(r.text)
+        reader = csv.DictReader(file_csv)
+
+        for row in reader:
+            url = row['downloadsLink']
+            ext = url.split('.')[-1]
+            if ext == 'hdf':
+                request = {
+                    "path": os.path.join(out_dir, os.path.basename(url)),
+                    "command": ['wget', '-q', '-e', 'robots=off', '-m', '-np', '-R', '.html,.tmp', '-nH', '-nd', url, '--header', f"Authorization: Bearer {CREDENTIALS['NRT_TOKEN']}", '-P', out_dir]
+                }
+                reqs.append(request)
+
+        total_files = len(reqs)
+        if total_files < 1:
+            raise exceptions.UnavailableError(
+                f"Download failed. No files available.")
+
+        for request in tqdm(reqs, desc="Downloading NRT .hdf files."):
+            r = subprocess.run(request['command'])
+            if r.returncode == 0:
+                out_list.append(request['path'])
+
     else:
         # Scrape LP DAAC Data Pool
         # https: // e4ftl01.cr.usgs.gov/MOLT/MOD13Q1.061/2022.08.29/
@@ -519,7 +542,7 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
         headers = {
             "Athorization": f'Bearer {CREDENTIALS["LP_TOKEN"]}'
         }
-        out_list = []
+
         session = FuturesSession()
         reqs = []
         for path in paths:
@@ -527,9 +550,11 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
             reqs.append((3, path, r))
 
         # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
-        pbar = tqdm(total=total_files)
+        pbar = tqdm(total=total_files,
+                    desc=f"Downloading {product} .hdf files.")
         while reqs:
             tries, url, req = reqs.pop(0)
+
             try:
                 resp = req.result()
                 file_name = resp.url.split('/')[-1]
@@ -551,6 +576,8 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
 
                     out_list.append(output)
                     pbar.update(1)
+                else:
+                    print(resp.status_code)
             except:
                 log.info(
                     f"HDF download failed for {url}, will retry. {tries} tries remaining.")
@@ -600,21 +627,20 @@ def get_available_dates(product: str, date_obj: str) -> list:
 
         try:
             if nrt:
+                headers = {
+                    "Athorization": f"Bearer {CREDENTIALS['NRT_TOKEN']}"
+                }
                 out_list = []
-                # # get and parse CSV
-                # csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection}/{product}/{year}/?fields=all&format=csv"
-                # dir_files = [f for f in csv.DictReader(
-                #     StringIO(pull(csv_url)), skipinitialspace=True)]
+                # get and parse CSV
+                csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection[1:]}/{product}/{year}/?fields=all&format=csv"
+                r = requests.get(csv_url, headers=headers)
+                nrt_csv = StringIO(r.text)
+                dir_files = [f for f in csv.DictReader(nrt_csv)]
+                # extract valid days of year from CSV
+                for d in dir_files:
+                    doy = d['name']
+                    out_list.append(doy)
 
-                # # extract valid days of year from CSV
-                # for d in dir_files:
-                #     doy = d['name']
-                #     doycsv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection}/{product}/{year}/{doy}/?fields=all&format=csv"
-                #     doy_files = [f for f in csv.DictReader(
-                #         StringIO(pull(doycsv_url)), skipinitialspace=True)]
-                #     if len(doy_files) == 0:
-                #         continue
-                #     out_list.append(doy)
             else:
                 # Scrape LP DAAC Data Pool
                 # https: // e4ftl01.cr.usgs.gov/MOLT/MOD13Q1.061/2022.08.29/
@@ -666,10 +692,12 @@ def get_available_dates(product: str, date_obj: str) -> list:
     return out_list
 
 
-def create_ndvi_geotiff(dataset, out_dir):
+def create_ndvi_geotiff(file, out_dir):
+    dataset = rasterio.open(file)
 
     file_path = dataset.name
     file_name = os.path.basename(file_path)
+    ext = file_name.split('.')[-1]
 
     # calculate ndvi and export to geotiff
     ndvi_array, ndvi_nodata = get_ndvi_array(dataset)
@@ -677,7 +705,7 @@ def create_ndvi_geotiff(dataset, out_dir):
     # apply mask
     ndvi_array = apply_mask(ndvi_array, dataset, ndvi_nodata)
 
-    out_name = file_name.replace('.hdf', '.ndvi.tif')
+    out_name = file_name.replace(ext, 'ndvi.tif')
     output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
@@ -688,7 +716,24 @@ def create_ndvi_geotiff(dataset, out_dir):
     profile = rasterio.open(dataset.subdatasets[0]).profile.copy()
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndvi_nodata})
 
-    #  create cog
+    if "VNP" in file_name:
+        f = h5py.File(file_path, 'r')
+        geo_info = get_h5_geo_info(f)
+        if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
+            yRes = -926.6254330555555
+            xRes = 926.6254330555555
+        elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
+            yRes = -463.31271652777775
+            xRes = 463.31271652777775
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        profile.update({"transform": new_transform})
+
+    # assign CRS if None
+    if profile['crs'] == None:
+        profile.update({"crs": SINUS_WKT})
+
+    # create cog
     with MemoryFile() as memfile:
         with memfile.open(**profile) as mem:
             mem.write(ndvi_array)
@@ -704,9 +749,12 @@ def create_ndvi_geotiff(dataset, out_dir):
     return output
 
 
-def create_ndwi_geotiff(dataset, out_dir):
+def create_ndwi_geotiff(file, out_dir):
+    dataset = rasterio.open(file)
+
     file_path = dataset.name
     file_name = os.path.basename(file_path)
+    ext = file_name.split('.')[-1]
 
     # calculate ndvi and export to geotiff
     ndwi_array, ndwi_nodata = get_ndwi_array(dataset)
@@ -714,7 +762,7 @@ def create_ndwi_geotiff(dataset, out_dir):
     # apply mask
     ndwi_array = apply_mask(ndwi_array, dataset, ndwi_nodata)
 
-    out_name = file_name.replace('.hdf', '.ndwi.tif')
+    out_name = file_name.replace(ext, 'ndwi.tif')
     output = os.path.join(out_dir, out_name)
 
     # coerce dtype to int16
@@ -725,7 +773,24 @@ def create_ndwi_geotiff(dataset, out_dir):
     profile = rasterio.open(dataset.subdatasets[0]).profile.copy()
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": ndwi_nodata})
 
-    #  create cog
+    if "VNP" in file_name:
+        f = h5py.File(file_path, 'r')
+        geo_info = get_h5_geo_info(f)
+        if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
+            yRes = -926.6254330555555
+            xRes = 926.6254330555555
+        elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
+            yRes = -463.31271652777775
+            xRes = 463.31271652777775
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        profile.update({"transform": new_transform})
+
+    # assign CRS if None
+    if profile['crs'] == None:
+        profile.update({"crs": SINUS_WKT})
+
+    # create cog
     with MemoryFile() as memfile:
         with memfile.open(**profile) as mem:
             mem.write(ndwi_array)
@@ -741,7 +806,9 @@ def create_ndwi_geotiff(dataset, out_dir):
     return output
 
 
-def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
+def create_sds_geotiff(file, product, sds_name, out_dir, mask=True):
+    dataset = rasterio.open(file)
+
     file_path = dataset.name
     file_name = os.path.basename(file_path)
 
@@ -768,19 +835,18 @@ def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
     profile.update({"driver": "GTiff", "dtype": dtype, "nodata": sds_nodata})
 
     if "VNP" in product:
-        print(file_path)
         f = h5py.File(file_path, 'r')
         geo_info = get_h5_geo_info(f)
-        print(geo_info)
         out_name = file_name.replace('.h5', f'.{sds_name}.tif')
         output = os.path.join(out_dir, out_name)
         if profile["height"] == 1200:    # VIIRS VNP09A1, VNP09GA - 1km
-            yRes = -926.6254330555555    
+            yRes = -926.6254330555555
             xRes = 926.6254330555555
         elif profile["height"] == 2400:  # VIIRS VNP09H1, VNP09GA - 500m
             yRes = -463.31271652777775
             xRes = 463.31271652777775
-        new_transform = rasterio.Affine(xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
+        new_transform = rasterio.Affine(
+            xRes, geo_info[1], geo_info[0], geo_info[3], yRes, geo_info[2])
         profile.update({"transform": new_transform})
         tags = dataset.tags()
         for tag in tags:
@@ -788,10 +854,9 @@ def create_sds_geotiff(product, dataset, sds_name, out_dir, mask=True):
                 sds_nodata = tags[tag]
         profile.update({"nodata": int(sds_nodata)})
 
-
     # assign CRS if None
     if profile['crs'] == None:
-        profile.update({"crs": 'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",DATUM["Not_specified_based_on_custom_spheroid",SPHEROID["Custom spheroid",6371007.181,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]]],PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'})
+        profile.update({"crs": SINUS_WKT})
 
     #  create cog
     with MemoryFile() as memfile:
