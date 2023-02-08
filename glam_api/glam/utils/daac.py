@@ -516,7 +516,7 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
             raise exceptions.UnavailableError(
                 f"Download failed. No files available.")
 
-        for request in tqdm(reqs):
+        for request in tqdm(reqs, desc="Downloading NRT .hdf files."):
             r = subprocess.run(request['command'])
             if r.returncode == 0:
                 out_list.append(request['path'])
@@ -550,7 +550,8 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
             reqs.append((3, path, r))
 
         # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
-        pbar = tqdm(total=total_files)
+        pbar = tqdm(total=total_files,
+                    desc=f"Downloading {product} .hdf files.")
         while reqs:
             tries, url, req = reqs.pop(0)
 
@@ -559,7 +560,6 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
                 file_name = resp.url.split('/')[-1]
                 resp_headers = resp.headers
                 if resp.ok:
-                    print('jere')
                     output = os.path.join(out_dir, file_name)
                     with open(output, "wb") as f:
                         for chunk in resp.iter_content(chunk_size=1024*1024):
