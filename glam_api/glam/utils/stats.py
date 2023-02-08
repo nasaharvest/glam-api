@@ -224,8 +224,7 @@ def queue_zonal_stats(product_id: str, date: str):
                 product_raster = ProductRaster.objects.get(
                     product=product, date=date)
                 try:
-                    boundary_ds = BoundaryRaster.objects.get(
-                        product=product, boundary_layer=layer)
+
                     if cropmask.cropmask_id == 'no-mask':
                         mask_ds = None
                     else:
@@ -234,7 +233,7 @@ def queue_zonal_stats(product_id: str, date: str):
 
                     # add to queue
                     async_task(
-                        bulk_zonal_stats, product_raster, mask_ds, boundary_ds, group=product.product_id)
+                        bulk_zonal_stats, product_raster, mask_ds, layer, group=product.product_id)
                     log.debug(f'Queueing Zonal Stats for '
                               f'{product.product_id}:'
                               f'{product_raster.date}-'
@@ -268,8 +267,7 @@ def fill_zonal_stats():
                         desc=f'{product.product_id}-{cropmask.cropmask_id}-'
                              f'{layer.layer_id}'):
                         try:
-                            boundary_ds = BoundaryRaster.objects.get(
-                                product=product, boundary_layer=layer)
+
                             if cropmask.cropmask_id == 'no-mask':
                                 mask_ds = None
                             else:
@@ -279,7 +277,7 @@ def fill_zonal_stats():
                             zs_query = ZonalStats.objects.filter(
                                 product_raster=product_ds,
                                 cropmask_raster=mask_ds,
-                                boundary_raster=boundary_ds,
+                                boundary_layer=layer,
                                 date=product_ds.date
                             )
                             if zs_query.count() < 1:
