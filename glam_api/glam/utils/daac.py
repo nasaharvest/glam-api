@@ -4,6 +4,7 @@ import sys
 import csv
 import h5py
 import requests
+import subprocess
 from requests_futures.sessions import FuturesSession
 from concurrent.futures import as_completed
 import logging
@@ -169,7 +170,7 @@ def apply_mask(in_array, source_dataset, nodata):
     # product-conditional behavior
 
     # MODIS pre-generated VI masking
-    if suffix == "13Q1" or suffix == "13Q4":
+    if suffix in ["13Q1", "13Q4", "13Q4N"]:
         if suffix[-1] == "1":
             pr_arr, pr_nodata = get_sds(
                 source_dataset, "250m 16 days pixel reliability")
@@ -402,7 +403,7 @@ def get_ndvi_array(dataset):
     suffix = file_name.split(".")[0][3:]
     ext = file_name.split(".")[-1]
 
-    if suffix == "09Q4" or suffix == "13Q4":
+    if suffix in ["09Q4", "13Q4", "13Q4N"]:
         band_name = "250m 8 days NDVI"
         ndvi_array, ndvi_nodata = get_sds(dataset, band_name)
         return (ndvi_array, ndvi_nodata)
@@ -491,15 +492,12 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
 
     lp_date = date_obj.strftime("%Y.%m.%d")
     out_list = []
-    paths = []
+
     if nrt:
-        headers = {
-            "Athorization": f"Bearer {CREDENTIALS['NRT_TOKEN']}"
-        }
+        reqs = []
         doy = date_obj.strftime("%j")
         csv_url = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection[1:]}/{product}/{date_obj.year}/{doy}?fields=all&format=csv"
-        print(csv_url)
-        r = requests.get(csv_url, headers=headers)
+        r = requests.get(csv_url)
         file_csv = StringIO(r.text)
         reader = csv.DictReader(file_csv)
 
@@ -507,13 +505,21 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
             url = row['downloadsLink']
             ext = url.split('.')[-1]
             if ext == 'hdf':
-                paths.append(url)
+                request = {
+                    "path": os.path.join(out_dir, os.path.basename(url)),
+                    "command": ['wget', '-q', '-e', 'robots=off', '-m', '-np', '-R', '.html,.tmp', '-nH', '-nd', url, '--header', f"Authorization: Bearer {CREDENTIALS['NRT_TOKEN']}", '-P', out_dir]
+                }
+                reqs.append(request)
 
-        print(len(paths))
-        total_files = len(paths)
+        total_files = len(reqs)
         if total_files < 1:
             raise exceptions.UnavailableError(
                 f"Download failed. No files available.")
+
+        for request in tqdm(reqs):
+            r = subprocess.run(request['command'])
+            if r.returncode == 0:
+                out_list.append(request['path'])
 
     else:
         # Scrape LP DAAC Data Pool
@@ -537,59 +543,57 @@ def pull_from_lp(product, date_obj, out_dir, **kwargs):
             "Athorization": f'Bearer {CREDENTIALS["LP_TOKEN"]}'
         }
 
-    session = FuturesSession()
-    reqs = []
-    for path in paths:
-        r = session.get(path, headers=headers)
-        reqs.append((3, path, r))
+        session = FuturesSession()
+        reqs = []
+        for path in paths:
+            r = session.get(path, headers=headers)
+            reqs.append((3, path, r))
 
-    # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
-    pbar = tqdm(total=total_files)
-    while reqs:
+        # for future in tqdm(as_completed(futures), total=total_files, desc='Downloading hdf files from LPDAAC.'):
+        pbar = tqdm(total=total_files)
+        while reqs:
+            tries, url, req = reqs.pop(0)
 
-        tries, url, req = reqs.pop(0)
-        print(url)
-        try:
-            resp = req.result()
-            file_name = resp.url.split('/')[-1]
-            resp_headers = resp.headers
-            if resp.ok:
-                print('jere')
-                output = os.path.join(out_dir, file_name)
-                with open(output, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=1024*1024):
-                        f.write(chunk)
-                # checksum
-                # size of downloaded file (bytes)
-                observed_size = int(os.stat(output).st_size)
-                # size anticipated from header (bytes)
-                expected_size = int(resp_headers['Content-Length'])
+            try:
+                resp = req.result()
+                file_name = resp.url.split('/')[-1]
+                resp_headers = resp.headers
+                if resp.ok:
+                    print('jere')
+                    output = os.path.join(out_dir, file_name)
+                    with open(output, "wb") as f:
+                        for chunk in resp.iter_content(chunk_size=1024*1024):
+                            f.write(chunk)
+                    # checksum
+                    # size of downloaded file (bytes)
+                    observed_size = int(os.stat(output).st_size)
+                    # size anticipated from header (bytes)
+                    expected_size = int(resp_headers['Content-Length'])
 
-                # if checksum is failed, log and return empty
-                if int(observed_size) != int(expected_size):
-                    w = f"\nExpected file size:\t{expected_size} bytes\nObserved file size:\t{observed_size} bytes"
+                    # if checksum is failed, log and return empty
+                    if int(observed_size) != int(expected_size):
+                        w = f"\nExpected file size:\t{expected_size} bytes\nObserved file size:\t{observed_size} bytes"
 
-                out_list.append(output)
-                pbar.update(1)
-            else:
-                print(resp.status_code)
-        except:
-            log.info(
-                f"HDF download failed for {url}, will retry. {tries} tries remaining.")
-            if tries > 0:
-                reqs.append((tries-1, url, req))
-            else:
-                log.info(f"{tries}, {url}")
-                log.info(f"Download failed for URL: {url}")
-                break
+                    out_list.append(output)
+                    pbar.update(1)
+                else:
+                    print(resp.status_code)
+            except:
+                log.info(
+                    f"HDF download failed for {url}, will retry. {tries} tries remaining.")
+                if tries > 0:
+                    reqs.append((tries-1, url, req))
+                else:
+                    log.info(f"{tries}, {url}")
+                    log.info(f"Download failed for URL: {url}")
+                    break
 
-    pbar.close()
-    print(len(out_list), total_files)
-    if len(out_list) != total_files:
-        for file in out_list:
-            os.remove(file)
-        raise exceptions.UnavailableError(
-            f"Download failed.")
+        pbar.close()
+        if len(out_list) != total_files:
+            for file in out_list:
+                os.remove(file)
+            raise exceptions.UnavailableError(
+                f"Download failed.")
     return out_list
 
 
