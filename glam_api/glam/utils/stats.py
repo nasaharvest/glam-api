@@ -78,6 +78,12 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
     # Create list of ZonalStats records for bulk_create.
     insert_list = []
     for feat, stats in results:
+        # Handle divide by zero.
+        try:
+            pct_arable = (stats['count']/stats['feature_count'])*100
+        except ZeroDivisionError:
+            pct_arable = 0
+
         insert_list.append(
             ZonalStats(
                 product_raster=product_raster,
@@ -85,7 +91,7 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
                 boundary_layer=boundary_layer,
                 feature_id=feat.feature_id,
                 pixel_count=stats['count'],
-                percent_arable=(stats['count']/stats['feature_count'])*100,
+                percent_arable=pct_arable,
                 min=stats['min'],
                 max=stats['max'],
                 mean=stats['mean'],
