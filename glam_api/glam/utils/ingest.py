@@ -592,8 +592,9 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 quiet=False,
                 in_memory=False
             )
-
             os.remove(temp_path)
+            
+            return out_path
 
         except Product.DoesNotExist:
             logging.info(f'No valid crop mask exists matching {cropmask_id}')
