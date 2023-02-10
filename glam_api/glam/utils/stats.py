@@ -70,6 +70,8 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
 
     # Use Pool.startmap method to map over chunks of features and execute zonal stats calculation.
     stats_lists = p.starmap(zonal_stats_partial, tqdm(params))
+    p.close()
+    p.join()
     # Combine results into a single list.
     stats = list(itertools.chain(*stats_lists))
     # Zip results into list of tuples with corresponding boundary feautre.
@@ -221,7 +223,7 @@ def queue_zonal_stats(product_id: str, date: str):
     product = Product.objects.get(product_id=product_id)
     cropmasks = CropMask.objects.all()
     boundarylayers = BoundaryLayer.objects.all()
-
+    c = 0
     for layer in boundarylayers:
         # loop over masks belonging to boundary layer
         for cropmask in layer.masks.all():
@@ -236,20 +238,20 @@ def queue_zonal_stats(product_id: str, date: str):
                     else:
                         mask_ds = CropmaskRaster.objects.get(
                             product=product, crop_mask=cropmask)
-
+                    c += 1
                     # add to queue
                     async_task(
                         bulk_zonal_stats, product_raster, mask_ds, layer, group=product.product_id)
-                    log.debug(f'Queueing Zonal Stats for '
-                              f'{product.product_id}:'
-                              f'{product_raster.date}-'
-                              f'{cropmask.cropmask_id}-'
-                              f'{layer.layer_id}')
+                    log.info(f'{c} Queueing Zonal Stats for '
+                             f'{product.product_id}:'
+                             f'{product_raster.date}-'
+                             f'{cropmask.cropmask_id}-'
+                             f'{layer.layer_id}')
                 except:
-                    log.debug(f'Combination unavailable for '
-                              f'{product.product_id}-'
-                              f'{cropmask.cropmask_id}-'
-                              f'{layer.layer_id}')
+                    log.info(f'{c} Combination unavailable for '
+                             f'{product.product_id}-'
+                             f'{cropmask.cropmask_id}-'
+                             f'{layer.layer_id}')
 
 
 # def remove_duplicate_stats():
