@@ -404,10 +404,10 @@ class ProductRaster(models.Model):
             parts = base_file.split(".")
             try:
                 ds_date = datetime.datetime.strptime(
-                    f"{parts[1]}.{parts[2]}", "%Y.%j").strftime("%Y-%m-%d")
+                    f"{parts[-3]}.{parts[-2]}", "%Y.%j").strftime("%Y-%m-%d")
             except:
                 ds_date = datetime.datetime.strptime(
-                    parts[1], "%Y-%m-%d").strftime("%Y-%m-%d")
+                    parts[-2], "%Y-%m-%d").strftime("%Y-%m-%d")
             self.date = ds_date
 
             # to do
