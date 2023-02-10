@@ -258,13 +258,20 @@ class GlamDownloader(object):
         # where final output will be written to disk
         out = os.path.join(out_dir, f"copernicus-swi.{date}.tif")
         # convert string date to datetime object
-        dateObj = datetime.strptime(date, "%Y-%m-%d")
-        year = dateObj.strftime("%Y")  # extract year
-        month = dateObj.strftime("%m".zfill(2))  # extract month
-        day = dateObj.strftime("%d".zfill(2))  # extract day
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        year = date_obj.strftime("%Y")  # extract year
+        month = date_obj.strftime("%m".zfill(2))  # extract month
+        day = date_obj.strftime("%d".zfill(2))  # extract day
+
+        if date_obj > datetime.strptime('2021-01-11', "%Y-%m-%d"):
+            version = '3.2.1'
+        else:
+            version = '3.1.1'
 
         # generate urls
-        url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/Daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI_{year}{month}{day}1200_GLOBE_ASCAT_V3.2.1/c_gls_SWI_{year}{month}{day}1200_GLOBE_ASCAT_V3.2.1.nc"
+        daily_url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/Daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
+        url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/10-daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
+
 
         # Temporary NetCDF file; later to be converted to tiff
         file_nc = out.replace("tif", "nc")
@@ -294,6 +301,7 @@ class GlamDownloader(object):
             os.remove(file_nc)
             return ()
 
+        # Select SWI layer for T-Value of 10
         rio_path = f'netcdf:{os.path.abspath(file_nc)}:SWI_010'
         raster = rasterio.open(rio_path)
 
@@ -548,7 +556,15 @@ class GlamDownloader(object):
             year = date_obj.strftime("%Y")
             month = date_obj.strftime("%m".zfill(2))
             day = date_obj.strftime("%d".zfill(2))
-            url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/Daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI_{year}{month}{day}1200_GLOBE_ASCAT_V3.2.1/c_gls_SWI_{year}{month}{day}1200_GLOBE_ASCAT_V3.2.1.nc"
+
+            if date_obj > datetime.strptime('2021-01-11', "%Y-%d-%m"):
+                version = '3.2.1'
+            else:
+                version = '3.1.1'
+
+            daily_url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/Daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
+            url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/10-daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
+
             with requests.Session() as session:
                 session.auth = (
                     CREDENTIALS["COPERNICUS"]["username"], CREDENTIALS["COPERNICUS"]["password"])
@@ -645,11 +661,18 @@ class GlamDownloader(object):
         elif self.product == "copernicus-swi":
             # get all possible dates
             while latest < today:
-                latest = latest + timedelta(days=5)
+                if int(latest.strftime("%d")) > 12:
+                    # push the date into the next month, but not past the 11th day of the next month
+                    latest = latest+timedelta(days=15)
+                    # once we're in next month, slam the day back down to 01
+                    latest = datetime.strptime(
+                        latest.strftime("%Y-%m")+"-01", "%Y-%m-%d")
+                else:
+                    # 01 becomes 11, 11 becomes 21
+                    latest = latest+timedelta(days=10)
                 log.debug(
-                    f"Found missing file in valid date range: swi for {latest.strftime('%Y-%m-%d')}")
+                    f"Found missing file in valid date range: SWI for {latest.strftime('%Y-%m-%d')}")
                 raw_dates.append(latest.strftime("%Y-%m-%d"))
-
         elif self.product in NASA_PRODUCTS:
             if self.product == "MOD09Q1":
                 start_doy = 1
