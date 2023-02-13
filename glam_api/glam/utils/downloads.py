@@ -22,6 +22,8 @@ from rio_cogeo.cogeo import cog_translate
 from rio_cogeo.cogeo import cog_validate
 from rio_cogeo.profiles import cog_profiles
 
+import rioxarray
+
 from django_q.tasks import async_task
 
 from django.conf import settings
@@ -301,14 +303,21 @@ class GlamDownloader(object):
             os.remove(file_nc)
             return ()
 
+        # Use rioxarray to remove time dimension and create intermediate geotiff
+        xds = rioxarray.open_rasterio(os.path.abspath(file_nc), decode_times=False)
+        new_ds = xds.squeeze()
+        
         # Select SWI layer for T-Value of 10
-        rio_path = f'netcdf:{os.path.abspath(file_nc)}:SWI_010'
-        raster = rasterio.open(rio_path)
+        temp = os.path.join(out_dir, f"copernicus-swi.{date}.temp.tif")
+        new_ds['SWI_010'].rio.to_raster(temp)
+
+        raster = rasterio.open(temp)
 
         optimized = self._cloud_optimize(raster, out, nodata=False)
 
         if optimized:
             os.remove(file_nc)
+            os.remove(temp)
             return out
 
     def _download_merra_2(self, date, out_dir, **kwargs):
