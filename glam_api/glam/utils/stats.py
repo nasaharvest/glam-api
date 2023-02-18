@@ -6,6 +6,8 @@ import itertools
 from tqdm import tqdm
 from datetime import datetime, timedelta
 
+from psycopg2 import OperationalError
+
 import rasterio
 
 from rasterstats import zonal_stats
@@ -254,63 +256,113 @@ def queue_zonal_stats(product_id: str, date: str):
                              f'{layer.layer_id}')
 
 
-# def remove_duplicate_stats():
-
-def fill_zonal_stats():
+def fill_zonal_stats(product_id=None, layer_id=None, cropmask_id=None, date=None):
     start = datetime.now()
 
-    products = Product.objects.all()
-    boundarylayers = BoundaryLayer.objects.all()
-    cropmasks = CropMask.objects.all()
+    report = {}
+
+    if product_id:
+        products = Product.objects.filter(product_id=product_id)
+    else:
+        products = Product.objects.all()
+
+    if layer_id:
+        boundarylayers = BoundaryLayer.objects.filter(layer_id=layer_id)
+    else:
+        boundarylayers = BoundaryLayer.objects.all()
+
+    if cropmask_id:
+        cropmasks = CropMask.objects.filter(cropmask_id=cropmask_id)
+    else:
+        cropmasks = CropMask.objects.all()
 
     for product in products:
-        for layer in boundarylayers:
-            for cropmask in layer.masks.all():
-                if cropmask in cropmasks:
-                    product_rasters = ProductRaster.objects.filter(
-                        product=product
-                    )
-                    for product_ds in tqdm(
-                        product_rasters,
-                        desc=f'{product.product_id}-{cropmask.cropmask_id}-'
-                             f'{layer.layer_id}'):
-                        try:
+        stats_exist = []
+        stats_queued = []
+        errors = []
 
-                            if cropmask.cropmask_id == 'no-mask':
-                                mask_ds = None
-                            else:
-                                mask_ds = CropmaskRaster.objects.get(
-                                    product=product, crop_mask=cropmask)
-
-                            zs_query = ZonalStats.objects.filter(
-                                product_raster=product_ds,
-                                cropmask_raster=mask_ds,
-                                boundary_layer=layer,
-                                date=product_ds.date
-                            )
-                            if zs_query.count() < 1:
-                                print(f'Queueing Zonal Stats for '
-                                      f'{product.product_id}:'
-                                      f'{product_ds.date}-'
-                                      f'{cropmask.cropmask_id}-'
-                                      f'{layer.layer_id}')
-                                # add to queue
-                                # async_task(
-                                #     bulk_zonal_stats, product_ds, mask_ds, admin_ds, group=product.product_id)
-                                # log.debug(f'Queueing Zonal Stats for '
-                                #         f'{product.product_id}:'
-                                #         f'{product_ds.date}-'
-                                #         f'{cropmask.cropmask_id}-'
-                                #         f'{layer.layer_id}')
-                        except:
-                            log.debug(f'Combination unavailable for '
-                                      f'{product.product_id}-'
-                                      f'{cropmask.cropmask_id}-'
-                                      f'{layer.layer_id}')
+        if date:
+            product_rasters = ProductRaster.objects.filter(
+                product=product, date=date)
+        else:
+            product_rasters = ProductRaster.objects.filter(
+                product=product).order_by('-date')
+        for product_ds in tqdm(product_rasters, desc=f"{product.product_id} datasets"):
+            try:
+                for layer in tqdm(boundarylayers, desc=f"{product.product_id}: {product_ds.date} layers"):
+                    try:
+                        features = BoundaryFeature.objects.filter(
+                            boundary_layer=layer)
+                    except OperationalError:
+                        log.info(
+                            "Experienced OperationalError")
+                        errors.push(
+                            f"error at {datetime.now()}")
+                    try:
+                        for cropmask in layer.masks.all():
+                            if cropmask in cropmasks:
+                                if cropmask.cropmask_id == 'no-mask':
+                                    mask_ds = None
+                                else:
+                                    try:
+                                        mask_ds = CropmaskRaster.objects.get(
+                                            product=product, crop_mask=cropmask)
+                                    except OperationalError:
+                                        log.info(
+                                            "Experienced OperationalError")
+                                        errors.push(
+                                            f"error at {datetime.now()}")
+                                try:
+                                    for feature in features:
+                                        try:
+                                            zs = ZonalStats.objects.get(
+                                                product_raster=product_ds,
+                                                cropmask_raster=mask_ds,
+                                                boundary_layer=layer,
+                                                feature_id=feature.feature_id
+                                            )
+                                        except OperationalError:
+                                            log.info(
+                                                "Experienced OperationalError")
+                                            errors.push(
+                                                f"error at {datetime.now()}")
+                                    stats_exist.append({
+                                        "product": product.product_id,
+                                        "date": product_ds.date,
+                                        "mask": cropmask.cropmask_id,
+                                        "layer": layer.layer_id
+                                    })
+                                except ZonalStats.DoesNotExist:
+                                    # Add to queue.
+                                    async_task(
+                                        bulk_zonal_stats, product_ds, mask_ds, layer, group=product.product_id)
+                                    log.info(f'Queueing Zonal Stats for '
+                                             f'{product.product_id}:'
+                                             f'{product_ds.date}-'
+                                             f'{cropmask.cropmask_id}-'
+                                             f'{layer.layer_id}')
+                                    stats_queued.append({
+                                        "product": product.product_id,
+                                        "date": product_ds.date,
+                                        "mask": cropmask.cropmask_id,
+                                        "layer": layer.layer_id
+                                    })
+                    except OperationalError:
+                        log.info("Experienced OperationalError")
+                        errors.push(f"error at {datetime.now()}")
+            except OperationalError:
+                log.info("Experienced OperationalError")
+                errors.push(f"error at {datetime.now()}")
+        report[product.product_id] = {
+            "stats_exist": stats_exist,
+            "stats_queued": stats_queued,
+            "errors": errors
+        }
 
     finish = datetime.now()
     duration = finish - start
-    print('total time: ' + duration)
+    log.info(f'Duration: {duration}')
+    return report
 
 
 # to-do: function to export stats using command line
