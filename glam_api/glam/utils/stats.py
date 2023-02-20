@@ -287,72 +287,61 @@ def fill_zonal_stats(product_id=None, layer_id=None, cropmask_id=None, date=None
         else:
             product_rasters = ProductRaster.objects.filter(
                 product=product).order_by('-date')
+
         for product_ds in tqdm(product_rasters, desc=f"{product.product_id} datasets"):
             try:
                 for layer in tqdm(boundarylayers, desc=f"{product.product_id}: {product_ds.date} layers"):
-                    try:
-                        features = BoundaryFeature.objects.filter(
-                            boundary_layer=layer)
-                    except OperationalError:
-                        log.info(
-                            "Experienced OperationalError")
-                        errors.push(
-                            f"error at {datetime.now()}")
-                    try:
-                        for cropmask in layer.masks.all():
-                            if cropmask in cropmasks:
-                                if cropmask.cropmask_id == 'no-mask':
-                                    mask_ds = None
-                                else:
-                                    try:
-                                        mask_ds = CropmaskRaster.objects.get(
-                                            product=product, crop_mask=cropmask)
-                                    except OperationalError:
-                                        log.info(
-                                            "Experienced OperationalError")
-                                        errors.push(
-                                            f"error at {datetime.now()}")
-                                try:
-                                    for feature in features:
-                                        try:
-                                            zs = ZonalStats.objects.get(
-                                                product_raster=product_ds,
-                                                cropmask_raster=mask_ds,
-                                                boundary_layer=layer,
-                                                feature_id=feature.feature_id
-                                            )
-                                        except OperationalError:
-                                            log.info(
-                                                "Experienced OperationalError")
-                                            errors.push(
-                                                f"error at {datetime.now()}")
-                                    stats_exist.append({
-                                        "product": product.product_id,
-                                        "date": product_ds.date,
-                                        "mask": cropmask.cropmask_id,
-                                        "layer": layer.layer_id
-                                    })
-                                except ZonalStats.DoesNotExist:
-                                    # Add to queue.
-                                    async_task(
-                                        bulk_zonal_stats, product_ds, mask_ds, layer, group=product.product_id)
-                                    log.info(f'Queueing Zonal Stats for '
-                                             f'{product.product_id}:'
-                                             f'{product_ds.date}-'
-                                             f'{cropmask.cropmask_id}-'
-                                             f'{layer.layer_id}')
-                                    stats_queued.append({
-                                        "product": product.product_id,
-                                        "date": product_ds.date,
-                                        "mask": cropmask.cropmask_id,
-                                        "layer": layer.layer_id
-                                    })
-                    except OperationalError:
-                        log.info("Experienced OperationalError")
-                        errors.push(f"error at {datetime.now()}")
-            except OperationalError:
-                log.info("Experienced OperationalError")
-                errors.push(f"error at {datetime.now()}")
+
+                    features = BoundaryFeature.objects.filter(
+                        boundary_layer=layer)
+
+                    for cropmask in layer.masks.all():
+                        if cropmask in cropmasks:
+                            if cropmask.cropmask_id == 'no-mask':
+                                mask_ds = None
+                            else:
+
+                                mask_ds = CropmaskRaster.objects.get(
+                                    product=product, crop_mask=cropmask)
+
+                            try:
+                                for feature in features:
+
+                                    zs = ZonalStats.objects.get(
+                                        product_raster=product_ds,
+                                        cropmask_raster=mask_ds,
+                                        boundary_layer=layer,
+                                        feature_id=feature.feature_id
+                                    )
+
+                                stats_exist.append({
+                                    "product": product.product_id,
+                                    "date": product_ds.date,
+                                    "mask": cropmask.cropmask_id,
+                                    "layer": layer.layer_id
+                                })
+                            except ZonalStats.DoesNotExist:
+                                # Add to queue.
+                                async_task(
+                                    bulk_zonal_stats, product_ds, mask_ds, layer, group=product.product_id)
+                                log.info(f'Queueing Zonal Stats for '
+                                         f'{product.product_id}:'
+                                         f'{product_ds.date}-'
+                                         f'{cropmask.cropmask_id}-'
+                                         f'{layer.layer_id}')
+                                stats_queued.append({
+                                    "product": product.product_id,
+                                    "date": product_ds.date,
+                                    "mask": cropmask.cropmask_id,
+                                    "layer": layer.layer_id
+                                })
+            except:
+                errors.append({
+                    "product": product.product_id,
+                    "date": product_ds.date,
+                    "mask": cropmask.cropmask_id,
+                    "layer": layer.layer_id
+                })
         report[product.product_id] = {
             "stats_exist": stats_exist,
             "stats_queued": stats_queued,
