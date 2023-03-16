@@ -91,7 +91,7 @@ def add_cropmask_rasters():
                         crop_mask=cropmask,
                         product=product,
                         mask_type=file_mask_type
-                        )
+                    )
                     pass
                 except CropmaskRaster.DoesNotExist as e2:
                     # if it doesn't exist, make it
@@ -190,10 +190,10 @@ def add_product_rasters(product):
                 parts = filename.split(".")
                 try:
                     ds_date = datetime.datetime.strptime(
-                        f"{parts[1]}.{parts[2]}", "%Y.%j").strftime("%Y-%m-%d")
+                        f"{parts[-3]}.{parts[-2]}", "%Y.%j").strftime("%Y-%m-%d")
                 except:
                     ds_date = datetime.datetime.strptime(
-                        parts[1], "%Y-%m-%d").strftime("%Y-%m-%d")
+                        parts[-2], "%Y-%m-%d").strftime("%Y-%m-%d")
                 logging.info(ds_date)
                 try:
                     ds = ProductRaster.objects.get(
@@ -566,7 +566,8 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 product_ds, resampling=Resampling.cubic)
 
             # define out file
-            basename = product.product_id + '.' + cropmask.cropmask_id + '.' + cropmask.stats_mask_type
+            basename = product.product_id + '.' + \
+                cropmask.cropmask_id + '.' + cropmask.stats_mask_type
             tempname = basename + '_temp.tif'
             filename = basename + '.tif'
             temp_path = os.path.join(
@@ -593,7 +594,7 @@ def create_matching_mask_raster(product_id, cropmask_id):
                 in_memory=False
             )
             os.remove(temp_path)
-            
+
             return out_path
 
         except Product.DoesNotExist:

@@ -29,7 +29,7 @@ from django_q.tasks import async_task
 from django.conf import settings
 from config.local_settings.credentials import CREDENTIALS
 from ..utils import exceptions
-from ..utils.daac import (get_available_dates, NASA_PRODUCTS, pull_from_lp,
+from ..utils.daac import (get_available_dates, NASA_PRODUCTS, SINUS_WKT, pull_from_lp,
                           create_ndvi_geotiff, create_ndwi_geotiff, get_sds_path, create_sds_geotiff)
 from ..utils.spectral import SUPPORTED_INDICIES
 
@@ -85,8 +85,20 @@ class GlamDownloader(object):
         vrt_path = out_path.replace('tif', 'vrt')
 
         log.info("Creating mosaic VRT.")
-        # use gdal to build vrt of tile tiffs
-        vrt_command = ["gdalbuildvrt", vrt_path]
+        # Use gdal to build vrt of tile tiffs
+
+        # If MODIS Sinusoidal, subset to smaller window for legacy terracotta/mercantile errors
+        r = rasterio.open(sample_file)
+        if r.crs.wkt == SINUS_WKT:
+            log.info("Subsetting VRT")
+            north = 8895604.157
+            west = -20015109.354
+            south = -6671703.118
+            east = 20015109.354
+            vrt_command = ["gdalbuildvrt", "-te",
+                           str(west), str(south), str(east), str(north), vrt_path]
+        else:
+            vrt_command = ["gdalbuildvrt", vrt_path]
         vrt_command += files
         subprocess.call(vrt_command)
 
@@ -265,7 +277,7 @@ class GlamDownloader(object):
         month = date_obj.strftime("%m".zfill(2))  # extract month
         day = date_obj.strftime("%d".zfill(2))  # extract day
 
-        if date_obj > datetime.strptime('2021-01-11', "%Y-%m-%d"):
+        if date_obj > datetime.strptime('2021-11-11', "%Y-%m-%d"):
             version = '3.2.1'
         else:
             version = '3.1.1'
@@ -273,7 +285,6 @@ class GlamDownloader(object):
         # generate urls
         daily_url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/Daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
         url = f"https://land.copernicus.vgt.vito.be/PDF/datapool/Vegetation/Soil_Water_Index/10-daily_SWI_12.5km_Global_V3/{year}/{month}/{day}/SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}/c_gls_SWI10_{year}{month}{day}1200_GLOBE_ASCAT_V{version}.nc"
-
 
         # Temporary NetCDF file; later to be converted to tiff
         file_nc = out.replace("tif", "nc")
@@ -304,9 +315,10 @@ class GlamDownloader(object):
             return ()
 
         # Use rioxarray to remove time dimension and create intermediate geotiff
-        xds = rioxarray.open_rasterio(os.path.abspath(file_nc), decode_times=False)
+        xds = rioxarray.open_rasterio(
+            os.path.abspath(file_nc), decode_times=False)
         new_ds = xds.squeeze()
-        
+
         # Select SWI layer for T-Value of 10
         temp = os.path.join(out_dir, f"copernicus-swi.{date}.temp.tif")
         new_ds['SWI_010'].rio.to_raster(temp)
@@ -566,7 +578,7 @@ class GlamDownloader(object):
             month = date_obj.strftime("%m".zfill(2))
             day = date_obj.strftime("%d".zfill(2))
 
-            if date_obj > datetime.strptime('2021-01-11', "%Y-%d-%m"):
+            if date_obj > datetime.strptime('2021-11-11', "%Y-%d-%m"):
                 version = '3.2.1'
             else:
                 version = '3.1.1'
@@ -629,6 +641,7 @@ class GlamDownloader(object):
         today = datetime.today()
         raw_dates = []
         filtered_dates = []
+        log.info(self.product)
 
         if self.product == "merra-2":
             # get all possible dates
