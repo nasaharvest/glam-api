@@ -177,3 +177,5 @@ cython_debug/
 ### Custom ###
 local_settings/
 local_files/
+
+zappa_settings.json
