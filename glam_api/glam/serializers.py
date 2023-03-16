@@ -825,17 +825,26 @@ class ZStatsPandasSerializer(serializers.ModelSerializer):
     def get_min(self, obj):
         scale = obj.product_raster.product.variable.scale
         value = obj.min
-        return scale * value
+        if value:
+            return scale * value
+        else:
+            return None
 
     def get_max(self, obj):
         scale = obj.product_raster.product.variable.scale
         value = obj.max
-        return scale * value
+        if value:
+            return scale * value
+        else:
+            return None
 
     def get_mean(self, obj):
         scale = obj.product_raster.product.variable.scale
         value = obj.mean
-        return scale * value
+        if value:
+            return scale * value
+        else:
+            return None
 
 
 class ZStatsParamSerializer(serializers.Serializer):
