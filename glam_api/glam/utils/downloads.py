@@ -102,19 +102,21 @@ class GlamDownloader(object):
         vrt_command += files
         subprocess.call(vrt_command)
 
-        profile = cog_profiles.get("deflate")
-        log.info("Creating global mosaic & cloud optimizing.")
-        cog_translate(
-            vrt_path,
-            out_path,
-            profile,
-            allow_intermediate_compression=True,
-            quiet=False
-        )
+        out = self._create_mosaic_cog_from_vrt(vrt_path)
 
-        os.remove(vrt_path)
+        # profile = cog_profiles.get("deflate")
+        # log.info("Creating global mosaic & cloud optimizing.")
+        # cog_translate(
+        #     vrt_path,
+        #     out_path,
+        #     profile,
+        #     allow_intermediate_compression=True,
+        #     quiet=False
+        # )
 
-        return out_path
+        # os.remove(vrt_path)
+
+        return out
 
     def _cloud_optimize(self, dataset, out_file, nodata=False):
 
