@@ -44,6 +44,33 @@ class Tag(models.Model):
         return self.name
 
 
+class Document(models.Model):
+    """
+    Model to manage the storage of documentation files & other resources
+    """
+
+    name = models.CharField(max_length=256, help_text="Document name.")
+    document_id = models.SlugField(blank=True, unique=True, max_length=256,
+                                   help_text="A unique character ID to identify document.")
+    desc = models.TextField(
+        help_text="Description of document.", blank=True, null=True)
+    tags = models.ManyToManyField(
+        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+    date_added = models.DateField(auto_now_add=True)
+    date_created = models.DateField(
+        help_text="Date the document was created/modified.")
+    file_object = models.FileField(
+        upload_to='documents', storage=public_storage, blank=True, help_text="Document file.")
+
+    def __str__(self):
+        return self.document_id
+
+    def save(self, *args, **kwargs):
+        if not self.document_id:
+            self.document_id = generate_unique_slug(self, 'document_id')
+        super().save(*args, **kwargs)
+
+
 class Announcement(models.Model):
     date = models.DateField(default=datetime.date.today)
     sticky = models.BooleanField(
