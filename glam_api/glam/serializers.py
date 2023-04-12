@@ -865,7 +865,8 @@ class ZStatsParamSerializer(serializers.Serializer):
 
 
 class AnnouncementSerializer(serializers.ModelSerializer):
+    tags = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = Announcement
-        fields = ['header', 'message', 'date', 'sticky', 'image']
+        fields = ['header', 'message', 'date', 'sticky', 'tags', 'image']
