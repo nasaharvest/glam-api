@@ -188,34 +188,36 @@ def add_product_rasters(product):
         for filename in tqdm(os.listdir(dataset_directory)):
             if filename.endswith(".tif"):
                 parts = filename.split(".")
-                try:
-                    ds_date = datetime.datetime.strptime(
-                        f"{parts[-3]}.{parts[-2]}", "%Y.%j").strftime("%Y-%m-%d")
-                except:
-                    ds_date = datetime.datetime.strptime(
-                        parts[-2], "%Y-%m-%d").strftime("%Y-%m-%d")
-                logging.info(ds_date)
-                try:
-                    ds = ProductRaster.objects.get(
-                        product=valid_product,
-                        date=ds_date)
-                except ProductRaster.DoesNotExist:
-                    # if it doesn't exist, make it
-                    logging.info(
-                        len(os.path.join(dataset_directory, filename)))
-                    prelim = False
-                    if 'prelim' in filename:
-                        logging.info('hi')
-                        prelim = True
-                    new_dataset = ProductRaster(
-                        product=valid_product,
-                        prelim=prelim,
-                        date=ds_date,  # dont actually need this here
-                        local_path=os.path.join(dataset_directory, filename))
-                    logging.info(new_dataset)
-                    logging.info(f'saving {filename}')
-                    new_dataset.save()
-                    logging.info(f'saved {new_dataset.local_path}')
+                # ignore temporary downloads
+                if len(parts) < 6:
+                    try:
+                        ds_date = datetime.datetime.strptime(
+                            f"{parts[-3]}.{parts[-2]}", "%Y.%j").strftime("%Y-%m-%d")
+                    except:
+                        ds_date = datetime.datetime.strptime(
+                            parts[-2], "%Y-%m-%d").strftime("%Y-%m-%d")
+                    logging.info(ds_date)
+                    try:
+                        ds = ProductRaster.objects.get(
+                            product=valid_product,
+                            date=ds_date)
+                    except ProductRaster.DoesNotExist:
+                        # if it doesn't exist, make it
+                        logging.info(
+                            len(os.path.join(dataset_directory, filename)))
+                        prelim = False
+                        if 'prelim' in filename:
+                            logging.info('hi')
+                            prelim = True
+                        new_dataset = ProductRaster(
+                            product=valid_product,
+                            prelim=prelim,
+                            date=ds_date,  # dont actually need this here
+                            local_path=os.path.join(dataset_directory, filename))
+                        logging.info(new_dataset)
+                        logging.info(f'saving {filename}')
+                        new_dataset.save()
+                        logging.info(f'saved {new_dataset.local_path}')
 
     except Product.DoesNotExist as e1:
         logging.info(
