@@ -56,17 +56,17 @@ class GlamDownloader(object):
         out_path = vrt_path.replace('vrt', 'tif')
 
         log.info("Creating global mosaic tiff.")
-        translate_command = ["gdal_translate", "-of", "GTiff", "-co", "BIGTIFF=IF_SAFER", vrt_path, temp_path]
+        translate_command = ["gdal_translate", "-of", "GTiff", "-co", "COMPRESS=DEFLATE", "-co", "BIGTIFF=IF_SAFER", vrt_path, temp_path]
         subprocess.call(translate_command)
 
         log.info("Creating COG.")
         profile = cog_profiles.get("deflate")
+        profile.update({"BIGTIFF":"IF_SAFER"})
         cog_translate(
             temp_path,
             out_path,
             profile,
             allow_intermediate_compression=True,
-            use_cog_driver=True,
             quiet=False
         )
 
