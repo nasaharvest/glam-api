@@ -54,7 +54,7 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
         boundary_layer=boundary_layer)
 
     # Open raster and get CRS to transform vector geometry.
-    raster_dataset = rasterio.open(product_raster.local_path)
+    raster_dataset = rasterio.open(product_raster.file_object.url)
     crs_wkt = raster_dataset.crs.wkt
 
     geoms = [json.loads(feature.geom.transform(crs_wkt, clone=True).geojson)
@@ -64,7 +64,7 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
     params = chunks(
         features=geoms,
         cores=n_cores,
-        product_raster_path=product_raster.local_path,
+        product_raster_path=product_raster.file_object.url,
         cropmask_raster_path=cropmask_raster.local_path if cropmask_raster else None,
         mask_type=cropmask_raster.mask_type if cropmask_raster else "binary")
 
