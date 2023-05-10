@@ -10,13 +10,18 @@ from django.core.files.storage import FileSystemStorage
 
 from django_q.tasks import async_task
 
-from config.storage_backends import (RasterStorage, ColormapStorage,
-                                     VectorStorage, PublicStorage)
+from config.storage_backends import (
+    RasterStorage,
+    ColormapStorage,
+    VectorStorage,
+    PublicStorage,
+)
 
 from .utils.features import get_unique_features
 
 # from .tasks.queue import queue_dataset_stats_queue
 from .utils.helpers import generate_unique_slug
+
 # from .utils.stats import queue_zonal_stats
 
 
@@ -36,9 +41,8 @@ class Tag(models.Model):
     """
     Simple tags to help searching and filtering.
     """
-    name = models.CharField(
-        max_length=256,
-        help_text="Tag")
+
+    name = models.CharField(max_length=256, help_text="Tag")
 
     def __str__(self):
         return self.name
@@ -50,37 +54,52 @@ class Document(models.Model):
     """
 
     name = models.CharField(max_length=256, help_text="Document name.")
-    document_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                   help_text="A unique character ID to identify document.")
-    desc = models.TextField(
-        help_text="Description of document.", blank=True, null=True)
+    document_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify document.",
+    )
+    desc = models.TextField(help_text="Description of document.", blank=True, null=True)
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     date_added = models.DateField(auto_now_add=True)
-    date_created = models.DateField(
-        help_text="Date the document was created/modified.")
+    date_created = models.DateField(help_text="Date the document was created/modified.")
     file_object = models.FileField(
-        upload_to='documents', storage=public_storage, blank=True, help_text="Document file.")
+        upload_to="documents",
+        storage=public_storage,
+        blank=True,
+        help_text="Document file.",
+    )
 
     def __str__(self):
         return self.document_id
 
     def save(self, *args, **kwargs):
         if not self.document_id:
-            self.document_id = generate_unique_slug(self, 'document_id')
+            self.document_id = generate_unique_slug(self, "document_id")
         super().save(*args, **kwargs)
 
 
 class Announcement(models.Model):
     date = models.DateField(default=datetime.date.today)
     sticky = models.BooleanField(
-        default=False, help_text="If multiple messages, keep this message at front/first")
+        default=False,
+        help_text="If multiple messages, keep this message at front/first",
+    )
     header = models.TextField(help_text="Announcement Header")
     message = models.TextField(help_text="Announcement")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
-    image = models.ImageField(upload_to='announcements', storage=public_storage,
-                              null=True, blank=True, help_text="Announcement Image.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
+    image = models.ImageField(
+        upload_to="announcements",
+        storage=public_storage,
+        null=True,
+        blank=True,
+        help_text="Announcement Image.",
+    )
 
     def __str__(self):
         return self.header
@@ -91,24 +110,34 @@ class DataSource(models.Model):
     Model to store details on the sources of products,
     masks, boundary layers, or GLAM partners
     """
+
     name = models.CharField(max_length=256, help_text="Source name.")
-    source_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                 help_text="A unique character ID to identify Data Source records.")
-    display_name = models.CharField(
-        max_length=256, help_text="Source display name.")
+    source_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Data Source records.",
+    )
+    display_name = models.CharField(max_length=256, help_text="Source display name.")
     desc = models.TextField(help_text="Brief source description.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     link = models.URLField(help_text="URL link to Source.")
-    logo = models.ImageField(upload_to='logos', storage=public_storage,
-                             null=True, blank=True, help_text="Source logo.")
+    logo = models.ImageField(
+        upload_to="logos",
+        storage=public_storage,
+        null=True,
+        blank=True,
+        help_text="Source logo.",
+    )
 
     def __str__(self):
         return self.display_name
 
     def save(self, *args, **kwargs):
         if not self.source_id:
-            self.source_id = generate_unique_slug(self, 'source_id')
+            self.source_id = generate_unique_slug(self, "source_id")
         super().save(*args, **kwargs)
 
 
@@ -116,28 +145,38 @@ class Variable(models.Model):
     """
     Scientific variable measured by raster product
     """
+
     name = models.CharField(max_length=256, help_text="Variable name.")
-    variable_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                   help_text="A unique character ID to identify Variable records.")
-    display_name = models.CharField(
-        max_length=256, help_text="Variable display name.")
-    desc = models.TextField(
-        help_text="Description of variable measured by product.")
+    variable_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Variable records.",
+    )
+    display_name = models.CharField(max_length=256, help_text="Variable display name.")
+    desc = models.TextField(help_text="Description of variable measured by product.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     scale = models.FloatField(
-        help_text="Scale to apply to measurements of variable derrived from product.")
+        help_text="Scale to apply to measurements of variable derrived from product."
+    )
     units = models.CharField(
-        max_length=64, help_text="Units of measurement for variable.")
+        max_length=64, help_text="Units of measurement for variable."
+    )
     unit_abbr = models.CharField(
-        max_length=32, null=True, blank=True, help_text="Abbreviation of units of measurement.")
+        max_length=32,
+        null=True,
+        blank=True,
+        help_text="Abbreviation of units of measurement.",
+    )
 
     def __str__(self):
         return self.variable_id
 
     def save(self, *args, **kwargs):
         if not self.variable_id:
-            self.variable_id = generate_unique_slug(self, 'variable_id')
+            self.variable_id = generate_unique_slug(self, "variable_id")
         super().save(*args, **kwargs)
 
 
@@ -145,21 +184,26 @@ class Crop(models.Model):
     """
     Model to store and describe different crop types.
     """
+
     name = models.CharField(max_length=256, help_text="Name of crop.")
-    crop_id = models.SlugField(blank=True, unique=True, max_length=256,
-                               help_text="A unique character ID to identify Crop records.")
-    display_name = models.CharField(
-        max_length=256, help_text="Crop display name.")
+    crop_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Crop records.",
+    )
+    display_name = models.CharField(max_length=256, help_text="Crop display name.")
     desc = models.TextField(help_text="Description of crop.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
 
     def __str__(self):
         return self.crop_id
 
     def save(self, *args, **kwargs):
         if not self.crop_id:
-            self.crop_id = generate_unique_slug(self, 'crop_id')
+            self.crop_id = generate_unique_slug(self, "crop_id")
         super().save(*args, **kwargs)
 
 
@@ -170,35 +214,48 @@ class Colormap(models.Model):
     # Reference:
     # https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html
     """
+
     COLORMAP_TYPE_CHOICES = [
-        ('perceptually-uniform-sequential', 'Perceptually Uniform Sequential'),
-        ('sequential', 'Sequential'),
-        ('sequential-2', 'Sequential (2)'),
-        ('diverging', 'Diverging'),
-        ('cyclic', 'Cyclic'),
-        ('qualitative', 'Qualitative'),
-        ('miscellaneous', 'Miscellaneous')
+        ("perceptually-uniform-sequential", "Perceptually Uniform Sequential"),
+        ("sequential", "Sequential"),
+        ("sequential-2", "Sequential (2)"),
+        ("diverging", "Diverging"),
+        ("cyclic", "Cyclic"),
+        ("qualitative", "Qualitative"),
+        ("miscellaneous", "Miscellaneous"),
     ]
 
     name = models.CharField(max_length=256, help_text="Colormap name.")
-    colormap_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                   help_text="A unique character ID to identify Colormap records.")
-    desc = models.TextField(
-        help_text="Description of product.", blank=True, null=True)
-    colormap_type = models.CharField(max_length=64, choices=COLORMAP_TYPE_CHOICES, default='miscellaneous',
-                                     help_text="Category/Type of colormap. (sequential, diverging, qualitative, etc.)")
+    colormap_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Colormap records.",
+    )
+    desc = models.TextField(help_text="Description of product.", blank=True, null=True)
+    colormap_type = models.CharField(
+        max_length=64,
+        choices=COLORMAP_TYPE_CHOICES,
+        default="miscellaneous",
+        help_text="Category/Type of colormap. (sequential, diverging, qualitative, etc.)",
+    )
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     date_added = models.DateField(auto_now_add=True)
     file_object = models.FileField(
-        upload_to='colormaps', storage=cmap_storage, blank=True, help_text="Colormap file. (.npy)")
+        upload_to="colormaps",
+        storage=cmap_storage,
+        blank=True,
+        help_text="Colormap file. (.npy)",
+    )
 
     def __str__(self):
         return self.colormap_id
 
     def save(self, *args, **kwargs):
         if not self.colormap_id:
-            self.colormap_id = generate_unique_slug(self, 'colormap_id')
+            self.colormap_id = generate_unique_slug(self, "colormap_id")
         super().save(*args, **kwargs)
 
 
@@ -206,36 +263,52 @@ class Product(models.Model):
     """
     Raster Product Model
     """
+
     name = models.CharField(max_length=256, help_text="Product name.")
-    product_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                  help_text="A unique character ID to identify Product records.")
-    display_name = models.CharField(
-        max_length=256, help_text="Product display name.")
+    product_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Product records.",
+    )
+    display_name = models.CharField(max_length=256, help_text="Product display name.")
     desc = models.TextField(help_text="Description of product.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     meta = models.JSONField(
-        blank=True, null=True, help_text="Optional metadata field to provide extra details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra details.",
+    )
     source = models.ForeignKey(
-        DataSource, on_delete=models.PROTECT, help_text="Product data source/organization.")
+        DataSource,
+        on_delete=models.PROTECT,
+        help_text="Product data source/organization.",
+    )
     variable = models.ForeignKey(
-        Variable, on_delete=models.PROTECT, help_text="Variable measured by product.")
+        Variable, on_delete=models.PROTECT, help_text="Variable measured by product."
+    )
     link = models.URLField(
-        blank=True, null=True, help_text="URL to product source or additional details.")
+        blank=True, null=True, help_text="URL to product source or additional details."
+    )
     date_start = models.DateField(
-        help_text="Date the product was first made available.")
-    date_added = models.DateField(
-        help_text="Date the product was added to the system.")
+        help_text="Date the product was first made available."
+    )
+    date_added = models.DateField(help_text="Date the product was added to the system.")
     composite = models.BooleanField(help_text="Is the product a composite?")
     composite_period = models.IntegerField(
-        null=True, blank=True, help_text="If the product is a composite - the compositing period. (in days)")
+        null=True,
+        blank=True,
+        help_text="If the product is a composite - the compositing period. (in days)",
+    )
 
     def __str__(self):
         return self.product_id
 
     def save(self, *args, **kwargs):
         if not self.product_id:
-            self.product_id = generate_unique_slug(self, 'product_id')
+            self.product_id = generate_unique_slug(self, "product_id")
         super().save(*args, **kwargs)
 
     class Meta:
@@ -249,47 +322,82 @@ class CropMask(models.Model):
     """
 
     MASK_TYPE_CHOICES = [
-        ('binary', 'Binary (Crop or No Crop)'),
-        ('percent', 'Percent Crop')
+        ("binary", "Binary (Crop or No Crop)"),
+        ("percent", "Percent Crop"),
     ]
 
     name = models.CharField(max_length=256, help_text="Cropmask name.")
-    cropmask_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                   help_text="A unique character ID to identify Crop Mask records.")
+    cropmask_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Crop Mask records.",
+    )
     crop_type = models.ForeignKey(
-        Crop, on_delete=models.PROTECT, help_text="Crop that the mask represents.")
+        Crop, on_delete=models.PROTECT, help_text="Crop that the mask represents."
+    )
     coverage = models.CharField(
-        max_length=256, help_text="Text representation of spatial coverage/extent of crop mask.", default="Global")
-    mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
-                                 help_text="Type of values present in mask raster for map visualization (binary or percent crop).")
-    stats_mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
-                                       help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).")
-    display_name = models.CharField(
-        max_length=256, help_text="Cropmask display name.")
+        max_length=256,
+        help_text="Text representation of spatial coverage/extent of crop mask.",
+        default="Global",
+    )
+    mask_type = models.CharField(
+        max_length=32,
+        choices=MASK_TYPE_CHOICES,
+        default="binary",
+        help_text="Type of values present in mask raster for map visualization (binary or percent crop).",
+    )
+    stats_mask_type = models.CharField(
+        max_length=32,
+        choices=MASK_TYPE_CHOICES,
+        default="binary",
+        help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).",
+    )
+    display_name = models.CharField(max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     meta = models.JSONField(
-        blank=True, null=True, help_text="Optional metadata field to provide extra details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra details.",
+    )
     source = models.ForeignKey(
-        DataSource, on_delete=models.PROTECT, help_text="Cropmask source.")
+        DataSource, on_delete=models.PROTECT, help_text="Cropmask source."
+    )
     date_created = models.DateField(
-        help_text="Date that the cropmask version was created.")
-    date_added = models.DateField(
-        help_text="Date cropmask added to the system.")
-    source_file = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
-                                   null=True, help_text="Original source file(s). Raster or Vector. (If Available)")
-    map_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
-                                  null=True, help_text="Cloud Optimized Geotiff to be used for visualization in TMS.")
-    stats_raster = models.FileField(upload_to='cropmasks', storage=raster_storage, blank=True,
-                                    null=True, help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.")
+        help_text="Date that the cropmask version was created."
+    )
+    date_added = models.DateField(help_text="Date cropmask added to the system.")
+    source_file = models.FileField(
+        upload_to="cropmasks",
+        storage=raster_storage,
+        blank=True,
+        null=True,
+        help_text="Original source file(s). Raster or Vector. (If Available)",
+    )
+    map_raster = models.FileField(
+        upload_to="cropmasks",
+        storage=raster_storage,
+        blank=True,
+        null=True,
+        help_text="Cloud Optimized Geotiff to be used for visualization in TMS.",
+    )
+    stats_raster = models.FileField(
+        upload_to="cropmasks",
+        storage=raster_storage,
+        blank=True,
+        null=True,
+        help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.",
+    )
 
     def __str__(self):
         return self.cropmask_id
 
     def save(self, *args, **kwargs):
         if not self.cropmask_id:
-            self.cropmask_id = generate_unique_slug(self, 'cropmask_id')
+            self.cropmask_id = generate_unique_slug(self, "cropmask_id")
         super().save(*args, **kwargs)
 
     class Meta:
@@ -301,39 +409,65 @@ class BoundaryLayer(models.Model):
     Boundary Layer Model
     Store Layer details, original raster file or vector file if available.
     """
-    name = models.CharField(
-        max_length=256, help_text="Boundary layer name.")
-    layer_id = models.SlugField(blank=True, unique=True, max_length=256,
-                                help_text="A unique character ID to identify Boundary Layer records.")
+
+    name = models.CharField(max_length=256, help_text="Boundary layer name.")
+    layer_id = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="A unique character ID to identify Boundary Layer records.",
+    )
     display_name = models.CharField(
-        max_length=256, help_text="Boundary Layer display name.")
-    desc = models.TextField(
-        help_text="Brief description of Boundary Layer.")
+        max_length=256, help_text="Boundary Layer display name."
+    )
+    desc = models.TextField(help_text="Brief description of Boundary Layer.")
     tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering.")
+        Tag, blank=True, help_text="Optional tags to help searching and filtering."
+    )
     meta = models.JSONField(
-        blank=True, null=True, help_text="Optional metadata field to provide extra details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra details.",
+    )
     source = models.ForeignKey(
-        DataSource, on_delete=models.PROTECT, help_text="Boundary Layer source.")
+        DataSource, on_delete=models.PROTECT, help_text="Boundary Layer source."
+    )
     features = models.JSONField(
-        blank=True, null=True, help_text="List of boundary features present in the boundary layer.")
+        blank=True,
+        null=True,
+        help_text="List of boundary features present in the boundary layer.",
+    )
     date_created = models.DateField(
-        help_text="Date the Boundary Layer version was created.")
+        help_text="Date the Boundary Layer version was created."
+    )
     date_added = models.DateField(
-        help_text="Date the Boundary Layer was added to the system.")
+        help_text="Date the Boundary Layer was added to the system."
+    )
     masks = models.ManyToManyField(
-        CropMask, help_text="Cropmasks that are available for the Boundary Layer. (for ZonalStats generation)")
-    source_data = models.FileField(upload_to='boundary-layers', storage=raster_storage, blank=True,
-                                   null=True, help_text="Original Boundary Layer raster or vector")
-    vector_file = models.FileField(upload_to='boundary-layers', storage=vector_storage, blank=True,
-                                   null=True, help_text="Vector geometry file for visual representation in the GLAM application")
+        CropMask,
+        help_text="Cropmasks that are available for the Boundary Layer. (for ZonalStats generation)",
+    )
+    source_data = models.FileField(
+        upload_to="boundary-layers",
+        storage=raster_storage,
+        blank=True,
+        null=True,
+        help_text="Original Boundary Layer raster or vector",
+    )
+    vector_file = models.FileField(
+        upload_to="boundary-layers",
+        storage=vector_storage,
+        blank=True,
+        null=True,
+        help_text="Vector geometry file for visual representation in the GLAM application",
+    )
 
     def __str__(self):
         return self.layer_id
 
     def save(self, *args, **kwargs):
         if not self.layer_id:
-            self.layer_id = generate_unique_slug(self, 'layer_id')
+            self.layer_id = generate_unique_slug(self, "layer_id")
         super().save(*args, **kwargs)
 
     class Meta:
@@ -346,12 +480,17 @@ class BoundaryFeature(geomodels.Model):
     Features that belong to each Boundary Layer
     """
 
-    feature_name = models.CharField(
-        max_length=256, help_text="Boundary layer name.")
+    feature_name = models.CharField(max_length=256, help_text="Boundary layer name.")
     feature_id = models.BigIntegerField(
-        null=True, db_index=True, help_text="A unique character ID to identify Boundary Layer records.")
+        null=True,
+        db_index=True,
+        help_text="A unique character ID to identify Boundary Layer records.",
+    )
     boundary_layer = models.ForeignKey(
-        BoundaryLayer, on_delete=models.CASCADE, help_text="Boundary layer that feature belongs to")
+        BoundaryLayer,
+        on_delete=models.CASCADE,
+        help_text="Boundary layer that feature belongs to",
+    )
     properties = models.JSONField(blank=True, null=True)
     geom = geomodels.MultiPolygonField(null=True)
 
@@ -363,10 +502,8 @@ class BoundaryFeature(geomodels.Model):
 
         indexes = [
             models.Index(
-                fields=[
-                    'feature_name', 'feature_id',
-                    'boundary_layer'
-                ], name='feature_name_id_layer_idx'
+                fields=["feature_name", "feature_id", "boundary_layer"],
+                name="feature_name_id_layer_idx",
             )
         ]
 
@@ -375,24 +512,53 @@ class ProductRaster(models.Model):
     """
     Raster Datasets that belong to each product
     """
-    product = models.ForeignKey(Product, related_name='datasets',
-                                on_delete=models.CASCADE, help_text="Product the dataset belongs to.")
+
+    product = models.ForeignKey(
+        Product,
+        related_name="datasets",
+        on_delete=models.CASCADE,
+        help_text="Product the dataset belongs to.",
+    )
     prelim = models.BooleanField(
-        default=False, help_text="Is this dataset preliminary/near real time?")
-    name = models.CharField(max_length=256, blank=True,
-                            help_text="Dataset name. Generated automatically from file name.")
-    slug = models.SlugField(blank=True, unique=True, max_length=256,
-                            help_text="Slug for dataset. (automatically generated)")
+        default=False, help_text="Is this dataset preliminary/near real time?"
+    )
+    name = models.CharField(
+        max_length=256,
+        blank=True,
+        help_text="Dataset name. Generated automatically from file name.",
+    )
+    slug = models.SlugField(
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="Slug for dataset. (automatically generated)",
+    )
     meta = models.JSONField(
-        blank=True, null=True, help_text="Optional metadata field to provide extra dataset details.")
-    date = models.DateField(blank=True, db_index=True,
-                            help_text="Dataset date. If product is a composite see product details for when the date falls in the compositing period. Derived automatically from file name.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra dataset details.",
+    )
+    date = models.DateField(
+        blank=True,
+        db_index=True,
+        help_text="Dataset date. If product is a composite see product details for when the date falls in the compositing period. Derived automatically from file name.",
+    )
     date_added = models.DateField(
-        auto_now_add=True, help_text="Date dataset added to system.")
-    local_path = models.FilePathField(path=settings.PRODUCT_DATASET_LOCAL_PATH, match=".*\.tif$", max_length=256,
-                                      recursive=True, help_text="Path to dataset on current machine. Used to upload dataset file_object.")
-    file_object = models.FileField(upload_to='rasters', storage=raster_storage, blank=True,
-                                   help_text="Stored dataset file. When dataset object is saved, the file_object is created using the local_path.")
+        auto_now_add=True, help_text="Date dataset added to system."
+    )
+    local_path = models.FilePathField(
+        path=settings.PRODUCT_DATASET_LOCAL_PATH,
+        match=".*\.tif$",
+        max_length=256,
+        recursive=True,
+        help_text="Path to dataset on current machine. Used to upload dataset file_object.",
+    )
+    file_object = models.FileField(
+        upload_to="rasters",
+        storage=raster_storage,
+        blank=True,
+        help_text="Stored dataset file. When dataset object is saved, the file_object is created using the local_path.",
+    )
 
     def __str__(self):
         return self.slug
@@ -402,15 +568,16 @@ class ProductRaster(models.Model):
         # if dataset is new, create file_object using local_path
         # method necessasry for file upload to s3 using django-storages
         if created:
-            with open(self.local_path, 'rb') as f:
+            with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
                 self.save()
 
     def queue_zonal_stats(self, created=False):
         # queue zonal stats creation
         if created:
-            async_task('glam.utils.stats.queue_zonal_stats',
-                       self.product.product_id, self.date)
+            async_task(
+                "glam.utils.stats.queue_zonal_stats", self.product.product_id, self.date
+            )
 
     def save(self, *args, **kwargs):
         created = self.pk is None
@@ -423,7 +590,7 @@ class ProductRaster(models.Model):
 
         if not self.slug:
             # generate slug
-            self.slug = generate_unique_slug(self, 'slug')
+            self.slug = generate_unique_slug(self, "slug")
 
         if not self.date:
             # derive date from file name
@@ -431,10 +598,12 @@ class ProductRaster(models.Model):
             parts = base_file.split(".")
             try:
                 ds_date = datetime.datetime.strptime(
-                    f"{parts[-3]}.{parts[-2]}", "%Y.%j").strftime("%Y-%m-%d")
+                    f"{parts[-3]}.{parts[-2]}", "%Y.%j"
+                ).strftime("%Y-%m-%d")
             except:
-                ds_date = datetime.datetime.strptime(
-                    parts[-2], "%Y-%m-%d").strftime("%Y-%m-%d")
+                ds_date = datetime.datetime.strptime(parts[-2], "%Y-%m-%d").strftime(
+                    "%Y-%m-%d"
+                )
             self.date = ds_date
 
             # to do
@@ -458,42 +627,66 @@ class CropmaskRaster(models.Model):
     """
 
     MASK_TYPE_CHOICES = [
-        ('binary', 'Binary (Crop or No Crop)'),
-        ('percent', 'Percent Crop')
+        ("binary", "Binary (Crop or No Crop)"),
+        ("percent", "Percent Crop"),
     ]
 
     crop_mask = models.ForeignKey(
-        CropMask, on_delete=models.CASCADE,
-        help_text="CropMask that the crop mask dataset belongs to.")
+        CropMask,
+        on_delete=models.CASCADE,
+        help_text="CropMask that the crop mask dataset belongs to.",
+    )
     product = models.ForeignKey(
-        Product, related_name='mask_datasets', on_delete=models.CASCADE,
+        Product,
+        related_name="mask_datasets",
+        on_delete=models.CASCADE,
         help_text="Product that the crop mask dataset belongs to."
-                  "Necessary for matching product resolution in ZonalStats "
-                  "calculation.")
-    mask_type = models.CharField(max_length=32, choices=MASK_TYPE_CHOICES, default='binary',
-                                 help_text="Type of values present in mask raster (binary or percent crop). Used for zonal statistics calculations.")
+        "Necessary for matching product resolution in ZonalStats "
+        "calculation.",
+    )
+    mask_type = models.CharField(
+        max_length=32,
+        choices=MASK_TYPE_CHOICES,
+        default="binary",
+        help_text="Type of values present in mask raster (binary or percent crop). Used for zonal statistics calculations.",
+    )
     name = models.CharField(
-        max_length=256, blank=True,
-        help_text="Dataset name. Generated automatically from file name.")
+        max_length=256,
+        blank=True,
+        help_text="Dataset name. Generated automatically from file name.",
+    )
     slug = models.SlugField(
-        blank=True, unique=True, max_length=256,
-        help_text="Slug for dataset. (automatically generated)")
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="Slug for dataset. (automatically generated)",
+    )
     meta = models.JSONField(
-        blank=True, null=True,
-        help_text="Optional metadata field to provide extra dataset details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra dataset details.",
+    )
     date_created = models.DateField(
-        help_text="Date the crop mask dataset version was created.")
+        help_text="Date the crop mask dataset version was created."
+    )
     date_added = models.DateField(
-        auto_now_add=True, help_text="Date dataset added to system.")
+        auto_now_add=True, help_text="Date dataset added to system."
+    )
     local_path = models.FilePathField(
         path=settings.MASK_DATASET_LOCAL_PATH,
-        match=".*\.tif$", recursive=True, max_length=256,
+        match=".*\.tif$",
+        recursive=True,
+        max_length=256,
         help_text="Path to dataset on current machine. "
-                  "Used to upload dataset file_object.")
+        "Used to upload dataset file_object.",
+    )
     file_object = models.FileField(
-        upload_to='cropmask-rasters', storage=raster_storage, blank=True,
+        upload_to="cropmask-rasters",
+        storage=raster_storage,
+        blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
-                  "the file_object is created using the local_path.")
+        "the file_object is created using the local_path.",
+    )
 
     def __str__(self):
         return self.slug
@@ -503,7 +696,7 @@ class CropmaskRaster(models.Model):
         # if dataset is new, create file_object using local_path
         # method necessasry for file upload to s3 using django-storages
         if created:
-            with open(self.local_path, 'rb') as f:
+            with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
                 self.save()
 
@@ -518,7 +711,7 @@ class CropmaskRaster(models.Model):
 
         if not self.slug:
             # generate slug
-            self.slug = generate_unique_slug(self, 'slug')
+            self.slug = generate_unique_slug(self, "slug")
 
         super().save(*args, **kwargs)
 
@@ -534,40 +727,63 @@ class BoundaryRaster(models.Model):
     Resampled to match resolution of related product \
      for ZonalStats calculation
     """
+
     boundary_layer = models.ForeignKey(
-        BoundaryLayer, on_delete=models.CASCADE,
-        help_text="Boundary Layer that the dataset belongs to.")
+        BoundaryLayer,
+        on_delete=models.CASCADE,
+        help_text="Boundary Layer that the dataset belongs to.",
+    )
     product = models.ForeignKey(
-        Product, related_name='boundary_rasters', on_delete=models.CASCADE,
+        Product,
+        related_name="boundary_rasters",
+        on_delete=models.CASCADE,
         help_text="Product that the Boundary Layer dataset belongs to."
-                  "Necessary for matching product resolution in ZonalStats "
-                  "calculation.")
+        "Necessary for matching product resolution in ZonalStats "
+        "calculation.",
+    )
     name = models.CharField(
-        max_length=256, blank=True,
-        help_text="Dataset name. Generated automatically from file name.")
+        max_length=256,
+        blank=True,
+        help_text="Dataset name. Generated automatically from file name.",
+    )
     slug = models.SlugField(
-        blank=True, unique=True, max_length=256,
-        help_text="Slug for dataset. (automatically generated)")
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="Slug for dataset. (automatically generated)",
+    )
     features = models.JSONField(
-        blank=True, null=True,
+        blank=True,
+        null=True,
         help_text="List of boundary layer features present "
-                  "in the boundary raster dataset.")
+        "in the boundary raster dataset.",
+    )
     meta = models.JSONField(
-        blank=True, null=True,
-        help_text="Optional metadata field to provide extra dataset details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra dataset details.",
+    )
     date_created = models.DateField(
-        help_text="Date the crop mask dataset version was created.")
+        help_text="Date the crop mask dataset version was created."
+    )
     date_added = models.DateField(
-        auto_now_add=True, help_text="Date dataset added to system.")
+        auto_now_add=True, help_text="Date dataset added to system."
+    )
     local_path = models.FilePathField(
         path=settings.BOUNDARY_RASTER_LOCAL_PATH,
-        match=".*\.tif$", recursive=True, max_length=256,
+        match=".*\.tif$",
+        recursive=True,
+        max_length=256,
         help_text="Path to dataset on current machine. "
-                  "Used to upload dataset file_object.")
+        "Used to upload dataset file_object.",
+    )
     file_object = models.FileField(
-        upload_to='boundary-rasters', storage=raster_storage, blank=True,
+        upload_to="boundary-rasters",
+        storage=raster_storage,
+        blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
-                  "the file_object is created using the local_path.")
+        "the file_object is created using the local_path.",
+    )
 
     def __str__(self):
         return self.slug
@@ -577,7 +793,7 @@ class BoundaryRaster(models.Model):
         # if dataset is new, create file_object using local_path
         # method necessasry for file upload to s3 using django-storages
         if created:
-            with open(self.local_path, 'rb') as f:
+            with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
                 self.save()
 
@@ -592,7 +808,7 @@ class BoundaryRaster(models.Model):
 
         if not self.slug:
             # generate slug
-            self.slug = generate_unique_slug(self, 'slug')
+            self.slug = generate_unique_slug(self, "slug")
 
         if created:
             # if dataset is new, generate features
@@ -610,57 +826,75 @@ class AnomalyBaselineRaster(models.Model):
     """
     Model to store Baseline Datasets for anomaly calculation
     """
-    FIVE = '5year'
-    TEN = '10year'
-    FULL = 'full'
-    BASELINE_LENGTH_CHOICES = [
-        (FIVE, 'Five Year'),
-        (TEN, 'Ten Year'),
-        (FULL, 'Full')
-    ]
 
-    MEAN = 'mean'
-    MEDIAN = 'median'
-    BASELINE_TYPE_CHOICES = [
-        (MEAN, 'Mean'),
-        (MEDIAN, 'Median')
-    ]
+    FIVE = "5year"
+    TEN = "10year"
+    FULL = "full"
+    BASELINE_LENGTH_CHOICES = [(FIVE, "Five Year"), (TEN, "Ten Year"), (FULL, "Full")]
+
+    MEAN = "mean"
+    MEDIAN = "median"
+    BASELINE_TYPE_CHOICES = [(MEAN, "Mean"), (MEDIAN, "Median")]
 
     product = models.ForeignKey(
-        Product, on_delete=models.CASCADE,
-        help_text="Product that the dataset is a Baseline of.")
+        Product,
+        on_delete=models.CASCADE,
+        help_text="Product that the dataset is a Baseline of.",
+    )
     name = models.CharField(
-        max_length=256, blank=True,
-        help_text="Dataset name. Generated automatically from file name.")
+        max_length=256,
+        blank=True,
+        help_text="Dataset name. Generated automatically from file name.",
+    )
     slug = models.SlugField(
-        blank=True, unique=True, max_length=256,
-        help_text="Slug for dataset. (automatically generated)")
+        blank=True,
+        unique=True,
+        max_length=256,
+        help_text="Slug for dataset. (automatically generated)",
+    )
     meta = models.JSONField(
-        blank=True, null=True,
-        help_text="Optional metadata field to provide extra dataset details.")
+        blank=True,
+        null=True,
+        help_text="Optional metadata field to provide extra dataset details.",
+    )
     day_of_year = models.IntegerField(
         blank=True,
         help_text="Day of year that the baseline represents."
-                  "Automatically derived from file name.")
+        "Automatically derived from file name.",
+    )
     baseline_length = models.CharField(
-        max_length=16, choices=BASELINE_LENGTH_CHOICES, blank=True,
-        help_text="Length of Baseline")
+        max_length=16,
+        choices=BASELINE_LENGTH_CHOICES,
+        blank=True,
+        help_text="Length of Baseline",
+    )
     baseline_type = models.CharField(
-        max_length=16, choices=BASELINE_TYPE_CHOICES, blank=True,
-        help_text="Type of Baseline calculation.")
+        max_length=16,
+        choices=BASELINE_TYPE_CHOICES,
+        blank=True,
+        help_text="Type of Baseline calculation.",
+    )
     date_added = models.DateField(
-        auto_now_add=True, help_text="Date dataset added to system.")
+        auto_now_add=True, help_text="Date dataset added to system."
+    )
     date_updated = models.DateField(
-        blank=True, help_text="Date Baseline dataset updated/added to.")
+        blank=True, help_text="Date Baseline dataset updated/added to."
+    )
     local_path = models.FilePathField(
         path=settings.ANOMALY_BASELINE_LOCAL_PATH,
-        match=".*\.tif$", recursive=True, max_length=256,
+        match=".*\.tif$",
+        recursive=True,
+        max_length=256,
         help_text="Path to dataset on current machine. "
-                  "Used to upload dataset file_object.")
+        "Used to upload dataset file_object.",
+    )
     file_object = models.FileField(
-        upload_to='baseline-rasters', storage=raster_storage, blank=True,
+        upload_to="baseline-rasters",
+        storage=raster_storage,
+        blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
-                  "the file_object is created using the local_path.")
+        "the file_object is created using the local_path.",
+    )
 
     def __str__(self):
         return self.slug
@@ -671,7 +905,7 @@ class AnomalyBaselineRaster(models.Model):
         # * even if dataset instance is not new - to update baselines *
         # method necessasry for file upload to s3 using django-storages
         if created:
-            with open(self.local_path, 'rb') as f:
+            with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
                 self.save()
 
@@ -686,36 +920,37 @@ class AnomalyBaselineRaster(models.Model):
 
         if not self.slug:
             # generate slug
-            self.slug = generate_unique_slug(self, 'slug')
+            self.slug = generate_unique_slug(self, "slug")
 
         if not self.day_of_year:
             # get day of year from file name
             base_file = os.path.basename(self.local_path)
             parts = base_file.split(".")
-            baseline = parts[2].split("_")
-            if self.product.product_id == 'chirps':
-                month, day = parts[1].split('-')
-                day_value = int(month+day)
+
+            if self.product.product_id in ["chirps-precip", "copernicus-swi"]:
+                month, day = parts[3].split("-")
+                day_value = int(month + day)
                 self.day_of_year = day_value
             else:
-                self.day_of_year = int(parts[1])
+                self.day_of_year = int(parts[3])
 
         if not self.baseline_length:
             # get baseline length from file name
             base_file = os.path.basename(self.local_path)
             parts = base_file.split(".")
-            baseline = parts[2].split("_")
-            self.baseline_length = baseline[2]
+
+            self.baseline_length = parts[1]
 
         if not self.baseline_type:
             # get baseline type from file name
             base_file = os.path.basename(self.local_path)
             parts = base_file.split(".")
-            baseline = parts[2].split("_")
-            self.baseline_type = baseline[1]
+
+            self.baseline_type = parts[2]
 
         self.date_updated = datetime.date.fromtimestamp(
-            os.stat(self.local_path).st_mtime)
+            os.stat(self.local_path).st_mtime
+        )
 
         super().save(*args, **kwargs)
 
@@ -728,42 +963,57 @@ class AnomalyBaselineRaster(models.Model):
 
 class ZonalStats(models.Model):
     """
-    Zonal Statistics - 
+    Zonal Statistics -
     Calculated per combination of each product dataset and corresponding
     crop mask(s), boundary layer(s), and feature
     """
+
     product_raster = models.ForeignKey(
-        ProductRaster, on_delete=models.CASCADE,
-        help_text="Raster dataset of Product.")
+        ProductRaster, on_delete=models.CASCADE, help_text="Raster dataset of Product."
+    )
     cropmask_raster = models.ForeignKey(
-        CropmaskRaster, null=True, on_delete=models.CASCADE,
-        help_text="Raster Dataset of CropMask.")
+        CropmaskRaster,
+        null=True,
+        on_delete=models.CASCADE,
+        help_text="Raster Dataset of CropMask.",
+    )
     boundary_layer = models.ForeignKey(
-        BoundaryLayer, on_delete=models.CASCADE,
-        help_text="BoundaryLayer")
+        BoundaryLayer, on_delete=models.CASCADE, help_text="BoundaryLayer"
+    )
     feature_id = models.IntegerField(
-        db_index=True,
-        help_text="ID of feature within BoundaryLayer.")
+        db_index=True, help_text="ID of feature within BoundaryLayer."
+    )
     pixel_count = models.FloatField(
-        help_text="Number of pixels representing the specified feature.")
+        help_text="Number of pixels representing the specified feature."
+    )
     percent_arable = models.FloatField(
         help_text="Percent of the feature pixels with valid data for the "
-                  "product and mask dataset combination.")
+        "product and mask dataset combination."
+    )
     min = models.FloatField(
-        null=True, blank=True,
-        help_text="Minimum value derived from zonal statistics calculation.")
+        null=True,
+        blank=True,
+        help_text="Minimum value derived from zonal statistics calculation.",
+    )
     max = models.FloatField(
-        null=True, blank=True,
-        help_text="Maximum value derived from zonal statistics calculatin.")
+        null=True,
+        blank=True,
+        help_text="Maximum value derived from zonal statistics calculatin.",
+    )
     mean = models.FloatField(
-        null=True, blank=True,
-        help_text="Mean value derived from zonal statistics calculation.")
+        null=True,
+        blank=True,
+        help_text="Mean value derived from zonal statistics calculation.",
+    )
     std = models.FloatField(
-        null=True, blank=True,
-        help_text="Standard deviation derived from zonal statistics calculation.")
+        null=True,
+        blank=True,
+        help_text="Standard deviation derived from zonal statistics calculation.",
+    )
     date = models.DateField(
         db_index=True,
-        help_text="Date the ZonalStats represent, derived from the product dataset")
+        help_text="Date the ZonalStats represent, derived from the product dataset",
+    )
 
     class Meta:
         verbose_name = "zonal stats"
@@ -772,35 +1022,41 @@ class ZonalStats(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=[
-                    'product_raster', 'cropmask_raster',
-                    'boundary_layer', 'feature_id',
-                    'date'
+                    "product_raster",
+                    "cropmask_raster",
+                    "boundary_layer",
+                    "feature_id",
+                    "date",
                 ],
-                name='unique_stats_record'),
+                name="unique_stats_record",
+            ),
             models.UniqueConstraint(
-                fields=[
-                    'product_raster', 'boundary_layer',
-                    'feature_id', 'date'
-                ],
+                fields=["product_raster", "boundary_layer", "feature_id", "date"],
                 condition=models.Q(cropmask_raster__isnull=True),
-                name='unique_stats_record_null_cropmask'
-            )
+                name="unique_stats_record_null_cropmask",
+            ),
         ]
 
         indexes = [
             models.Index(
                 fields=[
-                    'product_raster', 'cropmask_raster',
-                    'boundary_layer', 'feature_id',
-                    'date'
-                ], name='zstats_idx'
+                    "product_raster",
+                    "cropmask_raster",
+                    "boundary_layer",
+                    "feature_id",
+                    "date",
+                ],
+                name="zstats_idx",
             ),
             models.Index(
                 fields=[
-                    'product_raster', 'cropmask_raster',
-                    'boundary_layer', 'feature_id'
-                ], name='zstats_idx_no_date'
-            )
+                    "product_raster",
+                    "cropmask_raster",
+                    "boundary_layer",
+                    "feature_id",
+                ],
+                name="zstats_idx_no_date",
+            ),
         ]
 
 
@@ -813,18 +1069,21 @@ class ImageExport(models.Model):
         primary_key=True,
         default=uuid.uuid4,
         editable=False,
-        help_text="Unique id for export")
+        help_text="Unique id for export",
+    )
     started = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Date/Time export started.")
+        auto_now_add=True, help_text="Date/Time export started."
+    )
     completed = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Date/Time export completed.")
+        null=True, blank=True, help_text="Date/Time export completed."
+    )
     file_object = models.FileField(
-        upload_to='exports', storage=raster_storage, blank=True,
+        upload_to="exports",
+        storage=raster_storage,
+        blank=True,
         help_text="Stored dataset file. When dataset object is saved, "
-                  "the file_object is created using the local_path.")
+        "the file_object is created using the local_path.",
+    )
 
     class Meta:
         verbose_name = "image export"
