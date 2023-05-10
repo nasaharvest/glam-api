@@ -179,3 +179,5 @@ local_settings/
 local_files/
 
 zappa_settings.json
+
+.vscode
