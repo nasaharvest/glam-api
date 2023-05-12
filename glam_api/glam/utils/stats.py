@@ -15,22 +15,34 @@ from django_q.tasks import async_task
 from django.conf import settings
 from django.db import IntegrityError
 
-from ..models import (Product, ProductRaster, CropMask, CropmaskRaster,
-                      BoundaryLayer, BoundaryFeature, BoundaryRaster, ZonalStats)
+from ..models import (
+    Product,
+    ProductRaster,
+    CropMask,
+    CropmaskRaster,
+    BoundaryLayer,
+    BoundaryFeature,
+    BoundaryRaster,
+    ZonalStats,
+)
 
 
 # set up logging
 logging.basicConfig(
-    format='%(asctime)s - %(message)s',
-    datefmt='%d-%b-%y %H:%M:%S',
-    level=settings.LOG_LEVELS[settings.LOG_LEVEL])
+    format="%(asctime)s - %(message)s",
+    datefmt="%d-%b-%y %H:%M:%S",
+    level=settings.LOG_LEVELS[settings.LOG_LEVEL],
+)
 # logging.basicConfig(level="DEBUG")
 log = logging.getLogger(__name__)
 
 
 def chunks(features, cores, product_raster_path, cropmask_raster_path, mask_type):
     """Yield successive n-sized chunks from a slice-able iterable."""
-    return [(features[i:i+cores], product_raster_path, cropmask_raster_path, mask_type) for i in range(0, len(features), cores)]
+    return [
+        (features[i : i + cores], product_raster_path, cropmask_raster_path, mask_type)
+        for i in range(0, len(features), cores)
+    ]
 
 
 def zonal_stats_partial(feats, product_raster_path, cropmask_raster_path, mask_type):
@@ -40,33 +52,34 @@ def zonal_stats_partial(feats, product_raster_path, cropmask_raster_path, mask_t
         product_raster_path,
         mask_raster=cropmask_raster_path,
         mask_type=mask_type,
-        stats=['count', 'min', 'max', 'mean', 'std', 'nodata']
+        stats=["count", "min", "max", "mean", "std", "nodata"],
     )
 
 
 def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
-
     # Create multiprocessing Pool using number of cores specified in settings.
     n_cores = settings.N_CORES
     p = multiprocessing.Pool(n_cores)
     # Get queryset of boundary features.
-    boundary_features = BoundaryFeature.objects.filter(
-        boundary_layer=boundary_layer)
+    boundary_features = BoundaryFeature.objects.filter(boundary_layer=boundary_layer)
 
     # Open raster and get CRS to transform vector geometry.
-    raster_dataset = rasterio.open(product_raster.file_object.url)
+    raster_dataset = rasterio.open(product_raster.local_path)
     crs_wkt = raster_dataset.crs.wkt
 
-    geoms = [json.loads(feature.geom.transform(crs_wkt, clone=True).geojson)
-             for feature in boundary_features]
+    geoms = [
+        json.loads(feature.geom.transform(crs_wkt, clone=True).geojson)
+        for feature in boundary_features
+    ]
 
     # Divide features for processing across N number of cores.
     params = chunks(
         features=geoms,
         cores=n_cores,
-        product_raster_path=product_raster.file_object.url,
+        product_raster_path=product_raster.local_path,
         cropmask_raster_path=cropmask_raster.local_path if cropmask_raster else None,
-        mask_type=cropmask_raster.mask_type if cropmask_raster else "binary")
+        mask_type=cropmask_raster.mask_type if cropmask_raster else "binary",
+    )
 
     # Use Pool.startmap method to map over chunks of features and execute zonal stats calculation.
     stats_lists = p.starmap(zonal_stats_partial, tqdm(params))
@@ -82,7 +95,7 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
     for feat, stats in results:
         # Handle divide by zero.
         try:
-            pct_arable = (stats['count']/stats['feature_count'])*100
+            pct_arable = (stats["count"] / stats["feature_count"]) * 100
         except ZeroDivisionError:
             pct_arable = 0
 
@@ -92,32 +105,35 @@ def bulk_zonal_stats(product_raster, cropmask_raster, boundary_layer):
                 cropmask_raster=cropmask_raster,
                 boundary_layer=boundary_layer,
                 feature_id=feat.feature_id,
-                pixel_count=stats['count'],
+                pixel_count=stats["count"],
                 percent_arable=pct_arable,
-                min=stats['min'],
-                max=stats['max'],
-                mean=stats['mean'],
-                std=stats['std'],
-                date=product_raster.date
+                min=stats["min"],
+                max=stats["max"],
+                mean=stats["mean"],
+                std=stats["std"],
+                date=product_raster.date,
             )
         )
     try:
         zonal_stats_added = ZonalStats.objects.bulk_create(insert_list)
-        log.info(f'Successfully saved {len(zonal_stats_added)} records.')
+        log.info(f"Successfully saved {len(zonal_stats_added)} records.")
 
         return zonal_stats_added
 
     except IntegrityError:
         log.error(
-            f'A zonal statistics record for this combination of [{product_raster}, {cropmask_raster}, {boundary_layer}, {product_raster.date}] already exists in the database. No records saved.')
+            f"A zonal statistics record for this combination of [{product_raster}, {cropmask_raster}, {boundary_layer}, {product_raster.date}] already exists in the database. No records saved."
+        )
 
         return None
 
 
 def queue_bulk_stats(
-        products: list = None, cropmasks: list = None,
-        boundarylayers: list = None, years: list = None):
-
+    products: list = None,
+    cropmasks: list = None,
+    boundarylayers: list = None,
+    years: list = None,
+):
     # Create product queryset.
     # If no product is specified, select all.
     # Otherwise, create en empty queryset and add each product specified.
@@ -153,7 +169,8 @@ def queue_bulk_stats(
             try:
                 # Retreive queryset of features belonging to each BoundaryLayer.
                 boundary_features = BoundaryFeature.objects.filter(
-                    boundary_layer=boundary_layer)
+                    boundary_layer=boundary_layer
+                )
                 # Make sure feature queryset count is greater than 0.
                 assert boundary_features.count() > 0
 
@@ -161,62 +178,79 @@ def queue_bulk_stats(
                 for cropmask in boundary_layer.masks.all():
                     if cropmask in cropmask_queryset:
                         # Get ProductRaster queryset
-                        product_rasters = ProductRaster.objects.filter(
-                            product=product
-                        )
+                        product_rasters = ProductRaster.objects.filter(product=product)
                         for product_raster in tqdm(
                             product_rasters,
-                            desc=f'{product.product_id}-{cropmask.cropmask_id}-'
-                                f'{boundary_layer.layer_id}'):
+                            desc=f"{product.product_id}-{cropmask.cropmask_id}-"
+                            f"{boundary_layer.layer_id}",
+                        ):
                             # If years are provided, only include datasets within specified years.
                             if years:
                                 if product_raster.date.year in years:
-
                                     # Try to retreive related mask dataset,
                                     # if they do not exist then pass.
                                     try:
-                                        if cropmask.cropmask_id == 'no-mask':
+                                        if cropmask.cropmask_id == "no-mask":
                                             cropmask_raster = None
                                         else:
-                                            cropmask_raster = CropmaskRaster.objects.get(
-                                                product=product, crop_mask=cropmask)
+                                            cropmask_raster = (
+                                                CropmaskRaster.objects.get(
+                                                    product=product, crop_mask=cropmask
+                                                )
+                                            )
 
                                         # Add bulk_zonal_stats function to task queue.
                                         async_task(
-                                            bulk_zonal_stats, product_raster, cropmask_raster, boundary_layer, group=product.product_id)
-                                        log.info(f'Queueing Zonal Stats for '
-                                                 f'{product.product_id}:'
-                                                 f'{product_raster.date}-'
-                                                 f'{cropmask.cropmask_id}-'
-                                                 f'{boundary_layer.layer_id}')
+                                            bulk_zonal_stats,
+                                            product_raster,
+                                            cropmask_raster,
+                                            boundary_layer,
+                                            group=product.product_id,
+                                        )
+                                        log.info(
+                                            f"Queueing Zonal Stats for "
+                                            f"{product.product_id}:"
+                                            f"{product_raster.date}-"
+                                            f"{cropmask.cropmask_id}-"
+                                            f"{boundary_layer.layer_id}"
+                                        )
                                     except CropmaskRaster.DoesNotExist:
                                         log.debug(
-                                            f'No matching CropmaskRaster found for combination of \
-                                            {product.product_id} & {cropmask.cropmask_id}')
+                                            f"No matching CropmaskRaster found for combination of \
+                                            {product.product_id} & {cropmask.cropmask_id}"
+                                        )
 
                             # If no years are specified, queue all dates.
                             else:
                                 try:
-                                    if cropmask.cropmask_id == 'no-mask':
+                                    if cropmask.cropmask_id == "no-mask":
                                         cropmask_raster = None
                                     else:
                                         cropmask_raster = CropmaskRaster.objects.get(
-                                            product=product, crop_mask=cropmask)
+                                            product=product, crop_mask=cropmask
+                                        )
 
                                     async_task(
-                                        bulk_zonal_stats, product_raster, cropmask_raster, boundary_layer, group=product.product_id)
-                                    log.debug(f'Queueing Zonal Stats for '
-                                              f'{product.product_id}:'
-                                              f'{product_raster.date}-'
-                                              f'{cropmask.cropmask_id}-'
-                                              f'{boundary_layer.layer_id}')
+                                        bulk_zonal_stats,
+                                        product_raster,
+                                        cropmask_raster,
+                                        boundary_layer,
+                                        group=product.product_id,
+                                    )
+                                    log.debug(
+                                        f"Queueing Zonal Stats for "
+                                        f"{product.product_id}:"
+                                        f"{product_raster.date}-"
+                                        f"{cropmask.cropmask_id}-"
+                                        f"{boundary_layer.layer_id}"
+                                    )
                                 except CropmaskRaster.DoesNotExist:
                                     log.debug(
-                                        f'No matching CropmaskRaster found for combination of \
-                                        {product.product_id} & {cropmask.cropmask_id}')
+                                        f"No matching CropmaskRaster found for combination of \
+                                        {product.product_id} & {cropmask.cropmask_id}"
+                                    )
             except AssertionError as error:
-                log.debug(
-                    f'No available features found for {boundary_layer.layer_id}')
+                log.debug(f"No available features found for {boundary_layer.layer_id}")
 
 
 def queue_zonal_stats(product_id: str, date: str):
@@ -229,32 +263,41 @@ def queue_zonal_stats(product_id: str, date: str):
         for cropmask in layer.masks.all():
             if cropmask in cropmasks:
                 # get product datasets
-                product_raster = ProductRaster.objects.get(
-                    product=product, date=date)
+                product_raster = ProductRaster.objects.get(product=product, date=date)
                 try:
-
-                    if cropmask.cropmask_id == 'no-mask':
+                    if cropmask.cropmask_id == "no-mask":
                         mask_ds = None
                     else:
                         mask_ds = CropmaskRaster.objects.get(
-                            product=product, crop_mask=cropmask)
+                            product=product, crop_mask=cropmask
+                        )
                     c += 1
                     # add to queue
                     async_task(
-                        bulk_zonal_stats, product_raster, mask_ds, layer, group=product.product_id)
-                    log.info(f'{c} Queueing Zonal Stats for '
-                             f'{product.product_id}:'
-                             f'{product_raster.date}-'
-                             f'{cropmask.cropmask_id}-'
-                             f'{layer.layer_id}')
+                        bulk_zonal_stats,
+                        product_raster,
+                        mask_ds,
+                        layer,
+                        group=product.product_id,
+                    )
+                    log.info(
+                        f"{c} Queueing Zonal Stats for "
+                        f"{product.product_id}:"
+                        f"{product_raster.date}-"
+                        f"{cropmask.cropmask_id}-"
+                        f"{layer.layer_id}"
+                    )
                 except:
-                    log.info(f'{c} Combination unavailable for '
-                             f'{product.product_id}-'
-                             f'{cropmask.cropmask_id}-'
-                             f'{layer.layer_id}')
+                    log.info(
+                        f"{c} Combination unavailable for "
+                        f"{product.product_id}-"
+                        f"{cropmask.cropmask_id}-"
+                        f"{layer.layer_id}"
+                    )
 
 
 # def remove_duplicate_stats():
+
 
 def fill_zonal_stats():
     start = datetime.now()
@@ -267,33 +310,34 @@ def fill_zonal_stats():
         for layer in boundarylayers:
             for cropmask in layer.masks.all():
                 if cropmask in cropmasks:
-                    product_rasters = ProductRaster.objects.filter(
-                        product=product
-                    )
+                    product_rasters = ProductRaster.objects.filter(product=product)
                     for product_ds in tqdm(
                         product_rasters,
-                        desc=f'{product.product_id}-{cropmask.cropmask_id}-'
-                             f'{layer.layer_id}'):
+                        desc=f"{product.product_id}-{cropmask.cropmask_id}-"
+                        f"{layer.layer_id}",
+                    ):
                         try:
-
-                            if cropmask.cropmask_id == 'no-mask':
+                            if cropmask.cropmask_id == "no-mask":
                                 mask_ds = None
                             else:
                                 mask_ds = CropmaskRaster.objects.get(
-                                    product=product, crop_mask=cropmask)
+                                    product=product, crop_mask=cropmask
+                                )
 
                             zs_query = ZonalStats.objects.filter(
                                 product_raster=product_ds,
                                 cropmask_raster=mask_ds,
                                 boundary_layer=layer,
-                                date=product_ds.date
+                                date=product_ds.date,
                             )
                             if zs_query.count() < 1:
-                                print(f'Queueing Zonal Stats for '
-                                      f'{product.product_id}:'
-                                      f'{product_ds.date}-'
-                                      f'{cropmask.cropmask_id}-'
-                                      f'{layer.layer_id}')
+                                print(
+                                    f"Queueing Zonal Stats for "
+                                    f"{product.product_id}:"
+                                    f"{product_ds.date}-"
+                                    f"{cropmask.cropmask_id}-"
+                                    f"{layer.layer_id}"
+                                )
                                 # add to queue
                                 # async_task(
                                 #     bulk_zonal_stats, product_ds, mask_ds, admin_ds, group=product.product_id)
@@ -303,14 +347,16 @@ def fill_zonal_stats():
                                 #         f'{cropmask.cropmask_id}-'
                                 #         f'{layer.layer_id}')
                         except:
-                            log.debug(f'Combination unavailable for '
-                                      f'{product.product_id}-'
-                                      f'{cropmask.cropmask_id}-'
-                                      f'{layer.layer_id}')
+                            log.debug(
+                                f"Combination unavailable for "
+                                f"{product.product_id}-"
+                                f"{cropmask.cropmask_id}-"
+                                f"{layer.layer_id}"
+                            )
 
     finish = datetime.now()
     duration = finish - start
-    print('total time: ' + duration)
+    print("total time: " + duration)
 
 
 # to-do: function to export stats using command line
