@@ -54,7 +54,7 @@ log = logging.getLogger(__name__)
 
 class GlamDownloader(object):
     def __init__(self, product):
-        if product in ["merra-2-min", "merra-2-max", "merra-2-mean"]:
+        if product in ["merra-2-min-temp", "merra-2-max-temp", "merra-2-mean-temp"]:
             self.product = "merra-2"
         elif product.upper() in NASA_PRODUCTS:
             self.product = product.upper()
@@ -470,7 +470,8 @@ class GlamDownloader(object):
             merra_out = []
 
             for metric in merra_datasets.keys():
-                out = os.path.join(out_dir, f"merra-2.{date}.{metric}-temp.tif")
+                directory = os.path.join(out_dir, f"{self.product}-{metric}-temp")
+                out = os.path.join(directory, f"merra-2.{date}.{metric}-temp.tif")
 
                 dataset_list = merra_datasets[metric]
                 mosaic, out_transform = merge(dataset_list)
@@ -517,11 +518,11 @@ class GlamDownloader(object):
 
         # download hdf files
         try:
-            hdf_files = wget_from_laads(self.product, date_obj, out_dir, **kwargs)            
+            hdf_files = wget_from_laads(self.product, date_obj, out_dir, **kwargs)
         except:
             log.warning("Unable to download from LAADS DAAC, will try LP DAAC.")
             hdf_files = pull_from_lp(self.product, date_obj, out_dir, **kwargs)
-            
+
         # hdf_files = pull_from_cmr(self.product, date_obj, out_dir, **kwargs)
 
         output = []
@@ -683,7 +684,9 @@ class GlamDownloader(object):
         else:
             raise exceptions.BadInputError(f"Product '{self.product}' not recognized")
 
-    def list_available_for_download(self, start_date: str, end_date: str = None, format_doy=False) -> list:
+    def list_available_for_download(
+        self, start_date: str, end_date: str = None, format_doy=False
+    ) -> list:
         """A function that lists availabe-to-download imagery dates
 
         Parameters
@@ -723,7 +726,7 @@ class GlamDownloader(object):
                 except:
                     raise exceptions.BadInputError(
                         f"Failed to parse input '{end_date}' as a date. Please use format YYYY-MM-DD or YYYY.DOY"
-                    )   
+                    )
         else:
             today = datetime.today()
 
@@ -908,7 +911,9 @@ class GlamDownloader(object):
 
         return actions[self.product](date, out_dir, **kwargs)
 
-    def download_available_from_range(self, start_date: str, end_date: str, out_dir: str, **kwargs):
+    def download_available_from_range(
+        self, start_date: str, end_date: str, out_dir: str, **kwargs
+    ):
         log.info("Retreiving list of datasets available for download.")
         available = self.list_available_for_download(start_date, end_date)
 
