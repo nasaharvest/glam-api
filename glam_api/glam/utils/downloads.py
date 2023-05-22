@@ -471,7 +471,7 @@ class GlamDownloader(object):
 
             for metric in merra_datasets.keys():
                 directory = os.path.join(out_dir, f"{self.product}-{metric}-temp")
-                out = os.path.join(directory, f"merra-2.{date}.{metric}-temp.tif")
+                out = os.path.join(directory, f"merra-2-{metric}-temp.{date}.tif")
 
                 dataset_list = merra_datasets[metric]
                 mosaic, out_transform = merge(dataset_list)
