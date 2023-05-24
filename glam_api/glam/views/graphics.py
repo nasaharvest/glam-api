@@ -659,7 +659,7 @@ class GraphicsViewSet(viewsets.ViewSet):
 
                 with COGReader(product_ds.file_object.url) as image:
                     feat = image.feature(
-                        json.loads(boundary_feature_geom.geojson), max_size=512
+                        json.loads(boundary_feature_geom.geojson), max_size=1024
                     )
 
                 image = feat.as_masked()
