@@ -589,7 +589,7 @@ class GlamDownloader(object):
 
         return output
 
-    def available_for_download(self, date: str) -> bool:
+    def available_for_download(self, date: str, prelim: bool = True) -> bool:
         """Returns whether imagery for given product and date is available for download from source"""
 
         # parse arguments
@@ -640,10 +640,13 @@ class GlamDownloader(object):
             if req.ok:
                 return req.ok
             else:
-                # check prelim
-                url = f"https://data.chc.ucsb.edu/products/CHIRPS-2.0/prelim/global_dekad/tifs/chirps-v2.0.{c_year}.{c_month}.{c_day}.tif"
-                req = requests.get(url)
-                return req.ok
+                if prelim:
+                    # check prelim
+                    url = f"https://data.chc.ucsb.edu/products/CHIRPS-2.0/prelim/global_dekad/tifs/chirps-v2.0.{c_year}.{c_month}.{c_day}.tif"
+                    req = requests.get(url)
+                    return req.ok
+                else:
+                    return False
 
         elif self.product == "copernicus-swi":
             # convert string date to datetime object
@@ -746,38 +749,18 @@ class GlamDownloader(object):
         elif self.product == "chirps-precip":
             # get all possible dates
             while latest < today:
-                if int(latest.strftime("%d")) > 12:
-                    # push the date into the next month, but not past the 11th day of the next month
-                    latest = latest + timedelta(days=15)
-                    # once we're in next month, slam the day back down to 01
-                    latest = datetime.strptime(
-                        latest.strftime("%Y-%m") + "-01", "%Y-%m-%d"
-                    )
-                else:
-                    # 01 becomes 11, 11 becomes 21
-                    latest = latest + timedelta(days=10)
-                log.debug(
-                    f"Found missing file in valid date range: chirps for {latest.strftime('%Y-%m-%d')}"
-                )
-                raw_dates.append(latest.strftime("%Y-%m-%d"))
+                if latest.day in [1, 11, 21]:
+                    raw_dates.append(latest.strftime("%Y-%m-%d"))
+
+                latest = latest + timedelta(days=1)
 
         elif self.product == "copernicus-swi":
             # get all possible dates
             while latest < today:
-                if int(latest.strftime("%d")) > 12:
-                    # push the date into the next month, but not past the 11th day of the next month
-                    latest = latest + timedelta(days=15)
-                    # once we're in next month, slam the day back down to 01
-                    latest = datetime.strptime(
-                        latest.strftime("%Y-%m") + "-01", "%Y-%m-%d"
-                    )
-                else:
-                    # 01 becomes 11, 11 becomes 21
-                    latest = latest + timedelta(days=10)
-                log.debug(
-                    f"Found missing file in valid date range: SWI for {latest.strftime('%Y-%m-%d')}"
-                )
-                raw_dates.append(latest.strftime("%Y-%m-%d"))
+                if latest.day in [1, 11, 21]:
+                    raw_dates.append(latest.strftime("%Y-%m-%d"))
+
+                latest = latest + timedelta(days=1)
 
         elif self.product in NASA_PRODUCTS:
             if self.product == "MOD09Q1":
@@ -870,6 +853,7 @@ class GlamDownloader(object):
 
         # filter products
         for rd in tqdm(raw_dates):
+            print(rd)
             if self.available_for_download(rd):
                 filtered_dates.append(rd)
 
@@ -914,9 +898,10 @@ class GlamDownloader(object):
     def download_available_from_range(
         self, start_date: str, end_date: str, out_dir: str, **kwargs
     ):
+        print(start_date, end_date)
         log.info("Retreiving list of datasets available for download.")
         available = self.list_available_for_download(start_date, end_date)
-
+        print(available)
         for d in tqdm(available, desc="Downloading available datasets."):
             self.download_single_date(d, out_dir, **kwargs)
 
