@@ -399,9 +399,12 @@ class GraphicsViewSet(viewsets.ViewSet):
         if admin_1 in boundary_layer.tags.all():
             admin_level = admin_1
             buff = 1
-        else:
+        elif admin_0 in boundary_layer.tags.all():
             admin_level = admin_0
             buff = 2
+        else:
+            admin_level = None
+            buff = 1
 
         boundary_feature_buffer = wkt.loads(boundary_feature_geom.buffer(buff).wkt)
         boundary_feature_geom = wkt.loads(boundary_feature_geom.wkt)
@@ -478,10 +481,16 @@ class GraphicsViewSet(viewsets.ViewSet):
 
         ax.set_facecolor(BLUE)
 
-        feature_intersects = BoundaryFeature.objects.filter(
-            boundary_layer__tags=admin_level,
-            geom__intersects=boundary_feature.geom.buffer(buff).envelope,
-        )
+        if admin_level:
+            feature_intersects = BoundaryFeature.objects.filter(
+                boundary_layer__tags=admin_level,
+                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+            )
+        else:
+            feature_intersects = BoundaryFeature.objects.filter(
+                boundary_layer=boundary_layer,
+                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+            )
 
         for feature in feature_intersects:
             wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
