@@ -1,5 +1,5 @@
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import numpy as np
 
@@ -205,45 +205,10 @@ class QueryRasterValue(viewsets.ViewSet):
                 geom["geometry"]["type"] == "Polygon"
                 or geom["geometry"]["type"] == "MultiPolygon"
             ):
-                with COGReader(path) as product_src:
-                    feat = product_src.feature(geom, max_size=1024)
-                    data = feat.as_masked()
-
-                    mean = float(
-                        Decimal(str(data.mean()))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    _min = float(
-                        Decimal(str(data.min()))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    _max = float(
-                        Decimal(str(data.max()))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    stdev = float(
-                        Decimal(str(data.std()))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-
-                if cropmask:
-                    mask_queryset = CropmaskRaster.objects.all()
-                    mask_dataset = get_object_or_404(
-                        mask_queryset,
-                        product__product_id=product_id,
-                        crop_mask__cropmask_id=cropmask,
-                    )
-
-                    if not settings.USE_S3_RASTERS:
-                        mask_path = mask_dataset.file_object.path
-                    if settings.USE_S3_RASTERS:
-                        mask_path = mask_dataset.file_object.url
-
-                    with COGReader(mask_path) as mask_src:
-                        mask_feat = mask_src.feature(geom, max_size=1024)
-                        mask_data = mask_feat.as_masked()
-
-                        data = data * mask_data
+                try:
+                    with COGReader(path) as product_src:
+                        feat = product_src.feature(geom, max_size=1024)
+                        data = feat.as_masked()
 
                         mean = float(
                             Decimal(str(data.mean()))
@@ -262,79 +227,117 @@ class QueryRasterValue(viewsets.ViewSet):
                             * Decimal(str(product_dataset.product.variable.scale))
                         )
 
-                if anomaly_type:
-                    anom_type = anomaly_type if anomaly_type else "mean"
-
-                    if anom_type == "diff":
-                        new_year = diff_year
-                        new_date = product_dataset.date.replace(year=new_year)
-                        anomaly_queryset = ProductRaster.objects.filter(
-                            product__product_id=product_id
-                        )
-                        closest = get_closest_to_dt(anomaly_queryset, new_date)
-                        try:
-                            anomaly_dataset = get_object_or_404(
-                                product_queryset, date=new_date
-                            )
-                        except:
-                            anomaly_dataset = closest
-                    else:
-                        doy = product_dataset.date.timetuple().tm_yday
-                        if product_id == "swi":
-                            swi_baselines = np.arange(1, 366, 5)
-                            idx = (np.abs(swi_baselines - doy)).argmin()
-                            doy = swi_baselines[idx]
-                        if product_id == "chirps":
-                            doy = int(str(date.month) + f"{date.day:02d}")
-                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                        anomaly_dataset = get_object_or_404(
-                            anomaly_queryset,
-                            product__product_id=product_id,
-                            day_of_year=doy,
-                            baseline_length=anomaly,
-                            baseline_type=anom_type,
-                        )
-
-                    if not settings.USE_S3_RASTERS:
-                        baseline_path = anomaly_dataset.file_object.path
-                    if settings.USE_S3_RASTERS:
-                        baseline_path = anomaly_dataset.file_object.url
-
-                    with COGReader(baseline_path) as baseline_src:
-                        baseline_feat = baseline_src.feature(geom, max_size=1024)
-                        baseline_data = baseline_feat.as_masked()
-
                     if cropmask:
-                        # mask baseline data
-                        baseline_data = baseline_data * mask_data
+                        mask_queryset = CropmaskRaster.objects.all()
+                        mask_dataset = get_object_or_404(
+                            mask_queryset,
+                            product__product_id=product_id,
+                            crop_mask__cropmask_id=cropmask,
+                        )
 
-                    mean = data.mean() - baseline_data.mean()
-                    _min = data.min() - baseline_data.min()
-                    _max = data.max() - baseline_data.max()
-                    stdev = data.std() - baseline_data.std()
+                        if not settings.USE_S3_RASTERS:
+                            mask_path = mask_dataset.file_object.path
+                        if settings.USE_S3_RASTERS:
+                            mask_path = mask_dataset.file_object.url
 
-                    mean = float(
-                        Decimal(str(mean))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    _min = float(
-                        Decimal(str(_min))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    _max = float(
-                        Decimal(str(_max))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                    stdev = float(
-                        Decimal(str(stdev))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
+                        with COGReader(mask_path) as mask_src:
+                            mask_feat = mask_src.feature(geom, max_size=1024)
+                            mask_data = mask_feat.as_masked()
 
-                if type(mean) != np.ma.core.MaskedConstant:
-                    result = {"min": _min, "max": _max, "mean": mean, "std": stdev}
-                else:
+                            data = data * mask_data
+
+                            mean = float(
+                                Decimal(str(data.mean()))
+                                * Decimal(str(product_dataset.product.variable.scale))
+                            )
+                            _min = float(
+                                Decimal(str(data.min()))
+                                * Decimal(str(product_dataset.product.variable.scale))
+                            )
+                            _max = float(
+                                Decimal(str(data.max()))
+                                * Decimal(str(product_dataset.product.variable.scale))
+                            )
+                            stdev = float(
+                                Decimal(str(data.std()))
+                                * Decimal(str(product_dataset.product.variable.scale))
+                            )
+
+                    if anomaly_type:
+                        anom_type = anomaly_type if anomaly_type else "mean"
+
+                        if anom_type == "diff":
+                            new_year = diff_year
+                            new_date = product_dataset.date.replace(year=new_year)
+                            anomaly_queryset = ProductRaster.objects.filter(
+                                product__product_id=product_id
+                            )
+                            closest = get_closest_to_dt(anomaly_queryset, new_date)
+                            try:
+                                anomaly_dataset = get_object_or_404(
+                                    product_queryset, date=new_date
+                                )
+                            except:
+                                anomaly_dataset = closest
+                        else:
+                            doy = product_dataset.date.timetuple().tm_yday
+                            if product_id == "swi":
+                                swi_baselines = np.arange(1, 366, 5)
+                                idx = (np.abs(swi_baselines - doy)).argmin()
+                                doy = swi_baselines[idx]
+                            if product_id == "chirps":
+                                doy = int(str(date.month) + f"{date.day:02d}")
+                            anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                            anomaly_dataset = get_object_or_404(
+                                anomaly_queryset,
+                                product__product_id=product_id,
+                                day_of_year=doy,
+                                baseline_length=anomaly,
+                                baseline_type=anom_type,
+                            )
+
+                        if not settings.USE_S3_RASTERS:
+                            baseline_path = anomaly_dataset.file_object.path
+                        if settings.USE_S3_RASTERS:
+                            baseline_path = anomaly_dataset.file_object.url
+
+                        with COGReader(baseline_path) as baseline_src:
+                            baseline_feat = baseline_src.feature(geom, max_size=1024)
+                            baseline_data = baseline_feat.as_masked()
+
+                        if cropmask:
+                            # mask baseline data
+                            baseline_data = baseline_data * mask_data
+
+                        mean = data.mean() - baseline_data.mean()
+                        _min = data.min() - baseline_data.min()
+                        _max = data.max() - baseline_data.max()
+                        stdev = data.std() - baseline_data.std()
+
+                        mean = float(
+                            Decimal(str(mean))
+                            * Decimal(str(product_dataset.product.variable.scale))
+                        )
+                        _min = float(
+                            Decimal(str(_min))
+                            * Decimal(str(product_dataset.product.variable.scale))
+                        )
+                        _max = float(
+                            Decimal(str(_max))
+                            * Decimal(str(product_dataset.product.variable.scale))
+                        )
+                        stdev = float(
+                            Decimal(str(stdev))
+                            * Decimal(str(product_dataset.product.variable.scale))
+                        )
+
+                    if type(mean) != np.ma.core.MaskedConstant:
+                        result = {"min": _min, "max": _max, "mean": mean, "std": stdev}
+                    else:
+                        result = {"value": "No Data"}
+                        return Response(result)
+                except InvalidOperation:
                     result = {"value": "No Data"}
-                    return Response(result)
 
                 return Response(result)
 
@@ -392,53 +395,16 @@ class QueryRasterValue(viewsets.ViewSet):
         if settings.USE_S3_RASTERS:
             path = product_dataset.file_object.url
 
-        with COGReader(path) as product_src:
-            feat = product_src.feature(
-                json.loads(boundary_feature.geom.geojson), max_size=1024
-            )
-            data = feat.as_masked()
-
-            if type(data.mean()) == np.ma.core.MaskedConstant:
-                result = {"value": "No Data"}
-                return Response(result)
-            mean = float(
-                Decimal(str(data.mean()))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            _min = float(
-                Decimal(str(data.min()))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            _max = float(
-                Decimal(str(data.max()))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            stdev = float(
-                Decimal(str(data.std()))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-
-        if cropmask_id != "no-mask":
-            mask_queryset = CropmaskRaster.objects.all()
-            mask_dataset = get_object_or_404(
-                mask_queryset,
-                product__product_id=product_id,
-                crop_mask__cropmask_id=cropmask_id,
-            )
-
-            if not settings.USE_S3_RASTERS:
-                mask_path = mask_dataset.file_object.path
-            if settings.USE_S3_RASTERS:
-                mask_path = mask_dataset.file_object.url
-
-            with COGReader(mask_path) as mask_src:
-                mask_feat = mask_src.feature(
+        try:
+            with COGReader(path) as product_src:
+                feat = product_src.feature(
                     json.loads(boundary_feature.geom.geojson), max_size=1024
                 )
-                mask_data = mask_feat.as_masked()
+                data = feat.as_masked()
 
-                data = data * mask_data
-
+                if type(data.mean()) == np.ma.core.MaskedConstant:
+                    result = {"value": "No Data"}
+                    return Response(result)
                 mean = float(
                     Decimal(str(data.mean()))
                     * Decimal(str(product_dataset.product.variable.scale))
@@ -456,77 +422,119 @@ class QueryRasterValue(viewsets.ViewSet):
                     * Decimal(str(product_dataset.product.variable.scale))
                 )
 
-        if anomaly_type:
-            anom_type = anomaly_type if anomaly_type else "mean"
-
-            if anom_type == "diff":
-                new_year = diff_year
-                new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductRaster.objects.filter(
-                    product__product_id=product_id
-                )
-                closest = get_closest_to_dt(anomaly_queryset, new_date)
-                try:
-                    anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
-                except:
-                    anomaly_dataset = closest
-            else:
-                doy = product_dataset.date.timetuple().tm_yday
-                if product_id == "swi":
-                    swi_baselines = np.arange(1, 366, 5)
-                    idx = (np.abs(swi_baselines - doy)).argmin()
-                    doy = swi_baselines[idx]
-                if product_id == "chirps":
-                    doy = int(str(date.month) + f"{date.day:02d}")
-                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                anomaly_dataset = get_object_or_404(
-                    anomaly_queryset,
-                    product__product_id=product_id,
-                    day_of_year=doy,
-                    baseline_length=anomaly,
-                    baseline_type=anom_type,
-                )
-
-            if not settings.USE_S3_RASTERS:
-                baseline_path = anomaly_dataset.file_object.path
-            if settings.USE_S3_RASTERS:
-                baseline_path = anomaly_dataset.file_object.url
-
-            with COGReader(baseline_path) as baseline_src:
-                baseline_feat = baseline_src.feature(
-                    json.loads(boundary_feature.geom.geojson), max_size=1024
-                )
-                baseline_data = baseline_feat.as_masked()
-
             if cropmask_id != "no-mask":
-                # mask baseline data
-                baseline_data = baseline_data * mask_data
+                mask_queryset = CropmaskRaster.objects.all()
+                mask_dataset = get_object_or_404(
+                    mask_queryset,
+                    product__product_id=product_id,
+                    crop_mask__cropmask_id=cropmask_id,
+                )
 
-            mean = data.mean() - baseline_data.mean()
-            _min = data.min() - baseline_data.min()
-            _max = data.max() - baseline_data.max()
-            stdev = data.std() - baseline_data.std()
+                if not settings.USE_S3_RASTERS:
+                    mask_path = mask_dataset.file_object.path
+                if settings.USE_S3_RASTERS:
+                    mask_path = mask_dataset.file_object.url
 
-            mean = float(
-                Decimal(str(mean))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            _min = float(
-                Decimal(str(_min))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            _max = float(
-                Decimal(str(_max))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
-            stdev = float(
-                Decimal(str(stdev))
-                * Decimal(str(product_dataset.product.variable.scale))
-            )
+                with COGReader(mask_path) as mask_src:
+                    mask_feat = mask_src.feature(
+                        json.loads(boundary_feature.geom.geojson), max_size=1024
+                    )
+                    mask_data = mask_feat.as_masked()
 
-        if type(mean) != np.ma.core.MaskedConstant:
-            result = {"min": _min, "max": _max, "mean": mean, "std": stdev}
-        else:
+                    data = data * mask_data
+
+                    mean = float(
+                        Decimal(str(data.mean()))
+                        * Decimal(str(product_dataset.product.variable.scale))
+                    )
+                    _min = float(
+                        Decimal(str(data.min()))
+                        * Decimal(str(product_dataset.product.variable.scale))
+                    )
+                    _max = float(
+                        Decimal(str(data.max()))
+                        * Decimal(str(product_dataset.product.variable.scale))
+                    )
+                    stdev = float(
+                        Decimal(str(data.std()))
+                        * Decimal(str(product_dataset.product.variable.scale))
+                    )
+
+            if anomaly_type:
+                anom_type = anomaly_type if anomaly_type else "mean"
+
+                if anom_type == "diff":
+                    new_year = diff_year
+                    new_date = product_dataset.date.replace(year=new_year)
+                    anomaly_queryset = ProductRaster.objects.filter(
+                        product__product_id=product_id
+                    )
+                    closest = get_closest_to_dt(anomaly_queryset, new_date)
+                    try:
+                        anomaly_dataset = get_object_or_404(
+                            product_queryset, date=new_date
+                        )
+                    except:
+                        anomaly_dataset = closest
+                else:
+                    doy = product_dataset.date.timetuple().tm_yday
+                    if product_id == "swi":
+                        swi_baselines = np.arange(1, 366, 5)
+                        idx = (np.abs(swi_baselines - doy)).argmin()
+                        doy = swi_baselines[idx]
+                    if product_id == "chirps":
+                        doy = int(str(date.month) + f"{date.day:02d}")
+                    anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                    anomaly_dataset = get_object_or_404(
+                        anomaly_queryset,
+                        product__product_id=product_id,
+                        day_of_year=doy,
+                        baseline_length=anomaly,
+                        baseline_type=anom_type,
+                    )
+
+                if not settings.USE_S3_RASTERS:
+                    baseline_path = anomaly_dataset.file_object.path
+                if settings.USE_S3_RASTERS:
+                    baseline_path = anomaly_dataset.file_object.url
+
+                with COGReader(baseline_path) as baseline_src:
+                    baseline_feat = baseline_src.feature(
+                        json.loads(boundary_feature.geom.geojson), max_size=1024
+                    )
+                    baseline_data = baseline_feat.as_masked()
+
+                if cropmask_id != "no-mask":
+                    # mask baseline data
+                    baseline_data = baseline_data * mask_data
+
+                mean = data.mean() - baseline_data.mean()
+                _min = data.min() - baseline_data.min()
+                _max = data.max() - baseline_data.max()
+                stdev = data.std() - baseline_data.std()
+
+                mean = float(
+                    Decimal(str(mean))
+                    * Decimal(str(product_dataset.product.variable.scale))
+                )
+                _min = float(
+                    Decimal(str(_min))
+                    * Decimal(str(product_dataset.product.variable.scale))
+                )
+                _max = float(
+                    Decimal(str(_max))
+                    * Decimal(str(product_dataset.product.variable.scale))
+                )
+                stdev = float(
+                    Decimal(str(stdev))
+                    * Decimal(str(product_dataset.product.variable.scale))
+                )
+
+            if type(mean) != np.ma.core.MaskedConstant:
+                result = {"min": _min, "max": _max, "mean": mean, "std": stdev}
+            else:
+                result = {"value": "No Data"}
+        except InvalidOperation:
             result = {"value": "No Data"}
 
         return Response(result)
