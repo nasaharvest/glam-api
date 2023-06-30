@@ -78,6 +78,7 @@ get_custom_feature_graphic = GraphicsViewSet.as_view({"post": "custom_feature_gr
 get_boundary_feature_graphic = GraphicsViewSet.as_view(
     {"get": "boundary_feature_graphic"}
 )
+generate_feature_export = ImageExportViewSet.as_view({"get": "boundary_feature_export"})
 generate_custom_export = ImageExportViewSet.as_view({"post": "custom_feature_export"})
 
 router = CustomRouter()
@@ -127,7 +128,13 @@ urlpatterns = [
         get_boundary_feature_value,
         name="query-boundary-feature",
     ),
-    path("export/", generate_custom_export, name="custom-export"),
+    path("export/", generate_custom_export, name="export-custom-feature"),
+    path(
+        "export/<slug:product_id>/<isodate:date>/<slug:cropmask_id>/"
+        "<slug:layer_id>/<int:feature_id>/",
+        generate_feature_export,
+        name="export-boundary-feature",
+    ),
     path(
         "tiles/<slug:product_id>/<isodate:date>/preview.png",
         preview_tiles,
