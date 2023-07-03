@@ -491,6 +491,19 @@ class GraphicsViewSet(viewsets.ViewSet):
                 boundary_layer=boundary_layer,
                 geom__intersects=boundary_feature.geom.buffer(buff).envelope,
             )
+            countries = BoundaryFeature.objects.filter(
+                boundary_layer__tags=admin_0,
+                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+            )
+            for feature in countries:
+                wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
+                try:
+                    patch = PolygonPatch(
+                        wktgeom, fc=land, ec="black", linestyle=":", alpha=1, zorder=0
+                    )
+                except:
+                    pass
+                ax.add_patch(patch)
 
         for feature in feature_intersects:
             wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
