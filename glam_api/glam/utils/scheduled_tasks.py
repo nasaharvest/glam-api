@@ -8,7 +8,7 @@ from django.conf import settings
 from ..models import Product, ProductRaster
 from ..utils.downloads import GlamDownloader
 from ..utils.daac import NASA_PRODUCTS
-from ..utils.ingest import add_product_rasters
+from ..utils.ingest import add_product_rasters, add_anomaly_baselines
 
 logging.basicConfig(
     format="%(asctime)s - %(message)s",
@@ -36,7 +36,10 @@ def daily_download(product_id):
     )
     latest = rasters.first().date
     latest = latest + datetime.timedelta(days=1)
-    out_dir = os.path.join(settings.PRODUCT_DATASET_LOCAL_PATH, glam_id)
+    if product_id.startswith('merra-2'):
+        out_dir = settings.PRODUCT_DATASET_LOCAL_PATH
+    else:
+        out_dir = os.path.join(settings.PRODUCT_DATASET_LOCAL_PATH, glam_id)
     g.download_available_from_range(
         start_date=latest.isoformat(), end_date=None, out_dir=out_dir, vi=vi
     )
@@ -97,3 +100,31 @@ def update_chirps_prelim():
 
     log.info("Ingesting new files.")
     add_product_rasters("chirps-precip")
+
+
+def temp_add_anomaly_baselines():
+    products = Product.objects.all()
+    for product in products:
+        if product.product_id != "mod13q4n-ndvi":
+            add_anomaly_baselines(product.product_id)
+
+
+def api_warmer(url):
+    import requests
+
+    product_request = requests.get(f"{url}/products")
+    if product_request.ok:
+        products = product_request.json()["results"]
+        for product in products:
+            dataset_request = requests.get(
+                f'{url}/datasets/?product_id={product["product_id"]}'
+            )
+            if dataset_request.ok:
+                sample_datasets = dataset_request.json()["results"][0:10]
+                for ds in sample_datasets:
+                    tile_url = (
+                        f'{url}/tiles/{product["product_id"]}/{ds["date"]}/preview.png'
+                    )
+                    tile_req = requests.get(tile_url)
+                    if tile_req.ok:
+                        log.info(f'{product["product_id"]} OK')

@@ -613,7 +613,7 @@ class ProductRaster(models.Model):
         super().save(*args, **kwargs)
 
         self.upload_file(created)
-        self.queue_zonal_stats(created)
+        # self.queue_zonal_stats(created)
 
     class Meta:
         verbose_name = "product dataset"

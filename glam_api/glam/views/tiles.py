@@ -327,7 +327,6 @@ class Tiles(viewsets.ViewSet):
 
             mask_type = cropmask.mask_type
 
-            print(mask_type)
             if mask_type == "percent":
                 if cropmask_threshold:
                     threshold = cropmask_threshold / 100
@@ -338,7 +337,6 @@ class Tiles(viewsets.ViewSet):
 
             mask = np.minimum(img.mask, cm_img.mask)
 
-            # print(cm_img.mask)
             img = ImageData(data=img.data, mask=mask)
 
         image_rescale = img.post_process(

@@ -217,10 +217,15 @@ def add_product_rasters(product):
                             ds_date = datetime.datetime.strptime(
                                 f"{parts[-3]}.{parts[-2]}", "%Y.%j"
                             ).strftime("%Y-%m-%d")
-                        except:
-                            ds_date = datetime.datetime.strptime(
-                                parts[-2], "%Y-%m-%d"
-                            ).strftime("%Y-%m-%d")
+                        except ValueError:
+                            try: 
+                                ds_date = datetime.datetime.strptime(
+                                    parts[-2], "%Y-%j"
+                                ).strftime("%Y-%m-%d")
+                            except:
+                                ds_date = datetime.datetime.strptime(
+                                    parts[-2], "%Y-%m-%d"
+                                ).strftime("%Y-%m-%d")
                     logging.info(ds_date)
                     try:
                         ds = ProductRaster.objects.get(
@@ -425,6 +430,7 @@ def create_mean_raster(datasets, length, doy):
     print(len(raster_data))
     profile = raster_data[0].profile
     profile.update({"dtype": "float32"})
+    profile.update({"BIGTIFF": "YES"})
 
     # blocksize = profile['blockxsize']
     # hnum = profile['width']
@@ -445,6 +451,7 @@ def create_mean_raster(datasets, length, doy):
                 avg_value[avg_value.mask == True] = raster_data[0].nodata
                 mem.write(avg_value.astype("float32"), window=window)
             dst_profile = cog_profiles.get("deflate")
+            dst_profile.update({"BIGTIFF": "YES"})
             cog_translate(
                 mem,
                 output,
