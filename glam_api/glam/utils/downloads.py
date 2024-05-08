@@ -805,6 +805,13 @@ class GlamDownloader(object):
                     latest = datetime.strptime("2002.185", "%Y.%j")
                 delta = 8
 
+            elif self.product == "MYD09GA":
+                start_doy = 1
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2002.185", "%Y.%j")
+                delta = 1
+
             elif self.product == "MOD13Q4N":
                 start_doy = 1
                 # get all possible dates
@@ -832,6 +839,13 @@ class GlamDownloader(object):
                 if latest is None:
                     latest = datetime.strptime("2012.017", "%Y.%j")
                 delta = 8
+
+            elif self.product == "VNP09GA":
+                start_doy = 1
+                # get all possible dates
+                if latest is None:
+                    latest = datetime.strptime("2012.017", "%Y.%j")
+                delta = 1
 
             else:
                 raise exceptions.BadInputError(

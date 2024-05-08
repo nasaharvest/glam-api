@@ -46,11 +46,13 @@ NASA_PRODUCTS = [
     "MYD13Q1",
     "MOD09A1",
     "MYD09A1",
+    "MYD09GA",
     "MOD09Q1N",
     "MOD13Q4N",
     "MOD09CMG",
     "VNP09H1",
     "VNP09A1",
+    "VNP09GA",
     "VNP09CMG",
     "MCD12Q1",
 ]
@@ -102,6 +104,8 @@ def get_dtype_from_sds_name(sds_name):
         "SurfReflect_I1",
         "SurfReflect_I2",
         "SurfReflect_I3",
+        "SurfReflect_I1_1",
+        "SurfReflect_I2_1",
     ]:
         return "int16"
     elif sds_name in [
@@ -389,6 +393,9 @@ def apply_mask(in_array, source_dataset, nodata):
         elif suffix == "09A1":
             qa_arr, qa_nodata = get_sds(source_dataset, "sur_refl_qc_500m")
             state_arr, state_nodata = get_sds(source_dataset, "sur_refl_state_500m")
+        elif suffix == "09GA":
+            qa_arr, qa_nodata = get_sds(source_dataset, "QC_500m_1")
+            state_arr, state_nodata = get_sds(source_dataset, "state_1km_1")
         # all other MODIS products
         elif ext == "hdf":
             qa_arr, qa_nodata = get_sds(source_dataset, "sur_refl_qc_250m")
@@ -456,6 +463,37 @@ def get_ndvi_array(dataset):
 
         ndvi_array = calc_ndvi(red_band, nir_band)
         return (ndvi_array, red_nodata)
+    elif suffix == "09GA":
+        if ext == "hdf":
+            red_name = "sur_refl_b01_1"
+            nir_name = "sur_refl_b02_1"
+        elif ext == "h5":
+            red_name = "SurfReflect_I1_1"
+            nir_name = "SurfReflect_I2_1"
+        else:
+            raise exceptions.FileTypeError("File must be of type .hdf or .h5")
+
+        # Discovered negative surface reflectance values in MOD09 & MYD09
+        # that threw off NDVI calculations
+        # clip values to (0,10000)
+
+        # get numpy array from red band dataset
+        red_band, red_nodata = get_sds(dataset, red_name)
+        # dont clip nodata values
+        red_band[red_band != red_nodata] = np.clip(
+            red_band[red_band != red_nodata], 0, 10000
+        )
+
+        # get numpy array from nir band dataset
+        nir_band, nir_nodata = get_sds(dataset, nir_name)
+        nir_band[nir_band != nir_nodata] = np.clip(
+            nir_band[nir_band != nir_nodata], 0, 10000
+        )
+
+        ndvi_array = calc_ndvi(red_band, nir_band)
+
+        return (ndvi_array, red_nodata)
+
     else:
         if ext == "hdf":
             red_name = "sur_refl_b01"
@@ -515,7 +553,7 @@ def get_ndwi_array(dataset):
         ndwi_array = calc_ndwi(nir_band, swir_band)
     else:
         raise exceptions.UnsupportedError(
-            "Only MOD09A1 imagery is supported for GCVI generation"
+            "Only MOD09A1 imagery is supported for NDWI generation"
         )
 
     return (ndwi_array, nir_nodata)
