@@ -75,6 +75,55 @@ def daily_ingest(product_id):
     add_product_rasters(glam_id)
 
 
+def download_missing(product_id, year=None):
+    g = GlamDownloader(product_id)
+
+    if product_id == "mod09a1":
+        glam_id = "mod09a1-ndwi"
+        vi = "NDWI"
+    elif product_id.upper() in NASA_PRODUCTS:
+        glam_id = product_id + "-ndvi"
+        vi = "NDVI"
+    else:
+        glam_id = product_id
+        vi = None
+    
+    # Get out directory
+    if product_id.startswith('merra-2'):
+        out_dir = settings.PRODUCT_DATASET_LOCAL_PATH
+    else:
+        out_dir = os.path.join(settings.PRODUCT_DATASET_LOCAL_PATH, glam_id)
+
+    # Get list of existing rasters  
+    rasters = ProductRaster.objects.filter(product__product_id=glam_id).order_by(
+        "date"
+    )
+
+    if year:
+        rasters = rasters.filter(date__year=year)
+
+    # Get list of rasters available for download
+    log.info('Retreiving available dates...')
+    if year: 
+        avail = g.list_available_for_download(rasters[0].date.isoformat(), rasters.last().date.isoformat())
+    else:
+        avail = g.list_available_for_download(rasters[0].date.isoformat())
+
+    # find missing dates
+    missing = []
+    for date in avail:
+        try:
+            match = rasters.get(date=date)
+        except ProductRaster.DoesNotExist:
+            missing.append(date)
+    
+    # download missing dates
+    log.info(f"{len(missing)} dates are missing from the database")
+    for date in missing:
+        log.info(f'Downloading {product_id}-{date}')
+        g.download_single_date(date, out_dir=out_dir, vi=vi)
+
+
 def update_chirps_prelim():
     g = GlamDownloader("chirps-precip")
     chirps_prelim = ProductRaster.objects.filter(
