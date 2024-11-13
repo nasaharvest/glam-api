@@ -2,7 +2,8 @@ from rest_framework import serializers
 
 from rest_pandas.serializers import PandasSerializer
 
-from .utils.cmaps import AVAILABLE_CMAPS
+from rio_tiler.colormap import cmap
+
 from .models import (
     DataSource,
     ImageExport,
@@ -12,12 +13,12 @@ from .models import (
     BoundaryLayer,
     Tag,
     Variable,
-    Colormap,
     AnomalyBaselineRaster,
-    ZonalStats,
     BoundaryFeature,
     Announcement,
 )
+
+AVAILABLE_CMAPS = cmap.list() + ["ndvi"]
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -40,7 +41,6 @@ class BoundaryLayerSerializer(serializers.HyperlinkedModelSerializer):
             "desc",
             "meta",
             "source",
-            "features",
             "vector_file",
             "date_created",
             "date_added",
@@ -54,12 +54,8 @@ class BoundaryFeatureSerializer(serializers.ModelSerializer):
         fields = ["feature_id", "feature_name"]
 
 
-class ColormapSerializer(serializers.ModelSerializer):
-    colormap_type = serializers.CharField(source="get_colormap_type_display")
-
-    class Meta:
-        model = Colormap
-        fields = ["name", "colormap_type"]
+class ColormapSerializer(serializers.Serializer):
+    colormap = serializers.CharField()
 
 
 class GetColormapSerializer(serializers.Serializer):
@@ -713,105 +709,17 @@ class VariableSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-class ZStatsSerializer(serializers.ModelSerializer):
-    min = serializers.SerializerMethodField(method_name="get_min")
-    max = serializers.SerializerMethodField(method_name="get_max")
-    mean = serializers.SerializerMethodField(method_name="get_mean")
-
-    class Meta:
-        model = ZonalStats
-        fields = [
-            "feature_id",
-            "date",
-            "pixel_count",
-            "percent_arable",
-            "min",
-            "max",
-            "mean",
-            "std",
-        ]
-
-    def get_min(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.min
-        return scale * value
-
-    def get_max(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.max
-        return scale * value
-
-    def get_mean(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.mean
-        return scale * value
-
-
-class ZStatsPandasSerializer(serializers.ModelSerializer):
-    min = serializers.SerializerMethodField(method_name="get_min")
-    max = serializers.SerializerMethodField(method_name="get_max")
-    mean = serializers.SerializerMethodField(method_name="get_mean")
-
-    class Meta:
-        model = ZonalStats
-        list_serializer_class = PandasSerializer
-        fields = [
-            "feature_id",
-            "date",
-            "pixel_count",
-            "percent_arable",
-            "min",
-            "max",
-            "mean",
-            "std",
-        ]
-
-    def get_min(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.min
-        if value:
-            return scale * value
-        else:
-            return None
-
-    def get_max(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.max
-        if value:
-            return scale * value
-        else:
-            return None
-
-    def get_mean(self, obj):
-        scale = obj.product_raster.product.variable.scale
-        value = obj.mean
-        if value:
-            return scale * value
-        else:
-            return None
-
-
-class ZStatsParamSerializer(serializers.Serializer):
-    date_after = serializers.DateField(required=False)
-    date_before = serializers.DateField(required=False)
-    format = serializers.CharField(required=False)
-
-    def validate(self, data):
-        """
-        Check that date_after is below date_before
-        """
-        if "date_after" not in data or "date_before" not in data:
-            pass
-        elif data["date_after"] > data["date_before"]:
-            raise serializers.ValidationError(
-                "Date After must be an earlier date than Date Before."
-            )
-        return data
-
-
 class AnnouncementSerializer(serializers.ModelSerializer):
     tags = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = Announcement
-        fields = ["header", "message", "date", "sticky", "tags", "image"]
+        fields = [
+            "header",
+            "message",
+            "date",
+            "days_to_expire",
+            "sticky",
+            "tags",
+            "image",
+        ]

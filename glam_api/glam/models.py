@@ -10,36 +10,29 @@ from django.core.files.storage import FileSystemStorage
 
 from django_q.tasks import async_task
 
-from config.storage_backends import (
+from config.storage import (
     RasterStorage,
-    ColormapStorage,
     VectorStorage,
     PublicStorage,
 )
 
-from .utils.features import get_unique_features
+from config.utils import generate_unique_slug
 
-# from .tasks.queue import queue_dataset_stats_queue
-from .utils.helpers import generate_unique_slug
-
-# from .utils.stats import queue_zonal_stats
-
-
-if not settings.USE_S3_RASTERS:
+if not settings.USE_S3:
     raster_storage = FileSystemStorage()
     vector_storage = FileSystemStorage()
     cmap_storage = FileSystemStorage()
     public_storage = FileSystemStorage()
-elif settings.USE_S3_RASTERS:
+elif settings.USE_S3:
     raster_storage = RasterStorage()
     vector_storage = VectorStorage()
-    cmap_storage = ColormapStorage()
     public_storage = PublicStorage()
 
 
 class Tag(models.Model):
     """
     Simple tags to help searching and filtering.
+
     """
 
     name = models.CharField(max_length=256, help_text="Tag")
@@ -51,6 +44,7 @@ class Tag(models.Model):
 class Document(models.Model):
     """
     Model to manage the storage of documentation files & other resources
+
     """
 
     name = models.CharField(max_length=256, help_text="Document name.")
@@ -83,10 +77,19 @@ class Document(models.Model):
 
 
 class Announcement(models.Model):
+    """
+    Model to manage announcements for application updates
+
+    """
+
     date = models.DateField(default=datetime.date.today)
     sticky = models.BooleanField(
         default=False,
         help_text="If multiple messages, keep this message at front/first",
+    )
+    days_to_expire = models.IntegerField(
+        default=7,
+        help_text="Number of days until announcement is no longer displayed.",
     )
     header = models.TextField(help_text="Announcement Header")
     message = models.TextField(help_text="Announcement")
@@ -109,6 +112,7 @@ class DataSource(models.Model):
     """
     Model to store details on the sources of products,
     masks, boundary layers, or GLAM partners
+
     """
 
     name = models.CharField(max_length=256, help_text="Source name.")
@@ -144,6 +148,7 @@ class DataSource(models.Model):
 class Variable(models.Model):
     """
     Scientific variable measured by raster product
+
     """
 
     name = models.CharField(max_length=256, help_text="Variable name.")
@@ -183,6 +188,7 @@ class Variable(models.Model):
 class Crop(models.Model):
     """
     Model to store and describe different crop types.
+
     """
 
     name = models.CharField(max_length=256, help_text="Name of crop.")
@@ -207,61 +213,10 @@ class Crop(models.Model):
         super().save(*args, **kwargs)
 
 
-class Colormap(models.Model):
-    """
-    Colormaps
-    Model to store available numpy colormap files (generated from matplotlib)
-    # Reference:
-    # https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html
-    """
-
-    COLORMAP_TYPE_CHOICES = [
-        ("perceptually-uniform-sequential", "Perceptually Uniform Sequential"),
-        ("sequential", "Sequential"),
-        ("sequential-2", "Sequential (2)"),
-        ("diverging", "Diverging"),
-        ("cyclic", "Cyclic"),
-        ("qualitative", "Qualitative"),
-        ("miscellaneous", "Miscellaneous"),
-    ]
-
-    name = models.CharField(max_length=256, help_text="Colormap name.")
-    colormap_id = models.SlugField(
-        blank=True,
-        unique=True,
-        max_length=256,
-        help_text="A unique character ID to identify Colormap records.",
-    )
-    desc = models.TextField(help_text="Description of product.", blank=True, null=True)
-    colormap_type = models.CharField(
-        max_length=64,
-        choices=COLORMAP_TYPE_CHOICES,
-        default="miscellaneous",
-        help_text="Category/Type of colormap. (sequential, diverging, qualitative, etc.)",
-    )
-    tags = models.ManyToManyField(
-        Tag, blank=True, help_text="Optional tags to help searching and filtering."
-    )
-    date_added = models.DateField(auto_now_add=True)
-    file_object = models.FileField(
-        upload_to="colormaps",
-        storage=cmap_storage,
-        blank=True,
-        help_text="Colormap file. (.npy)",
-    )
-
-    def __str__(self):
-        return self.colormap_id
-
-    def save(self, *args, **kwargs):
-        if not self.colormap_id:
-            self.colormap_id = generate_unique_slug(self, "colormap_id")
-        super().save(*args, **kwargs)
-
-
 class Product(models.Model):
     """
     Raster Product Model
+
     """
 
     name = models.CharField(max_length=256, help_text="Product name.")
@@ -319,6 +274,7 @@ class CropMask(models.Model):
     """
     Crop Mask Model
     Details of available crop masks and the original raster files
+
     """
 
     MASK_TYPE_CHOICES = [
@@ -351,7 +307,7 @@ class CropMask(models.Model):
         max_length=32,
         choices=MASK_TYPE_CHOICES,
         default="binary",
-        help_text="Type of values present in mask raster for calculating zonal statistics (binary or percent crop).",
+        help_text="Type of values present in mask raster for calculating statistics (binary or percent crop).",
     )
     display_name = models.CharField(max_length=256, help_text="Cropmask display name.")
     desc = models.TextField(help_text="Brief cropmask decription.")
@@ -389,7 +345,7 @@ class CropMask(models.Model):
         storage=raster_storage,
         blank=True,
         null=True,
-        help_text="Cloud Optimized Geotiff to be used for zonal statistics calculations.",
+        help_text="Cloud Optimized Geotiff to be used for statistics calculations.",
     )
 
     def __str__(self):
@@ -408,6 +364,7 @@ class BoundaryLayer(models.Model):
     """
     Boundary Layer Model
     Store Layer details, original raster file or vector file if available.
+
     """
 
     name = models.CharField(max_length=256, help_text="Boundary layer name.")
@@ -432,20 +389,11 @@ class BoundaryLayer(models.Model):
     source = models.ForeignKey(
         DataSource, on_delete=models.PROTECT, help_text="Boundary Layer source."
     )
-    features = models.JSONField(
-        blank=True,
-        null=True,
-        help_text="List of boundary features present in the boundary layer.",
-    )
     date_created = models.DateField(
         help_text="Date the Boundary Layer version was created."
     )
     date_added = models.DateField(
         help_text="Date the Boundary Layer was added to the system."
-    )
-    masks = models.ManyToManyField(
-        CropMask,
-        help_text="Cropmasks that are available for the Boundary Layer. (for ZonalStats generation)",
     )
     source_data = models.FileField(
         upload_to="boundary-layers",
@@ -478,6 +426,7 @@ class BoundaryFeature(geomodels.Model):
     """
     Boundary Layer Features
     Features that belong to each Boundary Layer
+
     """
 
     feature_name = models.CharField(max_length=256, help_text="Boundary layer name.")
@@ -511,6 +460,7 @@ class BoundaryFeature(geomodels.Model):
 class ProductRaster(models.Model):
     """
     Raster Datasets that belong to each product
+
     """
 
     product = models.ForeignKey(
@@ -551,7 +501,7 @@ class ProductRaster(models.Model):
         match=".*\.tif$",
         max_length=256,
         recursive=True,
-        help_text="Path to dataset on current machine. Used to upload dataset file_object.",
+        help_text="Path to dataset on current machine. Used to for local development.",
     )
     file_object = models.FileField(
         upload_to="rasters",
@@ -563,24 +513,24 @@ class ProductRaster(models.Model):
     def __str__(self):
         return self.slug
 
-    def upload_file(self, created=False):
-        # triggered on object save
-        # if dataset is new, create file_object using local_path
-        # method necessasry for file upload to s3 using django-storages
-        if created:
+    def upload_file(self, new=False):
+        """
+        Function to upload file to raster storage. Triggered on object save.
+        If dataset is new, create file_object using local_path.
+        Method necessary for file upload to s3 using django-storages
+        """
+        print("uhoh")
+        if new:
             with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
                 self.save()
 
-    def queue_zonal_stats(self, created=False):
-        # queue zonal stats creation
-        if created:
-            async_task(
-                "glam.utils.stats.queue_zonal_stats", self.product.product_id, self.date
-            )
-
     def save(self, *args, **kwargs):
-        created = self.pk is None
+
+        if "new" in kwargs:
+            new = kwargs["new"]
+        else:
+            new = self.pk is None
 
         if not self.name:
             # generate name
@@ -593,7 +543,7 @@ class ProductRaster(models.Model):
             self.slug = generate_unique_slug(self, "slug")
 
         if not self.date:
-            # derive date from file name
+            # get date from file name
             base_file = os.path.basename(self.local_path)
             parts = base_file.split(".")
             try:
@@ -612,8 +562,7 @@ class ProductRaster(models.Model):
 
         super().save(*args, **kwargs)
 
-        self.upload_file(created)
-        # self.queue_zonal_stats(created)
+        self.upload_file(new)
 
     class Meta:
         verbose_name = "product dataset"
@@ -623,7 +572,8 @@ class CropmaskRaster(models.Model):
     """
     Raster Dataset of Crop Mask - 
     Resampled to match resolution of related product \
-     for ZonalStats calculation
+     for stats calculation
+
     """
 
     MASK_TYPE_CHOICES = [
@@ -641,14 +591,13 @@ class CropmaskRaster(models.Model):
         related_name="mask_datasets",
         on_delete=models.CASCADE,
         help_text="Product that the crop mask dataset belongs to."
-        "Necessary for matching product resolution in ZonalStats "
-        "calculation.",
+        "Necessary for matching product resolution in stats calculation. ",
     )
     mask_type = models.CharField(
         max_length=32,
         choices=MASK_TYPE_CHOICES,
         default="binary",
-        help_text="Type of values present in mask raster (binary or percent crop). Used for zonal statistics calculations.",
+        help_text="Type of values present in mask raster (binary or percent crop). Used for stats calculations.",
     )
     name = models.CharField(
         max_length=256,
@@ -692,9 +641,11 @@ class CropmaskRaster(models.Model):
         return self.slug
 
     def upload_file(self, created=False):
-        # triggered on object save
-        # if dataset is new, create file_object using local_path
-        # method necessasry for file upload to s3 using django-storages
+        """
+        Function to upload file to raster storage. Triggered on object save.
+        If dataset is new, create file_object using local_path.
+        Method necessary for file upload to s3 using django-storages
+        """
         if created:
             with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
@@ -721,110 +672,10 @@ class CropmaskRaster(models.Model):
         verbose_name = "crop mask dataset"
 
 
-class BoundaryRaster(models.Model):
-    """
-    Raster Dataset of Boundary Layer -
-    Resampled to match resolution of related product \
-     for ZonalStats calculation
-    """
-
-    boundary_layer = models.ForeignKey(
-        BoundaryLayer,
-        on_delete=models.CASCADE,
-        help_text="Boundary Layer that the dataset belongs to.",
-    )
-    product = models.ForeignKey(
-        Product,
-        related_name="boundary_rasters",
-        on_delete=models.CASCADE,
-        help_text="Product that the Boundary Layer dataset belongs to."
-        "Necessary for matching product resolution in ZonalStats "
-        "calculation.",
-    )
-    name = models.CharField(
-        max_length=256,
-        blank=True,
-        help_text="Dataset name. Generated automatically from file name.",
-    )
-    slug = models.SlugField(
-        blank=True,
-        unique=True,
-        max_length=256,
-        help_text="Slug for dataset. (automatically generated)",
-    )
-    features = models.JSONField(
-        blank=True,
-        null=True,
-        help_text="List of boundary layer features present "
-        "in the boundary raster dataset.",
-    )
-    meta = models.JSONField(
-        blank=True,
-        null=True,
-        help_text="Optional metadata field to provide extra dataset details.",
-    )
-    date_created = models.DateField(
-        help_text="Date the crop mask dataset version was created."
-    )
-    date_added = models.DateField(
-        auto_now_add=True, help_text="Date dataset added to system."
-    )
-    local_path = models.FilePathField(
-        path=settings.BOUNDARY_RASTER_LOCAL_PATH,
-        match=".*\.tif$",
-        recursive=True,
-        max_length=256,
-        help_text="Path to dataset on current machine. "
-        "Used to upload dataset file_object.",
-    )
-    file_object = models.FileField(
-        upload_to="boundary-rasters",
-        storage=raster_storage,
-        blank=True,
-        help_text="Stored dataset file. When dataset object is saved, "
-        "the file_object is created using the local_path.",
-    )
-
-    def __str__(self):
-        return self.slug
-
-    def upload_file(self, created=False):
-        # triggered on object save
-        # if dataset is new, create file_object using local_path
-        # method necessasry for file upload to s3 using django-storages
-        if created:
-            with open(self.local_path, "rb") as f:
-                self.file_object = File(f, name=os.path.basename(f.name))
-                self.save()
-
-    def save(self, *args, **kwargs):
-        created = self.pk is None
-
-        if not self.name:
-            # generate name
-            base_file = os.path.basename(self.local_path)
-            fileName, fileExt = os.path.splitext(base_file)
-            self.name = fileName
-
-        if not self.slug:
-            # generate slug
-            self.slug = generate_unique_slug(self, "slug")
-
-        if created:
-            # if dataset is new, generate features
-            self.features = get_unique_features(self.local_path)
-
-        super().save(*args, **kwargs)
-
-        self.upload_file(created)
-
-    class Meta:
-        verbose_name = "boundary layer raster dataset"
-
-
 class AnomalyBaselineRaster(models.Model):
     """
     Model to store Baseline Datasets for anomaly calculation
+
     """
 
     FIVE = "5year"
@@ -900,10 +751,12 @@ class AnomalyBaselineRaster(models.Model):
         return self.slug
 
     def upload_file(self, created=True):
-        # triggered on object save
-        # create file_object using local_path
-        # * even if dataset instance is not new - to update baselines *
-        # method necessasry for file upload to s3 using django-storages
+        """
+        Function to upload file to raster storage. Triggered on object save.
+        Create file_object using local_path, even if dataset instance is not new.
+        Method necessary for file upload to s3 using django-storages
+
+        """
         if created:
             with open(self.local_path, "rb") as f:
                 self.file_object = File(f, name=os.path.basename(f.name))
@@ -961,108 +814,10 @@ class AnomalyBaselineRaster(models.Model):
         verbose_name = "anomaly baseline dataset"
 
 
-class ZonalStats(models.Model):
-    """
-    Zonal Statistics -
-    Calculated per combination of each product dataset and corresponding
-    crop mask(s), boundary layer(s), and feature
-    """
-
-    product_raster = models.ForeignKey(
-        ProductRaster, on_delete=models.CASCADE, help_text="Raster dataset of Product."
-    )
-    cropmask_raster = models.ForeignKey(
-        CropmaskRaster,
-        null=True,
-        on_delete=models.CASCADE,
-        help_text="Raster Dataset of CropMask.",
-    )
-    boundary_layer = models.ForeignKey(
-        BoundaryLayer, on_delete=models.CASCADE, help_text="BoundaryLayer"
-    )
-    feature_id = models.IntegerField(
-        db_index=True, help_text="ID of feature within BoundaryLayer."
-    )
-    pixel_count = models.FloatField(
-        help_text="Number of pixels representing the specified feature."
-    )
-    percent_arable = models.FloatField(
-        help_text="Percent of the feature pixels with valid data for the "
-        "product and mask dataset combination."
-    )
-    min = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Minimum value derived from zonal statistics calculation.",
-    )
-    max = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Maximum value derived from zonal statistics calculatin.",
-    )
-    mean = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Mean value derived from zonal statistics calculation.",
-    )
-    std = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="Standard deviation derived from zonal statistics calculation.",
-    )
-    date = models.DateField(
-        db_index=True,
-        help_text="Date the ZonalStats represent, derived from the product dataset",
-    )
-
-    class Meta:
-        verbose_name = "zonal stats"
-        verbose_name_plural = "zonal stats"
-
-        constraints = [
-            models.UniqueConstraint(
-                fields=[
-                    "product_raster",
-                    "cropmask_raster",
-                    "boundary_layer",
-                    "feature_id",
-                    "date",
-                ],
-                name="unique_stats_record",
-            ),
-            models.UniqueConstraint(
-                fields=["product_raster", "boundary_layer", "feature_id", "date"],
-                condition=models.Q(cropmask_raster__isnull=True),
-                name="unique_stats_record_null_cropmask",
-            ),
-        ]
-
-        indexes = [
-            models.Index(
-                fields=[
-                    "product_raster",
-                    "cropmask_raster",
-                    "boundary_layer",
-                    "feature_id",
-                    "date",
-                ],
-                name="zstats_idx",
-            ),
-            models.Index(
-                fields=[
-                    "product_raster",
-                    "cropmask_raster",
-                    "boundary_layer",
-                    "feature_id",
-                ],
-                name="zstats_idx_no_date",
-            ),
-        ]
-
-
 class ImageExport(models.Model):
     """
     Model to store image exports
+
     """
 
     id = models.UUIDField(

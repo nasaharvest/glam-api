@@ -13,12 +13,11 @@ from .views.datasets import DatasetViewSet
 from .views.cropmasks import CropMaskViewSet
 from .views.boundarylayers import BoundaryLayerViewSet
 from .views.tiles import Tiles
-from .views.colormap import ColormapViewSet, GenerateColormap
+from .views.colormap import ColormapView, GenerateColormap
 from .views.tags import TagViewSet
 from .views.point import PointValue
 from .views.query import QueryRasterValue
 from .views.histogram import Histogram
-from .views.zonal_stats import ZonalStatsViewSet
 from .views.graphics import GraphicsViewSet
 from .views.boundaryfeatures import BoundaryFeatureViewSet
 from .views.announcements import AnnouncementViewSet
@@ -66,6 +65,7 @@ get_boundary_features = BoundaryFeatureViewSet.as_view({"get": "retrieve"})
 get_tiles = Tiles.as_view({"get": "retrieve"})
 preview_tiles = Tiles.as_view({"get": "preview"})
 get_colormap = GenerateColormap.as_view({"get": "retrieve"})
+get_colormap_list = ColormapView.as_view()
 get_point = PointValue.as_view({"get": "retrieve"})
 get_custom_feature_value = QueryRasterValue.as_view({"post": "query_custom_feature"})
 get_boundary_feature_value = QueryRasterValue.as_view({"get": "query_boundary_feature"})
@@ -73,7 +73,6 @@ get_custom_feature_histogram = Histogram.as_view({"post": "custom_feature_histog
 get_boundary_feature_histogram = Histogram.as_view(
     {"get": "boundary_feature_histogram"}
 )
-get_zonal_stats = ZonalStatsViewSet.as_view({"get": "list"})
 get_custom_feature_graphic = GraphicsViewSet.as_view({"post": "custom_feature_graphic"})
 get_boundary_feature_graphic = GraphicsViewSet.as_view(
     {"get": "boundary_feature_graphic"}
@@ -84,7 +83,6 @@ generate_custom_export = ImageExportViewSet.as_view({"post": "custom_feature_exp
 router = CustomRouter()
 router.register(r"announcements", AnnouncementViewSet)
 router.register(r"boundary-layers", BoundaryLayerViewSet)
-router.register(r"colormaps", ColormapViewSet)
 router.register(r"cropmasks", CropMaskViewSet)
 router.register(r"datasets", DatasetViewSet)
 router.register(r"exports", GetExportViewSet)
@@ -97,6 +95,7 @@ router.register(r"variables", VariableViewSet)
 urlpatterns = [
     # path('', include(router.urls)),
     path("colormap", get_colormap, name="colormap"),
+    path("colormaps/", get_colormap_list, name="colormaps"),
     path(
         "boundary-features/<slug:layer_id>/",
         get_boundary_features,
@@ -144,12 +143,6 @@ urlpatterns = [
         "tiles/<slug:product_id>/<isodate:date>/<int:z>/<int:x>/<int:y>.png",
         get_tiles,
         name="tiles",
-    ),
-    path(
-        "zonal-stats/<slug:product_id>/<slug:cropmask_id>/"
-        "<slug:layer_id>/<int:feature_id>",
-        get_zonal_stats,
-        name="zonal-stats",
     ),
 ]
 urlpatterns += router.urls
