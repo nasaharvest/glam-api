@@ -1,19 +1,20 @@
-# Change Log
-All notable changes to this project will be documented in this file.
- 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
-
-## [0.2.0] - 2022-10-20
-### Added
-- Added function in daac.py that returns dtype based on science dataset (sds) name
-- Added EarthdataLoginSetup.py for .netrc file creation
-
-### Changed
-- Set allow_intermediate_compression in cog_translate functions in download utility to prevent ballooning file sizes
-- Updated dev_reqs.txt, added --no-binary flag to rasterio requirement for reading hdf files
+# CHANGELOG
 
 
-## [0.1.0] - 2022-10-13
-### Added
-- Initial commit of reorganized & restructured GLAM Django application
+## v1.0.0 (2024-11-19)
+
+### Build System
+
+- Merge pull request #18 from nasaharvest/upgrade
+  ([`a2e92e6`](https://github.com/nasaharvest/glam-api/commit/a2e92e62c1792ddb2889fa910a2ee5fa21b7b15d))
+
+Major upgrade and reconfiguration of glam-api code base.
+
+BREAKING CHANGE: Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files
+  with poetry for dependency management.
+
+
+## v0.2.0 (2022-10-20)
+
+
+## v0.1.0 (2022-10-13)
