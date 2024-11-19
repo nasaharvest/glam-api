@@ -23,7 +23,6 @@ from django.shortcuts import get_object_or_404
 
 from ..serializers import TilesSerializer
 from ..renderers import PNGRenderer
-from ..utils.cmaps import AVAILABLE_CMAPS, get_cmap
 
 from ..models import (
     Product,
@@ -33,15 +32,9 @@ from ..models import (
     AnomalyBaselineRaster,
 )
 
+from ..utils import get_closest_to_date
 
-def get_closest_to_dt(qs, dt):
-    greater = qs.filter(date__gte=dt).order_by("date").first()
-    less = qs.filter(date__lte=dt).order_by("-date").first()
-
-    if greater and less:
-        return greater if abs(greater.date - dt) < abs(less.date - dt) else less
-    else:
-        return greater or less
+AVAILABLE_CMAPS = cmap.list()
 
 
 Number = TypeVar("Number", int, float)
@@ -236,7 +229,7 @@ class Tiles(viewsets.ViewSet):
         Return singleband raster image as PNG \
             for specified zoom and tile coordinates.
         """
-        # start = time.perf_counter()
+
         product_queryset = ProductRaster.objects.filter(product__product_id=product_id)
         product_dataset = get_object_or_404(product_queryset, date=date)
 
@@ -268,8 +261,10 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        with COGReader(product_dataset.file_object.url) as cog:
-            img = cog.tile(x, y, z, tilesize=tile_size, resampling_method="bilinear")
+        with COGReader(
+            product_dataset.file_object.url,
+        ) as cog:
+            img = cog.tile(x, y, z, tilesize=tile_size, reproject_method="bilinear")
 
         if anomaly or anomaly_type == "diff":
             anom_type = anomaly_type if anomaly_type else "mean"
@@ -280,7 +275,7 @@ class Tiles(viewsets.ViewSet):
                 anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id
                 )
-                closest = get_closest_to_dt(anomaly_queryset, new_date)
+                closest = get_closest_to_date(anomaly_queryset, new_date)
 
                 try:
                     anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
@@ -310,98 +305,43 @@ class Tiles(viewsets.ViewSet):
 
             with COGReader(anomaly_dataset.file_object.url) as cog:
                 baseline = cog.tile(
-                    x, y, z, tilesize=tile_size, resampling_method="bilinear"
+                    x, y, z, tilesize=tile_size, reproject_method="bilinear"
                 )
 
-            anom = img.as_masked().data - baseline.as_masked().data
+            diff = img.array - baseline.array
 
-            img = ImageData(data=anom, mask=img.mask)
+            img = ImageData(diff)
 
         if cropmask_id:
             cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
 
-            with COGReader(cropmask.map_raster.url) as cog:
+            with COGReader(
+                cropmask.map_raster.url,
+            ) as cog:
                 cm_img = cog.tile(
-                    x, y, z, tilesize=tile_size, resampling_method="bilinear"
+                    x, y, z, tilesize=tile_size, reproject_method="bilinear"
                 )
 
             mask_type = cropmask.mask_type
 
+            crop_mask = cm_img.array.mask
+            # print(crop_mask)
             if mask_type == "percent":
                 if cropmask_threshold:
                     threshold = cropmask_threshold / 100
-                    print(threshold)
                 else:
                     threshold = 0.5
-                cm_img.mask[np.where(cm_img.data[0] < threshold)] = 0
+                threshold_mask = cm_img.data < threshold
+                crop_mask = threshold_mask
+                # print(crop_mask)
+                # cm_img.mask[np.where(cm_img.data[0] < threshold)] = 0
 
-            mask = np.minimum(img.mask, cm_img.mask)
-
-            img = ImageData(data=img.data, mask=mask)
+            # new_mask = np.minimum(mask, crop_mask)
+            img.array = np.ma.masked_array(img.array, mask=crop_mask)
 
         image_rescale = img.post_process(
             in_range=((stretch_range[0], stretch_range[1]),), out_range=((0, 255),)
         )
-
-        # ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-        #     'ndvi', [
-        #         '#422112',
-        #         '#724C01',
-        #         '#CEA712',
-        #         '#FFA904',
-        #         '#FDFE00',
-        #         '#E6EC06',
-        #         '#BACF00',
-        #         '#8BB001',
-        #         '#72A002',
-        #         '#5B8D03',
-        #         '#448102',
-        #         '#2C7001',
-        #         '#176100',
-        #     ],
-        #     256,
-        # )
-
-        # x = numpy.linspace(0, 1, 256)
-        # cmap_vals = ndvi(x)[:, :]
-        # cmap_uint8 = (cmap_vals * 255).astype('uint8')
-        # ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
-
-        # new = cmap.register({"ndvi": ndvi_dict})
-        # rio_cm = new.get('ndvi')
-
-        # pekko_cm = [
-        #     ((0, 25), (225, 175, 100, 255)),
-        #     ((26, 50), (255, 225, 150, 255)),
-        #     ((51, 75), (255, 255, 102, 255)),
-        #     ((76, 100), (152, 255, 152, 255)),
-        #     ((101, 125), (102, 255, 102, 255)),
-        #     ((126, 150), (51, 204, 51, 255)),
-        #     ((151, 175), (0, 153, 0, 255)),
-        #     ((176, 256), (0, 102, 0, 255)),
-        # ]
-
-        # gimms_cm = [
-        #     ((0, 25.6),(255, 254, 225, 255)),
-        #     ((25.7, 38.4),(255, 225, 200, 255)),
-        #     ((38.5, 51.2),(245, 201, 140, 255)),
-        #     ((51.3, 64),(255, 221, 85, 255)),
-        #     ((64.1, 76.8),(235, 190, 55, 255)),
-        #     ((76.9, 89.6),(250, 255, 180, 255)),
-        #     ((89.7, 102.4),(230, 250, 155, 255)),
-        #     ((102.5, 115.2),(205, 255, 105, 255)),
-        #     ((115.3, 128),(175, 240, 90, 255)),
-        #     ((128.1, 140.8),(160, 245, 165, 255)),
-        #     ((148.9, 153.6),(130, 225, 135, 255)),
-        #     ((153.7, 166.4),(120, 200, 120, 255)),
-        #     ((166.5, 179.2),(158, 198, 108, 255)),
-        #     ((179.3, 192),(140, 175, 70, 255)),
-        #     ((192.1, 204.8),(70, 185, 40, 255)),
-        #     ((204.9, 217.6),(50, 150, 20, 255)),
-        #     ((217.7, 230.4),(20, 120, 80, 255)),
-        #     ((230.5, 243.2),(30, 80, 0, 255)),
-        #     ((243.3, 256),(0, 50, 0, 255)),
-        # ]
 
         ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
             "ndvi",
@@ -429,35 +369,6 @@ class Tiles(viewsets.ViewSet):
             256,
         )
 
-        # x = numpy.linspace(0, 1, 256)
-        # cmap_vals = ndvi(x)[:, :]
-        # cmap_uint8 = (cmap_vals * 255).astype('uint8')
-        # ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
-
-        # new = cmap.register({"ndvi": ndvi_dict})
-        # gims_linear_cm = new.get('ndvi')
-
-        # ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-        #     'ndvi', [
-        #         '#e1af64',
-        #         '#ffe196',
-        #         '#ffff66',
-        #         '#98ff98',
-        #         '#66ff66',
-        #         '#33cc33',
-        #         '#009900',
-        #         '#006600',
-        #     ],
-        #     256,
-        # )
-
-        # x = np.linspace(0, 1, 256)
-        # cmap_vals = ndvi(x)[:, :]
-        # cmap_uint8 = (cmap_vals * 255).astype('uint8')
-        # ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
-        # new = cmap.register({"ndvi": ndvi_dict})
-        # pekko_linear_cm = new.get('ndvi')
-
         if colormap is None:
             # use product's default colormap
             if anomaly or anomaly_type == "diff":
@@ -479,17 +390,12 @@ class Tiles(viewsets.ViewSet):
             new = cmap.register({"ndvi": ndvi_dict})
             cm = new.get("ndvi")
         else:
-            # cm = cmap.get(colormap)
-            cm_data = get_cmap(colormap)
-            cm = {
-                idx: tuple(value) for idx, value in enumerate(cm_data)
-            }  # type: ignore
+            cm = cmap.get(colormap)
 
         tile = image_rescale.render(
-            img_format="PNG", **img_profiles.get("png"), colormap=cm
+            img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
         )
-        # end = time.perf_counter()
-        # print(f"Finished in {end - start:0.4f} seconds")
+
         return Response(tile)
 
     @swagger_auto_schema(
@@ -523,7 +429,6 @@ class Tiles(viewsets.ViewSet):
         """
         Return overview of image tiles as PNG. (Zoom 0)
         """
-        # start = time.perf_counter()
         product_queryset = ProductRaster.objects.filter(product__product_id=product_id)
         product_dataset = get_object_or_404(product_queryset, date=date)
         # tile 0
@@ -559,7 +464,7 @@ class Tiles(viewsets.ViewSet):
             stretch_range = [stretch_min, stretch_max]
 
         with COGReader(product_dataset.file_object.url) as cog:
-            img = cog.tile(x, y, z, tilesize=tile_size, resampling_method="bilinear")
+            img = cog.tile(x, y, z, tilesize=tile_size)
             # todo if stretch_range = None get range from image
 
         if anomaly or anomaly_type == "diff":
@@ -571,7 +476,7 @@ class Tiles(viewsets.ViewSet):
                 anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id
                 )
-                closest = get_closest_to_dt(anomaly_queryset, new_date)
+                closest = get_closest_to_date(anomaly_queryset, new_date)
                 try:
                     anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
                 except:
@@ -599,9 +504,7 @@ class Tiles(viewsets.ViewSet):
                     stretch_range = [-100, 100]
 
             with COGReader(anomaly_dataset.file_object.url) as cog:
-                baseline = cog.tile(
-                    x, y, z, tilesize=tile_size, resampling_method="bilinear"
-                )
+                baseline = cog.tile(x, y, z, tilesize=tile_size)
 
             anom = img.as_masked().data - baseline.as_masked().data
 
@@ -615,9 +518,7 @@ class Tiles(viewsets.ViewSet):
                 crop_mask__cropmask_id=cropmask,
             )
             with COGReader(mask_dataset.file_object.url) as cog:
-                cm_img = cog.tile(
-                    x, y, z, tilesize=tile_size, resampling_method="bilinear"
-                )
+                cm_img = cog.tile(x, y, z, tilesize=tile_size)
 
             mask = np.minimum(img.mask, cm_img.mask)
             img = ImageData(data=img.data, mask=mask)
@@ -651,7 +552,7 @@ class Tiles(viewsets.ViewSet):
             ],
             256,
         )
-
+        print(colormap)
         if colormap is None:
             # use product's default colormap
             if anomaly or anomaly_type == "diff":
@@ -660,6 +561,7 @@ class Tiles(viewsets.ViewSet):
                 else:
                     colormap = None
             else:
+                print("herererer")
                 if product_dataset.product.meta["default_colormap"]:
                     colormap = product_dataset.product.meta["default_colormap"]
                 else:
@@ -673,15 +575,9 @@ class Tiles(viewsets.ViewSet):
             new = cmap.register({"ndvi": ndvi_dict})
             cm = new.get("ndvi")
         else:
-            # cm = cmap.get(colormap)
-            cm_data = get_cmap(colormap)
-            cm = {
-                idx: tuple(value) for idx, value in enumerate(cm_data)
-            }  # type: ignore
+            cm = cmap.get(colormap)
 
         tile = image_rescale.render(
-            img_format="PNG", **img_profiles.get("png"), colormap=cm
+            img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
         )
-        # end = time.perf_counter()
-        # print(f"Finished in {end - start:0.4f} seconds")
         return Response(tile)

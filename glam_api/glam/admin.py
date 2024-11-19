@@ -2,9 +2,18 @@ from django.contrib import admin
 
 from modeltranslation.admin import TranslationAdmin
 
-from .models import (Tag, Document, DataSource, Variable, Colormap, Crop,
-                     Product, CropMask, BoundaryLayer, Announcement,
-                     ImageExport)
+from .models import (
+    Tag,
+    Document,
+    DataSource,
+    Variable,
+    Crop,
+    Product,
+    CropMask,
+    BoundaryLayer,
+    Announcement,
+    ImageExport,
+)
 
 
 class AnnouncementAdmin(TranslationAdmin):
@@ -36,7 +45,6 @@ admin.site.register(Document)
 admin.site.register(Announcement, AnnouncementAdmin)
 admin.site.register(DataSource, SourceAdmin)
 admin.site.register(Variable, VariableAdmin)
-admin.site.register(Colormap)
 admin.site.register(Crop)
 admin.site.register(Product, ProductAdmin)
 admin.site.register(CropMask, CropMaskAdmin)

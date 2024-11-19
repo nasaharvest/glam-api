@@ -28,47 +28,52 @@ except:
     pass
 
 tag_param = openapi.Parameter(
-    'tag',
+    "tag",
     openapi.IN_QUERY,
     description="String representing tag(s) to filter products.",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None)
+    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None,
+)
 
 
 class BoundaryLayerPagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="boundary layer list",
         manual_parameters=[tag_param],
         operation_description="Return list of available\
-             Boundary Layers."))
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
+             Boundary Layers.",
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="boundary layer detail",
         operation_description="Return details for specified\
-             Boundary Layer."))
+             Boundary Layer.",
+    ),
+)
 class BoundaryLayerViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Return available boundary layers.
     """
-    queryset = BoundaryLayer.objects.all().prefetch_related(
-        'tags', 'source'
-    ).order_by('layer_id')
-    lookup_field = 'layer_id'
+
+    queryset = (
+        BoundaryLayer.objects.all()
+        .prefetch_related("tags", "source")
+        .order_by("layer_id")
+    )
+    lookup_field = "layer_id"
     serializer_class = BoundaryLayerSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
@@ -76,4 +81,4 @@ class BoundaryLayerViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = BoundaryLayerPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = BoundaryLayerFilter
-    search_fields = ['name']
+    search_fields = ["name"]

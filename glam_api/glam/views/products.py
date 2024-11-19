@@ -14,7 +14,7 @@ from django.conf import settings
 from django.utils import translation
 
 from ..models import Product, Tag, Variable
-from ..serializers import (ProductSerializer, VariableSerializer)
+from ..serializers import ProductSerializer, VariableSerializer
 from ..filters import ProductFilter, VariableFilter
 
 
@@ -28,42 +28,46 @@ except:
     pass
 
 tag_param = openapi.Parameter(
-    'tag',
+    "tag",
     openapi.IN_QUERY,
     description="String representing tag(s) to filter products.",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None)
+    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None,
+)
 
 
 class ProductPagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="product list",
         operation_description="Return list of available Products.",
-        manual_parameters=[tag_param]))
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
+        manual_parameters=[tag_param],
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="product detail",
-        operation_description="Return details for specified Product."))
+        operation_description="Return details for specified Product.",
+    ),
+)
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Product.objects.all().prefetch_related(
-        'tags', 'source', 'variable'
-    ).order_by('product_id')
-    lookup_field = 'product_id'
+    queryset = (
+        Product.objects.all()
+        .prefetch_related("tags", "source", "variable")
+        .order_by("product_id")
+    )
+    lookup_field = "product_id"
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
@@ -71,32 +75,31 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = ProductPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = ProductFilter
-    search_fields = ['name', 'metadata', 'tags__name']
+    search_fields = ["name", "metadata", "tags__name"]
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="variable list",
         operation_description="Return list of available Variables.",
-        manual_parameters=[tag_param]))
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
+        manual_parameters=[tag_param],
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="variable detail",
-        operation_description="Return details for specified Variable."))
+        operation_description="Return details for specified Variable.",
+    ),
+)
 class VariableViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Variable.objects.all().prefetch_related(
-        'tags'
-    ).order_by('variable_id')
-    lookup_field = 'variable_id'
+    queryset = Variable.objects.all().prefetch_related("tags").order_by("variable_id")
+    lookup_field = "variable_id"
     serializer_class = VariableSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
@@ -104,4 +107,4 @@ class VariableViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = ProductPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = VariableFilter
-    search_fields = ['name', 'desc', 'units' 'tags__name']
+    search_fields = ["name", "desc", "units" "tags__name"]

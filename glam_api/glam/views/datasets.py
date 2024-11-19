@@ -36,59 +36,64 @@ except:
 
 class DatasetPagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
 
 product_param = openapi.Parameter(
-    'product_id',
+    "product_id",
     openapi.IN_QUERY,
     description="A unique character ID representing Product of desired dataset(s).",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_PRODUCTS if len(AVAILABLE_PRODUCTS) > 0 else None)
+    enum=AVAILABLE_PRODUCTS if len(AVAILABLE_PRODUCTS) > 0 else None,
+)
 
 date_after_param = openapi.Parameter(
-    'date_after',
+    "date_after",
     openapi.IN_QUERY,
     description="Filter Date From.",
     type=openapi.TYPE_STRING,
-    format=openapi.FORMAT_DATE
+    format=openapi.FORMAT_DATE,
 )
 
 date_before_param = openapi.Parameter(
-    'date_before',
+    "date_before",
     openapi.IN_QUERY,
     description="Filter Date Before.",
     type=openapi.TYPE_STRING,
-    format=openapi.FORMAT_DATE
+    format=openapi.FORMAT_DATE,
 )
 
 tag_param = openapi.Parameter(
-    'tag',
+    "tag",
     openapi.IN_QUERY,
     description="String representing tag(s) to filter datasets.",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None)
+    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None,
+)
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="dataset list",
         manual_parameters=[
-            product_param, tag_param, date_after_param, date_before_param
-        ]))
+            product_param,
+            tag_param,
+            date_after_param,
+            date_before_param,
+        ],
+    ),
+)
 class DatasetViewSet(ListViewSet):
     """
     Return list of available Datasets.
     """
-    queryset = ProductRaster.objects.all().prefetch_related(
-        'product'
-    ).order_by('date')
+
+    queryset = ProductRaster.objects.all().prefetch_related("product").order_by("date")
     serializer_class = DatasetSerializer
     pagination_class = DatasetPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = DatasetFilter
-    search_fields = ['name', 'meta', 'tags__name']
+    search_fields = ["name", "meta", "tags__name"]
