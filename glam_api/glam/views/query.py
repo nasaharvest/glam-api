@@ -33,17 +33,7 @@ from ..serializers import (
     FeatureResponseSerializer,
     QueryBoundaryFeatureSerializer,
 )
-
-
-def get_closest_to_dt(qs, dt):
-    greater = qs.filter(date__gte=dt).order_by("date").first()
-    less = qs.filter(date__lte=dt).order_by("-date").first()
-
-    if greater and less:
-        return greater if abs(greater.date - dt) < abs(less.date - dt) else less
-    else:
-        return greater or less
-
+from ..utils import get_closest_to_date
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
@@ -272,7 +262,7 @@ class QueryRasterValue(viewsets.ViewSet):
                             anomaly_queryset = ProductRaster.objects.filter(
                                 product__product_id=product_id
                             )
-                            closest = get_closest_to_dt(anomaly_queryset, new_date)
+                            closest = get_closest_to_date(anomaly_queryset, new_date)
                             try:
                                 anomaly_dataset = get_object_or_404(
                                     product_queryset, date=new_date
@@ -440,7 +430,7 @@ class QueryRasterValue(viewsets.ViewSet):
                         json.loads(boundary_feature.geom.geojson), max_size=1024
                     )
                     mask_data = mask_feat.as_masked()
-
+                    print(data.shape, mask_data.shape)
                     data = data * mask_data
 
                     mean = float(
@@ -469,7 +459,7 @@ class QueryRasterValue(viewsets.ViewSet):
                     anomaly_queryset = ProductRaster.objects.filter(
                         product__product_id=product_id
                     )
-                    closest = get_closest_to_dt(anomaly_queryset, new_date)
+                    closest = get_closest_to_date(anomaly_queryset, new_date)
                     try:
                         anomaly_dataset = get_object_or_404(
                             product_queryset, date=new_date

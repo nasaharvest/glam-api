@@ -15,20 +15,20 @@ from ..mixins import ListViewSet
 
 class TagPagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
-
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
+    page_size_query_param = "limit"
 
 
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="tag list",
         operation_description="Return list of available Tags \
-            for searching and filtering."))
+            for searching and filtering.",
+    ),
+)
 class TagViewSet(ListViewSet):
-    queryset = Tag.objects.all().order_by('name')
+    queryset = Tag.objects.all().order_by("name")
     serializer_class = TagSerializer
     pagination_class = TagPagination
     filter_backends = [SearchFilter]
-    search_fields = ['name']
+    search_fields = ["name"]

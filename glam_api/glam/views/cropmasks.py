@@ -28,44 +28,46 @@ except:
     pass
 
 tag_param = openapi.Parameter(
-    'tag',
+    "tag",
     openapi.IN_QUERY,
     description="String representing tag(s) to filter products.",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None)
+    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None,
+)
 
 
 class CropMaskPagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
-# @method_decorator(name='list', decorator=vary_on_headers('Accept-Language'))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="cropmask list",
         manual_parameters=[tag_param],
-        operation_description="Return list of available Cropmasks."))
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
-# @method_decorator(name='retrieve', decorator=vary_on_headers('Accept-Language'))
+        operation_description="Return list of available Cropmasks.",
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="cropmask detail",
-        operation_description="Return details for specified Cropmask."))
+        operation_description="Return details for specified Cropmask.",
+    ),
+)
 class CropMaskViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CropMask.objects.all().prefetch_related(
-        'crop_type', 'tags', 'source'
-    ).order_by('id')
-    lookup_field = 'cropmask_id'
+    queryset = (
+        CropMask.objects.all()
+        .prefetch_related("crop_type", "tags", "source")
+        .order_by("id")
+    )
+    lookup_field = "cropmask_id"
     serializer_class = CropMaskSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
@@ -73,4 +75,4 @@ class CropMaskViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = CropMaskPagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = CropMaskFilter
-    search_fields = ['name']
+    search_fields = ["name"]

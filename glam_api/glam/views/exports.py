@@ -38,16 +38,6 @@ from ..serializers import (
 )
 
 
-def get_closest_to_dt(qs, dt):
-    greater = qs.filter(date__gte=dt).order_by("date").first()
-    less = qs.filter(date__lte=dt).order_by("-date").first()
-
-    if greater and less:
-        return greater if abs(greater.date - dt) < abs(less.date - dt) else less
-    else:
-        return greater or less
-
-
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
 AVAILABLE_BOUNDARY_LAYERS = list()

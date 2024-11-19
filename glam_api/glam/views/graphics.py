@@ -51,16 +51,7 @@ from ..models import (
     AnomalyBaselineRaster,
     DataSource,
 )
-
-
-def get_closest_to_dt(qs, dt):
-    greater = qs.filter(date__gte=dt).order_by("date").first()
-    less = qs.filter(date__lte=dt).order_by("-date").first()
-
-    if greater and less:
-        return greater if abs(greater.date - dt) < abs(less.date - dt) else less
-    else:
-        return greater or less
+from ..utils import get_closest_to_date
 
 
 def scale_from_extent(extent):
@@ -137,12 +128,6 @@ try:
     ANOMALY_TYPE_CHOICES.append("diff")
 except:
     pass
-
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
-# @method_decorator(
-#     name='retrieve',
-#     decorator=swagger_auto_schema(
-#         operation_id="admin units"))
 
 
 class GraphicsViewSet(viewsets.ViewSet):
@@ -347,7 +332,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                 anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id
                 )
-                closest = get_closest_to_dt(anomaly_queryset, new_date)
+                closest = get_closest_to_date(anomaly_queryset, new_date)
                 try:
                     anomaly_ds = get_object_or_404(anomaly_queryset, date=new_date)
                 except:
@@ -695,7 +680,7 @@ class GraphicsViewSet(viewsets.ViewSet):
                         anomaly_queryset = ProductRaster.objects.filter(
                             product__product_id=product_id
                         )
-                        closest = get_closest_to_dt(anomaly_queryset, new_date)
+                        closest = get_closest_to_date(anomaly_queryset, new_date)
 
                         try:
                             anomaly_ds = get_object_or_404(

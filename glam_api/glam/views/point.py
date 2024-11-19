@@ -16,17 +16,7 @@ from ..models import (Product, ProductRaster,
                       AnomalyBaselineRaster, CropMask, CropmaskRaster)
 from ..serializers import (PointValueSerializer,
                            PointResponseSerializer)
-
-
-def get_closest_to_dt(qs, dt):
-    greater = qs.filter(date__gte=dt).order_by("date").first()
-    less = qs.filter(date__lte=dt).order_by("-date").first()
-
-    if greater and less:
-        return greater if abs(greater.date - dt) < abs(less.date - dt) else less
-    else:
-        return greater or less
-
+from ..utils import get_closest_to_date
 
 class PointValue(viewsets.ViewSet):
 
@@ -201,7 +191,7 @@ class PointValue(viewsets.ViewSet):
                 new_date = product_dataset.date.replace(year=new_year)
                 anomaly_queryset = ProductRaster.objects.filter(
                     product__product_id=product_id)
-                closest = get_closest_to_dt(anomaly_queryset, new_date)
+                closest = get_closest_to_date(anomaly_queryset, new_date)
                 try:
                     anomaly_dataset = get_object_or_404(
                         product_queryset,

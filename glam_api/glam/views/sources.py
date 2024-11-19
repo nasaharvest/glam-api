@@ -27,43 +27,42 @@ except:
     pass
 
 tag_param = openapi.Parameter(
-    'tag',
+    "tag",
     openapi.IN_QUERY,
     description="String representing tag(s) to filter products.",
     required=False,
     type=openapi.TYPE_STRING,
-    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None
+    enum=AVAILABLE_TAGS if len(AVAILABLE_TAGS) > 0 else None,
 )
 
 
 class SourcePagination(PageNumberPagination):
     page_size = 100
-    page_size_query_param = 'limit'
+    page_size_query_param = "limit"
 
 
-# @method_decorator(name='list', decorator=cache_page(60*60*24*7))
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="datasource list",
         operation_description="Return list of available Sources.",
-        manual_parameters=[tag_param]))
-# @method_decorator(name='retrieve', decorator=cache_page(60*60*24*7))
+        manual_parameters=[tag_param],
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="datasource detail",
-        operation_description="Return details for specified Source."))
+        operation_description="Return details for specified Source.",
+    ),
+)
 class SourceViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = DataSource.objects.all().prefetch_related(
-        'tags'
-    ).order_by('source_id')
-    lookup_field = 'source_id'
+    queryset = DataSource.objects.all().prefetch_related("tags").order_by("source_id")
+    lookup_field = "source_id"
     serializer_class = SourceSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
@@ -71,4 +70,4 @@ class SourceViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = SourcePagination
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_class = SourceFilter
-    search_fields = ['name', 'desc', 'tags__name']
+    search_fields = ["name", "desc", "tags__name"]

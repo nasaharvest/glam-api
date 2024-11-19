@@ -18,22 +18,25 @@ from ..serializers import AnnouncementSerializer
 
 
 @method_decorator(
-    name='list',
+    name="list",
     decorator=swagger_auto_schema(
         operation_id="announcement list",
-        operation_description="Return list of announcements."))
+        operation_description="Return list of announcements.",
+    ),
+)
 @method_decorator(
-    name='retrieve',
+    name="retrieve",
     decorator=swagger_auto_schema(
         operation_id="announcement detail",
-        operation_description="Return details for specified announcement."))
+        operation_description="Return details for specified announcement.",
+    ),
+)
 class AnnouncementViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Announcement.objects.all().order_by('-date')[:5]
+    queryset = Announcement.objects.all().prefetch_related("tags").order_by("-date")
     serializer_class = AnnouncementSerializer
 
     def get_queryset(self):
-        accept_language = self.request.META.get('HTTP_ACCEPT_LANGUAGE', None)
-        print(accept_language)
+        accept_language = self.request.META.get("HTTP_ACCEPT_LANGUAGE", None)
         if accept_language:
             translation.activate(accept_language[0:2])
         return self.queryset
