@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.0.1 (2024-11-25)
+
+### Bug Fixes
+
+- Change apprunner config location
+  ([`2cb2e02`](https://github.com/nasaharvest/glam-api/commit/2cb2e02fd9484ca9679a089641d54a38f58aef32))
+
+### Build System
+
+- Add apprunner configuration file
+  ([`abc5646`](https://github.com/nasaharvest/glam-api/commit/abc564698bb0daccae38b60c13b4741dbb611f84))
+
+- Update .dockerignore
+  ([`2491270`](https://github.com/nasaharvest/glam-api/commit/2491270b984982983179f534189baae53e24afb8))
+
+
 ## v1.0.0 (2024-11-19)
 
 ### Build System
