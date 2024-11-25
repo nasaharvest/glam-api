@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.0.2 (2024-11-25)
+
+### Bug Fixes
+
+- Change apprunner config location
+  ([`d6a015a`](https://github.com/nasaharvest/glam-api/commit/d6a015a1929f18e642c5c608849de14da53e3197))
+
+
 ## v1.0.1 (2024-11-25)
 
 ### Bug Fixes
