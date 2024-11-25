@@ -1,0 +1,25 @@
+version: 1.0
+runtime: python311
+build:
+  commands:
+    build:
+      - yum install gcc gcc-c++ cpp sqlite-devel libtiff cmake3 tar wget gzip python3 python3-devel -y
+
+      - wget https://download.osgeo.org/proj/proj-6.1.1.tar.gz
+      - tar -xvf proj-6.1.1.tar.gz
+      - cd proj-6.1.1 && ./configure && make && make install
+
+      - wget https://github.com/OSGeo/gdal/releases/download/v3.2.1/gdal-3.2.1.tar.gz
+      - tar -xvf gdal-3.2.1.tar.gz
+      - cd gdal-3.2.1 &&./configure --with-proj=/usr/local --with-python && make &&make install
+
+run:
+  runtime-version: 3.11
+  pre-run:
+    - echo "Installing dependencies..."
+    - pip3 install poetry
+    - poetry config virtualenvs.create false
+    - poetry install
+  command: poetry run gunicorn glam_api.wsgi --log-file -
+  network:
+    port: 8000
