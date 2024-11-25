@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.0.3 (2024-11-25)
+
+### Bug Fixes
+
+- Rename apprunner yaml file with correct extension
+  ([`49335ed`](https://github.com/nasaharvest/glam-api/commit/49335ed223cf8f067ac8896be5704801d72b378c))
+
+
 ## v1.0.2 (2024-11-25)
 
 ### Bug Fixes
