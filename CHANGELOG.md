@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.1 (2024-12-10)
+
+### Bug Fixes
+
+- Add django-storages session profile configuration option
+  ([`bdd9343`](https://github.com/nasaharvest/glam-api/commit/bdd9343175d3ff6d1628bdfe50aa3bd163dbfde2))
+
+
 ## v1.1.0 (2024-12-10)
 
 ### Features
