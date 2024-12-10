@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.2 (2024-12-10)
+
+### Bug Fixes
+
+- Adjust django storages s3 session profile configuration
+  ([`3b67fe1`](https://github.com/nasaharvest/glam-api/commit/3b67fe125dbcd74bba6fd3498b713fffc5071e10))
+
+
 ## v1.1.1 (2024-12-10)
 
 ### Bug Fixes
