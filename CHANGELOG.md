@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.0 (2024-12-10)
+
+### Features
+
+- Add new default S3 media storage
+  ([`5ed3710`](https://github.com/nasaharvest/glam-api/commit/5ed37107aa6fd17257c75a77caa4cc9880eff580))
+
+
 ## v1.0.3 (2024-11-25)
 
 ### Bug Fixes
@@ -44,6 +52,11 @@ Major upgrade and reconfiguration of glam-api code base.
 
 BREAKING CHANGE: Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files
   with poetry for dependency management.
+
+### BREAKING CHANGES
+
+- Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files with poetry
+  for dependency management.
 
 
 ## v0.2.0 (2022-10-20)
