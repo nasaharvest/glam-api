@@ -14,6 +14,7 @@ from config.storage import (
     RasterStorage,
     VectorStorage,
     PublicStorage,
+    S3PrivateMediaStorage,
 )
 
 from config.utils import generate_unique_slug
@@ -23,10 +24,12 @@ if not settings.USE_S3:
     vector_storage = FileSystemStorage()
     cmap_storage = FileSystemStorage()
     public_storage = FileSystemStorage()
+    default_storage = FileSystemStorage()
 elif settings.USE_S3:
     raster_storage = RasterStorage()
     vector_storage = VectorStorage()
     public_storage = PublicStorage()
+    default_storage = S3PrivateMediaStorage()
 
 
 class Tag(models.Model):
@@ -62,7 +65,7 @@ class Document(models.Model):
     date_created = models.DateField(help_text="Date the document was created/modified.")
     file_object = models.FileField(
         upload_to="documents",
-        storage=public_storage,
+        storage=default_storage,
         blank=True,
         help_text="Document file.",
     )
@@ -98,7 +101,7 @@ class Announcement(models.Model):
     )
     image = models.ImageField(
         upload_to="announcements",
-        storage=public_storage,
+        storage=default_storage,
         null=True,
         blank=True,
         help_text="Announcement Image.",
@@ -130,7 +133,7 @@ class DataSource(models.Model):
     link = models.URLField(help_text="URL link to Source.")
     logo = models.ImageField(
         upload_to="logos",
-        storage=public_storage,
+        storage=default_storage,
         null=True,
         blank=True,
         help_text="Source logo.",
