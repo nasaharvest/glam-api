@@ -190,6 +190,7 @@ USE_S3 = True
 if USE_S3:
     AWS_ACCESS_KEY_ID = get_env_variable("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = get_env_variable("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_SESSION_PROFILE = get_env_variable("AWS_S3_SESSION_PROFILE")
     AWS_STORAGE_BUCKET_NAME = get_env_variable("AWS_STORAGE_BUCKET_NAME")
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
