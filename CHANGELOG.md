@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.1.3 (2024-12-11)
+
+### Bug Fixes
+
+- Remove django-storages s3 session profile option
+  ([`d804eb0`](https://github.com/nasaharvest/glam-api/commit/d804eb080561163ed6562409ffb038b02801fa89))
+
+
 ## v1.1.2 (2024-12-10)
 
 ### Bug Fixes
