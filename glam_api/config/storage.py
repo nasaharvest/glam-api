@@ -16,6 +16,9 @@ class S3MediaStorage(S3Boto3Storage):
 
 class S3PrivateMediaStorage(S3Boto3Storage):
     location = ""
+    default_acl = "private"
+    file_overwrite = True
+    custom_domain = False
 
 
 class RasterStorage(S3Boto3Storage):
