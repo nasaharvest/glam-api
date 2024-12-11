@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.1.4 (2024-12-11)
+
+### Bug Fixes
+
+- Update s3 private media storage class
+  ([`fa7e7b3`](https://github.com/nasaharvest/glam-api/commit/fa7e7b3dc12f4acb63a17e24b3304c3520eb3ce6))
+
+### Refactoring
+
+- Move django-storages configuration to local_settings
+  ([`8251873`](https://github.com/nasaharvest/glam-api/commit/8251873603163eaf2ca02b97c594108ae1febb92))
+
+
 ## v1.1.3 (2024-12-11)
 
 ### Bug Fixes
