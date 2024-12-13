@@ -7,8 +7,8 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.10, <4.0"
-django = "^4.2"
+python = ">=3.11, <4.0"
+django = "^4.2.17"
 rio-tiler = "^6.6.1"
 django-storages = "^1.14.4"
 django-cors-headers = "^4.4.0"
