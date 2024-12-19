@@ -507,7 +507,7 @@ class ProductRaster(models.Model):
         help_text="Path to dataset on current machine. Used to for local development.",
     )
     file_object = models.FileField(
-        upload_to="rasters",
+        upload_to="product-rasters",
         storage=raster_storage,
         blank=True,
         help_text="Stored dataset file. When dataset object is saved, the file_object is created using the local_path.",
