@@ -37,6 +37,25 @@ def generate_unique_slug(instance, slug_field):
     return unique_slug
 
 
+def create_aws_session_env_file(serial_number: str, token: str):
+    import boto3
+    from django.conf import settings
+
+    client = boto3.client("sts")
+    response = client.get_session_token(SerialNumber=serial_number, TokenCode=token)
+    credentials = response.get("Credentials")
+    access_key_id = credentials.get("AccessKeyId")
+    secret_access_key = credentials.get("SecretAccessKey")
+    session_token = credentials.get("SessionToken")
+
+    env_file = settings.BASE_DIR / "config" / "aws.env"
+
+    with open(env_file, "w") as f:
+        f.write(f"export AWS_ACCESS_KEY_ID={access_key_id}\n")
+        f.write(f"export AWS_SECRET_ACCESS_KEY={secret_access_key}\n")
+        f.write(f"export AWS_SESSION_TOKEN={session_token}\n")
+
+
 def prepare_spatialite_db():
     # https://code.djangoproject.com/ticket/32935
     connection.cursor().execute("SELECT InitSpatialMetaData(1);")
