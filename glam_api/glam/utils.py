@@ -57,6 +57,95 @@ def get_closest_to_date(qs, date):
         return greater or less
 
 
+def extract_datetime_from_filename(filename):
+    """
+    Extracts datetime from a filename with various patterns.
+
+    Args:
+      filename: The name of the file.
+
+    Returns:
+      A datetime object if datetime is successfully extracted,
+      otherwise None.
+    """
+    import re
+    from datetime import datetime
+
+    # Define potential datetime patterns
+    patterns = [
+        r"\d{4}\.\d{2}\.\d{2}",  # e.g., 2024.11.11
+        r"\d{4}\.\d{2}\.\d{1}",  # e.g., 2024.11.3
+        r"\d{4}\.\d{1}\.\d{1}",  # e.g., 2024.9.1
+        r"\d{4}\.\d{1}\.\d{2}",  # e.g., 2024.9.11
+        r"\d{4}-\d{2}-\d{2}",  # e.g., 2024-08-11
+        r"\d{4}\d{3}",  # e.g., 2024330 (assuming YYYYDDD format)
+        r"\d{4}.\d{3}",  # e.g., 2024.330 (assuming YYYYDDD format)
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, filename)
+        if match:
+            datetime_str = match.group(0)
+
+            if pattern in [
+                r"\d{4}\.\d{2}\.\d{2}",
+                r"\d{4}\.\d{2}\.\d{1}",
+                r"\d{4}\.\d{1}\.\d{1}",
+                r"\d{4}\.\d{1}\.\d{2}",
+            ]:
+                datetime_format = "%Y.%m.%d"
+            elif pattern == r"\d{4}-\d{2}-\d{2}":
+                datetime_format = "%Y-%m-%d"
+            elif pattern == r"\d{4}\d{3}":
+                datetime_format = "%Y%j"  # %j for day of the year
+            elif pattern == r"\d{4}.\d{3}":
+                datetime_format = "%Y.%j"  # %j for day of the year
+
+            try:
+                return datetime.strptime(datetime_str, datetime_format).strftime(
+                    "%Y-%m-%d"
+                )
+            except ValueError:
+                continue  # Try the next pattern
+
+    return None
+
+
+def match_filename_to_product_id(filename):
+    """
+    Matches a filename to its corresponding ID from a given list.
+
+    Args:
+      filename: The name of the file.
+
+    Returns:
+      The matching ID if found, otherwise None.
+    """
+
+    if "chirps" in filename:
+        return "chirps-precip"
+    elif "swi" in filename:
+        return "copernicus-swi"
+    elif "DFPPM_4_WK" in filename:
+        return "servir-4wk-esi"
+    elif "DFPPM_12_WK" in filename:
+        return "servir-12wk-esi"
+    elif "VNP09H1.ndvi" in filename:
+        return "vnp09h1-ndvi"
+    elif "MOD09Q1.ndvi" in filename:
+        return "mod09q1-ndvi"
+    elif "MYD09Q1.ndvi" in filename:
+        return "myd09q1-ndvi"
+    elif "MOD13Q1.ndvi" in filename:
+        return "mod13q1-ndvi"
+    elif "MYD13Q1.ndvi" in filename:
+        return "myd13q1-ndvi"
+    elif "MOD09A1.ndwi" in filename:
+        return "mod09a1-ndwi"
+    else:
+        return None
+
+
 def prepare_db():
     """
     There is a bug when using python version 3.9, 3.10 and Django version 4.2 when initiating a sqlite db with spatialite.
