@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.3.0 (2024-12-19)
+
+### Features
+
+- Add utility functions to extract the date and product_id from a filename
+  ([`6895687`](https://github.com/nasaharvest/glam-api/commit/68956870ab69abe10a7d683a6bc927bae6d222b9))
+
+
 ## v1.2.0 (2024-12-19)
 
 ### Build System
