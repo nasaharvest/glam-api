@@ -1,6 +1,33 @@
 # CHANGELOG
 
 
+## v1.2.0 (2024-12-19)
+
+### Build System
+
+- Add glam-processing as dependency
+  ([`7a0c92e`](https://github.com/nasaharvest/glam-api/commit/7a0c92e0edc9eac386cc8c6a4b8cc5f78d3f6804))
+
+- Bump minimum python version to 3.11 and bump django from 4.2.14 to 4.2.17
+  ([`38f4a1c`](https://github.com/nasaharvest/glam-api/commit/38f4a1cae28e2efd85921fd11097d651fba6f93a))
+
+- Update glam-processing dependency
+  ([`33038d6`](https://github.com/nasaharvest/glam-api/commit/33038d650d4bd34302488419c8404d92e35f68f8))
+
+### Features
+
+- Add utility function for creating aws session environment variables with MFA
+  ([`b0d6726`](https://github.com/nasaharvest/glam-api/commit/b0d67264fbda51bbdad2d5a66f925c26442ea1a6))
+
+### Refactoring
+
+- Add example gdal/goes configuration settings for geodjango
+  ([`63ee312`](https://github.com/nasaharvest/glam-api/commit/63ee31275872eef72834b454cc1c17cc916193c0))
+
+- Rename ProductRaster file_object directory
+  ([`29cc3ff`](https://github.com/nasaharvest/glam-api/commit/29cc3ffa8e68b51c92b0b4b45e87a3952366cdad))
+
+
 ## v1.1.4 (2024-12-11)
 
 ### Bug Fixes

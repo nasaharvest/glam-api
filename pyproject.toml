@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "glam-api"
-version = "1.1.4"
+version = "1.2.0"
 description = "NASA Harvest Global Agriculture Monitoring System (GLAM) API"
 authors = ["John Keniston <jfkeniston@gmail.com>"]
 readme = "README.md"
