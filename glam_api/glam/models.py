@@ -18,6 +18,7 @@ from config.storage import (
 )
 
 from config.utils import generate_unique_slug
+from glam.utils import extract_datetime_from_filename
 
 if not settings.USE_S3:
     raster_storage = FileSystemStorage()
@@ -516,24 +517,17 @@ class ProductRaster(models.Model):
     def __str__(self):
         return self.slug
 
-    def upload_file(self, new=False):
+    def upload_file(self):
         """
         Function to upload file to raster storage. Triggered on object save.
         If dataset is new, create file_object using local_path.
         Method necessary for file upload to s3 using django-storages
         """
-        print("uhoh")
-        if new:
-            with open(self.local_path, "rb") as f:
-                self.file_object = File(f, name=os.path.basename(f.name))
-                self.save()
+        with open(self.local_path, "rb") as f:
+            self.file_object = File(f, name=os.path.basename(f.name))
+            self.save()
 
     def save(self, *args, **kwargs):
-
-        if "new" in kwargs:
-            new = kwargs["new"]
-        else:
-            new = self.pk is None
 
         if not self.name:
             # generate name
@@ -548,15 +542,7 @@ class ProductRaster(models.Model):
         if not self.date:
             # get date from file name
             base_file = os.path.basename(self.local_path)
-            parts = base_file.split(".")
-            try:
-                ds_date = datetime.datetime.strptime(
-                    f"{parts[-3]}.{parts[-2]}", "%Y.%j"
-                ).strftime("%Y-%m-%d")
-            except:
-                ds_date = datetime.datetime.strptime(parts[-2], "%Y-%m-%d").strftime(
-                    "%Y-%m-%d"
-                )
+            ds_date = extract_datetime_from_filename(base_file)
             self.date = ds_date
 
             # to do
@@ -564,8 +550,6 @@ class ProductRaster(models.Model):
             # queue_baseline_update(self.product, self.date)
 
         super().save(*args, **kwargs)
-
-        self.upload_file(new)
 
     class Meta:
         verbose_name = "product dataset"
