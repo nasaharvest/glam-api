@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.0 (2024-12-20)
+
+### Features
+
+- Add function to add ProductRaster records from existing raster storage
+  ([`a388e03`](https://github.com/nasaharvest/glam-api/commit/a388e030f49d7a81e82a4c86da8f915adcd58df0))
+
+
 ## v1.3.1 (2024-12-20)
 
 ### Bug Fixes
