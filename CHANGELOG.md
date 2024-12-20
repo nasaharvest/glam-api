@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.4.1 (2024-12-20)
+
+### Bug Fixes
+
+- Fix and rename util function to get product id from filename
+  ([`0c91d4b`](https://github.com/nasaharvest/glam-api/commit/0c91d4bfa8579217c3c0fba21149fef8686977c1))
+
+
 ## v1.4.0 (2024-12-20)
 
 ### Features
