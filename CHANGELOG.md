@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.3.1 (2024-12-20)
+
+### Bug Fixes
+
+- Modify save method for ProductRaster
+  ([`19a034e`](https://github.com/nasaharvest/glam-api/commit/19a034e722152940477e61dc6cad6f071a3e0c68))
+
+
 ## v1.3.0 (2024-12-19)
 
 ### Features
