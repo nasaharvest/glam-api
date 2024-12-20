@@ -23,6 +23,7 @@ from rio_cogeo.profiles import cog_profiles
 from django_q.tasks import async_task
 
 from django.core.files import File
+from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 from django.utils.text import slugify
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
@@ -38,6 +39,10 @@ from glam.models import (
     CropmaskRaster,
     AnomalyBaselineRaster,
 )
+
+from glam.utils import extract_datetime_from_filename, match_filename_to_product_id
+
+from config.storage import RasterStorage
 
 logging.basicConfig(
     format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
@@ -89,7 +94,7 @@ def add_cropmask_rasters():
                 pass
 
 
-def add_product_rasters(product):
+def add_product_rasters_by_product(product):
     try:
         valid_product = Product.objects.get(product_id=slugify(product))
         dataset_directory = os.path.join(settings.PRODUCT_DATASET_LOCAL_PATH, product)
@@ -145,6 +150,45 @@ def add_product_rasters(product):
 
     except Product.DoesNotExist as e1:
         logging.info(f"{slugify(product)} is not a valid product within the system.")
+
+
+def add_product_rasters_from_storage():
+    if not settings.USE_S3:
+        raster_storage = FileSystemStorage()
+    elif settings.USE_S3:
+        raster_storage = RasterStorage()
+
+    raster_files = raster_storage.listdir("product-rasters")[1]
+
+    for filename in tqdm(raster_files):
+        if filename.endswith(".tif"):
+            if "prelim" in filename:
+                prelim = True
+            else:
+                prelim = False
+            ds_date = extract_datetime_from_filename(filename)
+            product_id = match_filename_to_product_id(filename)
+            dataset_directory = os.path.join(
+                settings.PRODUCT_DATASET_LOCAL_PATH, product_id
+            )
+            if product_id and ds_date:
+                logging.info(ds_date)
+                logging.info(product_id)
+                valid_product = Product.objects.get(product_id=slugify(product_id))
+                try:
+                    ds = ProductRaster.objects.get(product=valid_product, date=ds_date)
+                except ProductRaster.DoesNotExist:
+                    # if it doesn't exist, make it
+                    new_dataset = ProductRaster(
+                        product=valid_product,
+                        prelim=prelim,
+                        date=ds_date,
+                        local_path=filename,
+                        file_object=f"product-rasters/{filename}",
+                    )
+                    logging.info(f"saving {filename}")
+                    new_dataset.save()  # prevent re-upload to S3
+                    logging.info(f"saved {new_dataset}")
 
 
 # for initial ingest of anomaly baseline datasets
