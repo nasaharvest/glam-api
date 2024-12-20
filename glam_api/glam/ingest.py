@@ -40,7 +40,7 @@ from glam.models import (
     AnomalyBaselineRaster,
 )
 
-from glam.utils import extract_datetime_from_filename, match_filename_to_product_id
+from glam.utils import extract_datetime_from_filename, get_product_id_from_filename
 
 from config.storage import RasterStorage
 
@@ -167,7 +167,7 @@ def add_product_rasters_from_storage():
             else:
                 prelim = False
             ds_date = extract_datetime_from_filename(filename)
-            product_id = match_filename_to_product_id(filename)
+            product_id = get_product_id_from_filename(filename)
             dataset_directory = os.path.join(
                 settings.PRODUCT_DATASET_LOCAL_PATH, product_id
             )
@@ -177,6 +177,7 @@ def add_product_rasters_from_storage():
                 valid_product = Product.objects.get(product_id=slugify(product_id))
                 try:
                     ds = ProductRaster.objects.get(product=valid_product, date=ds_date)
+                    logging.info(f"{filename} exists")
                 except ProductRaster.DoesNotExist:
                     # if it doesn't exist, make it
                     new_dataset = ProductRaster(
@@ -187,7 +188,7 @@ def add_product_rasters_from_storage():
                         file_object=f"product-rasters/{filename}",
                     )
                     logging.info(f"saving {filename}")
-                    new_dataset.save()  # prevent re-upload to S3
+                    new_dataset.save()
                     logging.info(f"saved {new_dataset}")
 
 

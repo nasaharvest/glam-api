@@ -111,7 +111,7 @@ def extract_datetime_from_filename(filename):
     return None
 
 
-def match_filename_to_product_id(filename):
+def get_product_id_from_filename(filename):
     """
     Matches a filename to its corresponding ID from a given list.
 
@@ -126,9 +126,9 @@ def match_filename_to_product_id(filename):
         return "chirps-precip"
     elif "swi" in filename:
         return "copernicus-swi"
-    elif "DFPPM_4_WK" in filename:
+    elif "DFPPM_4WK" in filename:
         return "servir-4wk-esi"
-    elif "DFPPM_12_WK" in filename:
+    elif "DFPPM_12WK" in filename:
         return "servir-12wk-esi"
     elif "VNP09H1.ndvi" in filename:
         return "vnp09h1-ndvi"
