@@ -1,10 +1,14 @@
 import datetime
 import time
+import logging
+
 from typing import Mapping, Union, Tuple, TypeVar
 from typing import BinaryIO
 
 import numpy as np
 import matplotlib
+
+import rasterio
 
 from rio_tiler.io import COGReader
 from rio_tiler.colormap import cmap
@@ -33,6 +37,10 @@ from ..models import (
 )
 
 from ..utils import get_closest_to_date
+
+logging.basicConfig(
+    format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.DEBUG
+)
 
 AVAILABLE_CMAPS = cmap.list()
 
@@ -261,142 +269,144 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        with COGReader(
-            product_dataset.file_object.url,
-        ) as cog:
-            img = cog.tile(x, y, z, tilesize=tile_size, reproject_method="bilinear")
-
-        if anomaly or anomaly_type == "diff":
-            anom_type = anomaly_type if anomaly_type else "mean"
-
-            if anom_type == "diff":
-                new_year = diff_year
-                new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductRaster.objects.filter(
-                    product__product_id=product_id
-                )
-                closest = get_closest_to_date(anomaly_queryset, new_date)
-
-                try:
-                    anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
-                except:
-                    anomaly_dataset = closest
-
-            else:
-                doy = product_dataset.date.timetuple().tm_yday
-
-                if product_id in ["chirps-precip", "copernicus-swi"]:
-                    doy = int(str(date.month) + str(date.day).zfill(2))
-                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                anomaly_dataset = get_object_or_404(
-                    anomaly_queryset,
-                    product__product_id=product_id,
-                    day_of_year=doy,
-                    baseline_length=anomaly,
-                    baseline_type=anom_type,
-                )
-
-            # if stretch not specified, use standard deviation
-            if stretch_min is None and stretch_max is None:
-                try:
-                    stretch_range = product_dataset.product.meta["anomaly_stretch"]
-                except:
-                    stretch_range = [-100, 100]
-
-            with COGReader(anomaly_dataset.file_object.url) as cog:
-                baseline = cog.tile(
-                    x, y, z, tilesize=tile_size, reproject_method="bilinear"
-                )
-
-            diff = img.array - baseline.array
-
-            img = ImageData(diff)
-
-        if cropmask_id:
-            cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
-
+        logging.debug(product_dataset.file_object.url)
+        with rasterio.Env(CPL_DEBUG=True) as env:
             with COGReader(
-                cropmask.map_raster.url,
+                product_dataset.file_object.url,
             ) as cog:
-                cm_img = cog.tile(
-                    x, y, z, tilesize=tile_size, reproject_method="bilinear"
-                )
+                img = cog.tile(x, y, z, tilesize=tile_size, reproject_method="bilinear")
 
-            mask_type = cropmask.mask_type
-
-            crop_mask = cm_img.array.mask
-            # print(crop_mask)
-            if mask_type == "percent":
-                if cropmask_threshold:
-                    threshold = cropmask_threshold / 100
-                else:
-                    threshold = 0.5
-                threshold_mask = cm_img.data < threshold
-                crop_mask = threshold_mask
-                # print(crop_mask)
-                # cm_img.mask[np.where(cm_img.data[0] < threshold)] = 0
-
-            # new_mask = np.minimum(mask, crop_mask)
-            img.array = np.ma.masked_array(img.array, mask=crop_mask)
-
-        image_rescale = img.post_process(
-            in_range=((stretch_range[0], stretch_range[1]),), out_range=((0, 255),)
-        )
-
-        ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "ndvi",
-            [
-                "#fffee1",
-                "#ffe1c8",
-                "#f5c98c",
-                "#ffdd55",
-                "#ebbe37",
-                "#faffb4",
-                "#e6fa9b",
-                "#cdff69",
-                "#aff05a",
-                "#a0f5a5",
-                "#82e187",
-                "#78c878",
-                "#9ec66c",
-                "#8caf46",
-                "#46b928",
-                "#329614",
-                "#147850",
-                "#1e5000",
-                "#003200",
-            ],
-            256,
-        )
-
-        if colormap is None:
-            # use product's default colormap
             if anomaly or anomaly_type == "diff":
-                if product_dataset.product.meta["anomaly_colormap"]:
-                    colormap = product_dataset.product.meta["anomaly_colormap"]
+                anom_type = anomaly_type if anomaly_type else "mean"
+
+                if anom_type == "diff":
+                    new_year = diff_year
+                    new_date = product_dataset.date.replace(year=new_year)
+                    anomaly_queryset = ProductRaster.objects.filter(
+                        product__product_id=product_id
+                    )
+                    closest = get_closest_to_date(anomaly_queryset, new_date)
+
+                    try:
+                        anomaly_dataset = get_object_or_404(
+                            product_queryset, date=new_date
+                        )
+                    except:
+                        anomaly_dataset = closest
+
                 else:
-                    colormap = None
+                    doy = product_dataset.date.timetuple().tm_yday
+
+                    if product_id in ["chirps-precip", "copernicus-swi"]:
+                        doy = int(str(date.month) + str(date.day).zfill(2))
+                    anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                    anomaly_dataset = get_object_or_404(
+                        anomaly_queryset,
+                        product__product_id=product_id,
+                        day_of_year=doy,
+                        baseline_length=anomaly,
+                        baseline_type=anom_type,
+                    )
+
+                # if stretch not specified, use standard deviation
+                if stretch_min is None and stretch_max is None:
+                    try:
+                        stretch_range = product_dataset.product.meta["anomaly_stretch"]
+                    except:
+                        stretch_range = [-100, 100]
+
+                with COGReader(anomaly_dataset.file_object.url) as cog:
+                    baseline = cog.tile(
+                        x, y, z, tilesize=tile_size, reproject_method="bilinear"
+                    )
+
+                diff = img.array - baseline.array
+
+                img = ImageData(diff)
+
+            if cropmask_id:
+                cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
+
+                with COGReader(
+                    cropmask.map_raster.url,
+                ) as cog:
+                    cm_img = cog.tile(
+                        x, y, z, tilesize=tile_size, reproject_method="bilinear"
+                    )
+
+                mask_type = cropmask.mask_type
+
+                crop_mask = cm_img.array.mask
+                if mask_type == "percent":
+                    if cropmask_threshold:
+                        threshold = cropmask_threshold / 100
+                    else:
+                        threshold = 0.5
+                    threshold_mask = cm_img.data < threshold
+                    crop_mask = threshold_mask
+                    # cm_img.mask[np.where(cm_img.data[0] < threshold)] = 0
+
+                # new_mask = np.minimum(mask, crop_mask)
+                img.array = np.ma.masked_array(img.array, mask=crop_mask)
+
+            image_rescale = img.post_process(
+                in_range=((stretch_range[0], stretch_range[1]),), out_range=((0, 255),)
+            )
+
+            ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
+                "ndvi",
+                [
+                    "#fffee1",
+                    "#ffe1c8",
+                    "#f5c98c",
+                    "#ffdd55",
+                    "#ebbe37",
+                    "#faffb4",
+                    "#e6fa9b",
+                    "#cdff69",
+                    "#aff05a",
+                    "#a0f5a5",
+                    "#82e187",
+                    "#78c878",
+                    "#9ec66c",
+                    "#8caf46",
+                    "#46b928",
+                    "#329614",
+                    "#147850",
+                    "#1e5000",
+                    "#003200",
+                ],
+                256,
+            )
+
+            if colormap is None:
+                # use product's default colormap
+                if anomaly or anomaly_type == "diff":
+                    if product_dataset.product.meta["anomaly_colormap"]:
+                        colormap = product_dataset.product.meta["anomaly_colormap"]
+                    else:
+                        colormap = None
+                else:
+                    if product_dataset.product.meta["default_colormap"]:
+                        colormap = product_dataset.product.meta["default_colormap"]
+                    else:
+                        colormap = None
+
+            if colormap == "ndvi":
+                x = np.linspace(0, 1, 256)
+                cmap_vals = ndvi(x)[:, :]
+                cmap_uint8 = (cmap_vals * 255).astype("uint8")
+                ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
+                new = cmap.register({"ndvi": ndvi_dict})
+                cm = new.get("ndvi")
             else:
-                if product_dataset.product.meta["default_colormap"]:
-                    colormap = product_dataset.product.meta["default_colormap"]
-                else:
-                    colormap = None
+                cm = cmap.get(colormap)
 
-        if colormap == "ndvi":
-            x = np.linspace(0, 1, 256)
-            cmap_vals = ndvi(x)[:, :]
-            cmap_uint8 = (cmap_vals * 255).astype("uint8")
-            ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
-            new = cmap.register({"ndvi": ndvi_dict})
-            cm = new.get("ndvi")
-        else:
-            cm = cmap.get(colormap)
+            tile = image_rescale.render(
+                img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
+            )
 
-        tile = image_rescale.render(
-            img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
-        )
-
-        return Response(tile)
+            return Response(tile)
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -552,7 +562,7 @@ class Tiles(viewsets.ViewSet):
             ],
             256,
         )
-        print(colormap)
+
         if colormap is None:
             # use product's default colormap
             if anomaly or anomaly_type == "diff":
@@ -561,7 +571,7 @@ class Tiles(viewsets.ViewSet):
                 else:
                     colormap = None
             else:
-                print("herererer")
+
                 if product_dataset.product.meta["default_colormap"]:
                     colormap = product_dataset.product.meta["default_colormap"]
                 else:
