@@ -31,10 +31,10 @@ class RasterStorage(S3Boto3Storage):
     # credentials required by django-storages for S3 access"
 
     # Overriding _get_security_token to prevent duplicate security tokens
-    if settings.USE_S3:
+    # if settings.USE_S3:
 
-        def _get_security_token(self):
-            return None
+    #     def _get_security_token(self):
+    #         return None
 
     location = ""
     default_acl = "private"
