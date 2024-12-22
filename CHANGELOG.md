@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.4.2 (2024-12-22)
+
+### Bug Fixes
+
+- Remove security token override for raster storage class
+  ([`72b2437`](https://github.com/nasaharvest/glam-api/commit/72b2437d35615a5947d429d918e85d02356960d5))
+
+### Build System
+
+- Bump python version of base image in Dockerfile to 3.11-slim-buster
+  ([`ba444fc`](https://github.com/nasaharvest/glam-api/commit/ba444fc035671b5a1bb546261e8bf6bb7dfc8af3))
+
+
 ## v1.4.1 (2024-12-20)
 
 ### Bug Fixes
