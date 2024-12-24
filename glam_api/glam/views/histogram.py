@@ -316,9 +316,9 @@ class Histogram(PandasViewSet):
                 new_date = datetime.date(int(year), month, day)
                 product_dataset = get_closest_to_date(product_queryset, new_date)
 
-                if not settings.USE_S3_RASTERS:
+                if not settings.USE_S3:
                     path = product_dataset.file_object.path
-                if settings.USE_S3_RASTERS:
+                if settings.USE_S3:
                     path = product_dataset.file_object.url
 
                 if geom["type"] == "Polygon" or geom["type"] == "MultiPolygon":
@@ -335,9 +335,9 @@ class Histogram(PandasViewSet):
                             crop_mask__cropmask_id=cropmask,
                         )
 
-                        if not settings.USE_S3_RASTERS:
+                        if not settings.USE_S3:
                             mask_path = mask_dataset.file_object.path
-                        if settings.USE_S3_RASTERS:
+                        if settings.USE_S3:
                             mask_path = mask_dataset.file_object.url
 
                         with COGReader(mask_path) as mask_src:
@@ -379,9 +379,9 @@ class Histogram(PandasViewSet):
                                 baseline_type=anom_type,
                             )
 
-                        if not settings.USE_S3_RASTERS:
+                        if not settings.USE_S3:
                             baseline_path = anomaly_dataset.file_object.path
-                        if settings.USE_S3_RASTERS:
+                        if settings.USE_S3:
                             baseline_path = anomaly_dataset.file_object.url
 
                         with COGReader(baseline_path) as baseline_src:
@@ -504,9 +504,9 @@ class Histogram(PandasViewSet):
                     boundary_layer=boundary_layer, feature_id=feature_id
                 )
 
-                if not settings.USE_S3_RASTERS:
+                if not settings.USE_S3:
                     path = product_dataset.file_object.path
-                if settings.USE_S3_RASTERS:
+                if settings.USE_S3:
                     path = product_dataset.file_object.url
 
                 geom = json.loads(boundary_feature.geom.geojson)
@@ -523,9 +523,9 @@ class Histogram(PandasViewSet):
                         crop_mask__cropmask_id=cropmask,
                     )
 
-                    if not settings.USE_S3_RASTERS:
+                    if not settings.USE_S3:
                         mask_path = mask_dataset.file_object.path
-                    if settings.USE_S3_RASTERS:
+                    if settings.USE_S3:
                         mask_path = mask_dataset.file_object.url
 
                     with COGReader(mask_path) as mask_src:
@@ -567,9 +567,9 @@ class Histogram(PandasViewSet):
                             baseline_type=anom_type,
                         )
 
-                    if not settings.USE_S3_RASTERS:
+                    if not settings.USE_S3:
                         baseline_path = anomaly_dataset.file_object.path
-                    if settings.USE_S3_RASTERS:
+                    if settings.USE_S3:
                         baseline_path = anomaly_dataset.file_object.url
 
                     with COGReader(baseline_path) as baseline_src:

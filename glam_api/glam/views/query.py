@@ -186,9 +186,9 @@ class QueryRasterValue(viewsets.ViewSet):
             )
             product_dataset = get_object_or_404(product_queryset, date=date)
 
-            if not settings.USE_S3_RASTERS:
+            if not settings.USE_S3:
                 path = product_dataset.file_object.path
-            if settings.USE_S3_RASTERS:
+            if settings.USE_S3:
                 path = product_dataset.file_object.url
 
             if (
@@ -225,9 +225,9 @@ class QueryRasterValue(viewsets.ViewSet):
                             crop_mask__cropmask_id=cropmask,
                         )
 
-                        if not settings.USE_S3_RASTERS:
+                        if not settings.USE_S3:
                             mask_path = mask_dataset.file_object.path
-                        if settings.USE_S3_RASTERS:
+                        if settings.USE_S3:
                             mask_path = mask_dataset.file_object.url
 
                         with COGReader(mask_path) as mask_src:
@@ -286,9 +286,9 @@ class QueryRasterValue(viewsets.ViewSet):
                                 baseline_type=anom_type,
                             )
 
-                        if not settings.USE_S3_RASTERS:
+                        if not settings.USE_S3:
                             baseline_path = anomaly_dataset.file_object.path
-                        if settings.USE_S3_RASTERS:
+                        if settings.USE_S3:
                             baseline_path = anomaly_dataset.file_object.url
 
                         with COGReader(baseline_path) as baseline_src:
@@ -380,9 +380,9 @@ class QueryRasterValue(viewsets.ViewSet):
         )
         boundary_feature = get_object_or_404(boundary_features, feature_id=feature_id)
         print(boundary_feature)
-        if not settings.USE_S3_RASTERS:
+        if not settings.USE_S3:
             path = product_dataset.file_object.path
-        if settings.USE_S3_RASTERS:
+        if settings.USE_S3:
             path = product_dataset.file_object.url
 
         try:
@@ -420,9 +420,9 @@ class QueryRasterValue(viewsets.ViewSet):
                     crop_mask__cropmask_id=cropmask_id,
                 )
 
-                if not settings.USE_S3_RASTERS:
+                if not settings.USE_S3:
                     mask_path = mask_dataset.file_object.path
-                if settings.USE_S3_RASTERS:
+                if settings.USE_S3:
                     mask_path = mask_dataset.file_object.url
 
                 with COGReader(mask_path) as mask_src:
@@ -483,9 +483,9 @@ class QueryRasterValue(viewsets.ViewSet):
                         baseline_type=anom_type,
                     )
 
-                if not settings.USE_S3_RASTERS:
+                if not settings.USE_S3:
                     baseline_path = anomaly_dataset.file_object.path
-                if settings.USE_S3_RASTERS:
+                if settings.USE_S3:
                     baseline_path = anomaly_dataset.file_object.url
 
                 with COGReader(baseline_path) as baseline_src:
