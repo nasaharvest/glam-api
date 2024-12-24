@@ -1,6 +1,24 @@
 # CHANGELOG
 
 
+## v1.4.3 (2024-12-24)
+
+### Bug Fixes
+
+- Update S3 configuration setting references
+  ([`c5076c7`](https://github.com/nasaharvest/glam-api/commit/c5076c77812663a979e8f360a89cb76b200bd94b))
+
+### Build System
+
+- Change python docker image from slim-buster to slim
+  ([`b06c024`](https://github.com/nasaharvest/glam-api/commit/b06c024d03060445c5eef1b3310643d6f5c1bfc2))
+
+### Code Style
+
+- Add temporary logging
+  ([`ae8c129`](https://github.com/nasaharvest/glam-api/commit/ae8c129d24f380d13bb79365b95628118ae79d3c))
+
+
 ## v1.4.2 (2024-12-22)
 
 ### Bug Fixes
