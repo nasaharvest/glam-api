@@ -269,10 +269,9 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        logging.debug(product_dataset.file_object.url)
         with rasterio.Env(CPL_DEBUG=True) as env:
             with COGReader(
-                product_dataset.file_object.url,
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
             ) as cog:
                 img = cog.tile(x, y, z, tilesize=tile_size, reproject_method="bilinear")
 
@@ -315,7 +314,9 @@ class Tiles(viewsets.ViewSet):
                     except:
                         stretch_range = [-100, 100]
 
-                with COGReader(anomaly_dataset.file_object.url) as cog:
+                with COGReader(
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                ) as cog:
                     baseline = cog.tile(
                         x, y, z, tilesize=tile_size, reproject_method="bilinear"
                     )
@@ -328,7 +329,7 @@ class Tiles(viewsets.ViewSet):
                 cropmask = CropMask.objects.get(cropmask_id=cropmask_id)
 
                 with COGReader(
-                    cropmask.map_raster.url,
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{cropmask.map_raster.name}"
                 ) as cog:
                     cm_img = cog.tile(
                         x, y, z, tilesize=tile_size, reproject_method="bilinear"
@@ -473,7 +474,9 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        with COGReader(product_dataset.file_object.url) as cog:
+        with COGReader(
+            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
+        ) as cog:
             img = cog.tile(x, y, z, tilesize=tile_size)
             # todo if stretch_range = None get range from image
 
@@ -513,7 +516,9 @@ class Tiles(viewsets.ViewSet):
                 except:
                     stretch_range = [-100, 100]
 
-            with COGReader(anomaly_dataset.file_object.url) as cog:
+            with COGReader(
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+            ) as cog:
                 baseline = cog.tile(x, y, z, tilesize=tile_size)
 
             anom = img.as_masked().data - baseline.as_masked().data

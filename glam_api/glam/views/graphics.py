@@ -11,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.core import serializers
@@ -316,7 +317,9 @@ class GraphicsViewSet(viewsets.ViewSet):
 
         boundary_feature_geom = boundary_feature.geom.simplify(scale_factor)
 
-        with COGReader(product_ds.file_object.url) as image:
+        with COGReader(
+            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
+        ) as image:
             feat = image.feature(
                 json.loads(boundary_feature_geom.geojson), max_size=1024
             )
@@ -355,7 +358,9 @@ class GraphicsViewSet(viewsets.ViewSet):
                     baseline_type=anom_type,
                 )
 
-            with COGReader(anomaly_ds.file_object.url) as anom_img:
+            with COGReader(
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
+            ) as anom_img:
                 anom_feat = anom_img.feature(
                     json.loads(boundary_feature_geom.geojson), max_size=1024
                 )
@@ -369,7 +374,9 @@ class GraphicsViewSet(viewsets.ViewSet):
                 mask_queryset, product__product_id=product_id, crop_mask=mask
             )
 
-            with COGReader(mask_ds.file_object.url) as mask_img:
+            with COGReader(
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
+            ) as mask_img:
                 mask_feat = mask_img.feature(
                     json.loads(boundary_feature_geom.geojson), max_size=1024
                 )
@@ -664,7 +671,9 @@ class GraphicsViewSet(viewsets.ViewSet):
                     buff = 1
                     admin_level = admin_1
 
-                with COGReader(product_ds.file_object.url) as image:
+                with COGReader(
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
+                ) as image:
                     feat = image.feature(
                         json.loads(boundary_feature_geom.geojson), max_size=1024
                     )
@@ -706,7 +715,9 @@ class GraphicsViewSet(viewsets.ViewSet):
                             baseline_type=anom_type,
                         )
 
-                    with COGReader(anomaly_ds.file_object.url) as anom_img:
+                    with COGReader(
+                        f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
+                    ) as anom_img:
                         anom_feat = anom_img.feature(geom, max_size=1024)
 
                     image = image - anom_feat.as_masked()
@@ -718,7 +729,9 @@ class GraphicsViewSet(viewsets.ViewSet):
                         mask_queryset, product__product_id=product_id, crop_mask=mask
                     )
 
-                    with COGReader(mask_ds.file_object.url) as mask_img:
+                    with COGReader(
+                        f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
+                    ) as mask_img:
                         mask_feat = mask_img.feature(geom, max_size=1024)
 
                     image = image * mask_feat.as_masked()

@@ -319,7 +319,7 @@ class Histogram(PandasViewSet):
                 if not settings.USE_S3:
                     path = product_dataset.file_object.path
                 if settings.USE_S3:
-                    path = product_dataset.file_object.url
+                    path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
 
                 if geom["type"] == "Polygon" or geom["type"] == "MultiPolygon":
 
@@ -338,7 +338,7 @@ class Histogram(PandasViewSet):
                         if not settings.USE_S3:
                             mask_path = mask_dataset.file_object.path
                         if settings.USE_S3:
-                            mask_path = mask_dataset.file_object.url
+                            mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
                         with COGReader(mask_path) as mask_src:
                             mask_feat = mask_src.feature(geom, max_size=1024)
@@ -382,7 +382,7 @@ class Histogram(PandasViewSet):
                         if not settings.USE_S3:
                             baseline_path = anomaly_dataset.file_object.path
                         if settings.USE_S3:
-                            baseline_path = anomaly_dataset.file_object.url
+                            baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
 
                         with COGReader(baseline_path) as baseline_src:
                             baseline_feat = baseline_src.feature(geom, max_size=1024)
@@ -507,7 +507,7 @@ class Histogram(PandasViewSet):
                 if not settings.USE_S3:
                     path = product_dataset.file_object.path
                 if settings.USE_S3:
-                    path = product_dataset.file_object.url
+                    path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
 
                 geom = json.loads(boundary_feature.geom.geojson)
 
@@ -526,7 +526,7 @@ class Histogram(PandasViewSet):
                     if not settings.USE_S3:
                         mask_path = mask_dataset.file_object.path
                     if settings.USE_S3:
-                        mask_path = mask_dataset.file_object.url
+                        mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
                     with COGReader(mask_path) as mask_src:
                         mask_feat = mask_src.feature(geom, max_size=1024)
@@ -570,7 +570,7 @@ class Histogram(PandasViewSet):
                     if not settings.USE_S3:
                         baseline_path = anomaly_dataset.file_object.path
                     if settings.USE_S3:
-                        baseline_path = anomaly_dataset.file_object.url
+                        baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
 
                     with COGReader(baseline_path) as baseline_src:
                         baseline_feat = baseline_src.feature(geom, max_size=1024)

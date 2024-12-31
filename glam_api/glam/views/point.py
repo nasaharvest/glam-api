@@ -173,7 +173,7 @@ class PointValue(viewsets.ViewSet):
         if not settings.USE_S3:
             path = product_dataset.file_object.path
         if settings.USE_S3:
-            path = product_dataset.file_object.url
+            path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
 
         dataset_value = None
 
@@ -188,7 +188,7 @@ class PointValue(viewsets.ViewSet):
             if not settings.USE_S3:
                 mask_path = mask_dataset.file_object.path
             if settings.USE_S3:
-                mask_path = mask_dataset.file_object.url
+                mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
             with COGReader(mask_path) as src:
                 mask_data = src.point(lon, lat)
@@ -240,7 +240,7 @@ class PointValue(viewsets.ViewSet):
             if not settings.USE_S3:
                 baseline_path = anomaly_dataset.file_object.path
             if settings.USE_S3:
-                baseline_path = anomaly_dataset.file_object.url
+                baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
 
             with COGReader(baseline_path) as baseline_img:
                 baseline_data = baseline_img.point(lon, lat)
