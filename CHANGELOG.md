@@ -1,6 +1,26 @@
 # CHANGELOG
 
 
+## v1.5.0 (2024-12-31)
+
+### Build System
+
+- Change python docker image from slim to slim-bullseye
+  ([`4ce2e20`](https://github.com/nasaharvest/glam-api/commit/4ce2e20349a65864de61c49940d9737098888b2c))
+
+### Features
+
+- Add GDAL configuration options to django settings
+  ([`a6f9518`](https://github.com/nasaharvest/glam-api/commit/a6f95181e0aa1c136a07f4ad6446c5fd3fd07819))
+
+use the rasterio Env context manager to set the GDAL options defined in settings.py
+
+### Refactoring
+
+- Change s3 url patterns used with cogreader
+  ([`7a612f7`](https://github.com/nasaharvest/glam-api/commit/7a612f7a6b13dc57aec5d8901ef8a74ea8f88570))
+
+
 ## v1.4.3 (2024-12-24)
 
 ### Bug Fixes
