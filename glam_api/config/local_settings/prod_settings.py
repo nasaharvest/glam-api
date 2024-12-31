@@ -43,3 +43,18 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+
+"""
+GDAL
+"""
+
+GDAL_CONFIG_OPTIONS = {
+    "CPL_DEBUG": True,
+    "CPL_CURL_VERBOSE": True,
+    "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif",
+    "GDAL_DISABLE_READDIR_ON_OPEN": True,
+    "VSI_CACHE": False,
+    "GDAL_HTTP_TIMEOUT": 2,
+    "GDAL_HTTP_TCP_KEEPALIVE": True,
+}

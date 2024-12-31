@@ -269,7 +269,10 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        with rasterio.Env(CPL_DEBUG=True) as env:
+        with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
+            for key, value in env.options.items():
+                logging.debug(f"GDAL env option: {key}: {value}")
+
             with COGReader(
                 f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
             ) as cog:
@@ -474,125 +477,128 @@ class Tiles(viewsets.ViewSet):
         if stretch_min is not None and stretch_max is not None:
             stretch_range = [stretch_min, stretch_max]
 
-        with COGReader(
-            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
-        ) as cog:
-            img = cog.tile(x, y, z, tilesize=tile_size)
-            # todo if stretch_range = None get range from image
-
-        if anomaly or anomaly_type == "diff":
-            anom_type = anomaly_type if anomaly_type else "mean"
-
-            if anom_type == "diff":
-                new_year = diff_year
-                new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductRaster.objects.filter(
-                    product__product_id=product_id
-                )
-                closest = get_closest_to_date(anomaly_queryset, new_date)
-                try:
-                    anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
-                except:
-                    anomaly_dataset = closest
-
-            else:
-                doy = product_dataset.date.timetuple().tm_yday
-
-                if product_id in ["chirps-precip", "copernicus-swi"]:
-                    doy = int(str(date.month) + str(date.day).zfill(2))
-                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                anomaly_dataset = get_object_or_404(
-                    anomaly_queryset,
-                    product__product_id=product_id,
-                    day_of_year=doy,
-                    baseline_length=anomaly,
-                    baseline_type=anom_type,
-                )
-
-            # if stretch not specified, use standard deviation
-            if stretch_min is None and stretch_max is None:
-                try:
-                    stretch_range = product_dataset.product.meta["anomaly_stretch"]
-                except:
-                    stretch_range = [-100, 100]
-
+        with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
             with COGReader(
-                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
             ) as cog:
-                baseline = cog.tile(x, y, z, tilesize=tile_size)
+                img = cog.tile(x, y, z, tilesize=tile_size)
+                # todo if stretch_range = None get range from image
 
-            anom = img.as_masked().data - baseline.as_masked().data
-
-            img = ImageData(data=anom, mask=img.mask)
-
-        if cropmask:
-            mask_queryset = CropmaskRaster.objects.all()
-            mask_dataset = get_object_or_404(
-                mask_queryset,
-                product__product_id=product_id,
-                crop_mask__cropmask_id=cropmask,
-            )
-            with COGReader(mask_dataset.file_object.url) as cog:
-                cm_img = cog.tile(x, y, z, tilesize=tile_size)
-
-            mask = np.minimum(img.mask, cm_img.mask)
-            img = ImageData(data=img.data, mask=mask)
-
-        image_rescale = img.post_process(
-            in_range=((stretch_range[0], stretch_range[1]),), out_range=((0, 255),)
-        )
-
-        ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-            "ndvi",
-            [
-                "#fffee1",
-                "#ffe1c8",
-                "#f5c98c",
-                "#ffdd55",
-                "#ebbe37",
-                "#faffb4",
-                "#e6fa9b",
-                "#cdff69",
-                "#aff05a",
-                "#a0f5a5",
-                "#82e187",
-                "#78c878",
-                "#9ec66c",
-                "#8caf46",
-                "#46b928",
-                "#329614",
-                "#147850",
-                "#1e5000",
-                "#003200",
-            ],
-            256,
-        )
-
-        if colormap is None:
-            # use product's default colormap
             if anomaly or anomaly_type == "diff":
-                if product_dataset.product.meta["anomaly_colormap"]:
-                    colormap = product_dataset.product.meta["anomaly_colormap"]
+                anom_type = anomaly_type if anomaly_type else "mean"
+
+                if anom_type == "diff":
+                    new_year = diff_year
+                    new_date = product_dataset.date.replace(year=new_year)
+                    anomaly_queryset = ProductRaster.objects.filter(
+                        product__product_id=product_id
+                    )
+                    closest = get_closest_to_date(anomaly_queryset, new_date)
+                    try:
+                        anomaly_dataset = get_object_or_404(
+                            product_queryset, date=new_date
+                        )
+                    except:
+                        anomaly_dataset = closest
+
                 else:
-                    colormap = None
+                    doy = product_dataset.date.timetuple().tm_yday
+
+                    if product_id in ["chirps-precip", "copernicus-swi"]:
+                        doy = int(str(date.month) + str(date.day).zfill(2))
+                    anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                    anomaly_dataset = get_object_or_404(
+                        anomaly_queryset,
+                        product__product_id=product_id,
+                        day_of_year=doy,
+                        baseline_length=anomaly,
+                        baseline_type=anom_type,
+                    )
+
+                # if stretch not specified, use standard deviation
+                if stretch_min is None and stretch_max is None:
+                    try:
+                        stretch_range = product_dataset.product.meta["anomaly_stretch"]
+                    except:
+                        stretch_range = [-100, 100]
+
+                with COGReader(
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                ) as cog:
+                    baseline = cog.tile(x, y, z, tilesize=tile_size)
+
+                anom = img.as_masked().data - baseline.as_masked().data
+
+                img = ImageData(data=anom, mask=img.mask)
+
+            if cropmask:
+                mask_queryset = CropmaskRaster.objects.all()
+                mask_dataset = get_object_or_404(
+                    mask_queryset,
+                    product__product_id=product_id,
+                    crop_mask__cropmask_id=cropmask,
+                )
+                with COGReader(mask_dataset.file_object.url) as cog:
+                    cm_img = cog.tile(x, y, z, tilesize=tile_size)
+
+                mask = np.minimum(img.mask, cm_img.mask)
+                img = ImageData(data=img.data, mask=mask)
+
+            image_rescale = img.post_process(
+                in_range=((stretch_range[0], stretch_range[1]),), out_range=((0, 255),)
+            )
+
+            ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
+                "ndvi",
+                [
+                    "#fffee1",
+                    "#ffe1c8",
+                    "#f5c98c",
+                    "#ffdd55",
+                    "#ebbe37",
+                    "#faffb4",
+                    "#e6fa9b",
+                    "#cdff69",
+                    "#aff05a",
+                    "#a0f5a5",
+                    "#82e187",
+                    "#78c878",
+                    "#9ec66c",
+                    "#8caf46",
+                    "#46b928",
+                    "#329614",
+                    "#147850",
+                    "#1e5000",
+                    "#003200",
+                ],
+                256,
+            )
+
+            if colormap is None:
+                # use product's default colormap
+                if anomaly or anomaly_type == "diff":
+                    if product_dataset.product.meta["anomaly_colormap"]:
+                        colormap = product_dataset.product.meta["anomaly_colormap"]
+                    else:
+                        colormap = None
+                else:
+
+                    if product_dataset.product.meta["default_colormap"]:
+                        colormap = product_dataset.product.meta["default_colormap"]
+                    else:
+                        colormap = None
+
+            if colormap == "ndvi":
+                x = np.linspace(0, 1, 256)
+                cmap_vals = ndvi(x)[:, :]
+                cmap_uint8 = (cmap_vals * 255).astype("uint8")
+                ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
+                new = cmap.register({"ndvi": ndvi_dict})
+                cm = new.get("ndvi")
             else:
+                cm = cmap.get(colormap)
 
-                if product_dataset.product.meta["default_colormap"]:
-                    colormap = product_dataset.product.meta["default_colormap"]
-                else:
-                    colormap = None
-
-        if colormap == "ndvi":
-            x = np.linspace(0, 1, 256)
-            cmap_vals = ndvi(x)[:, :]
-            cmap_uint8 = (cmap_vals * 255).astype("uint8")
-            ndvi_dict = {idx: tuple(value) for idx, value in enumerate(cmap_uint8)}
-            new = cmap.register({"ndvi": ndvi_dict})
-            cm = new.get("ndvi")
-        else:
-            cm = cmap.get(colormap)
-
-        tile = image_rescale.render(
-            img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
-        )
-        return Response(tile)
+            tile = image_rescale.render(
+                img_format="PNG", **img_profiles.get("png"), colormap=cm, add_mask=True
+            )
+            return Response(tile)
