@@ -144,13 +144,3 @@ def get_product_id_from_filename(filename):
         return "mod09a1-ndwi"
     else:
         return None
-
-
-def prepare_db():
-    """
-    There is a bug when using python version 3.9, 3.10 and Django version 4.2 when initiating a sqlite db with spatialite.
-    More info here: https://code.djangoproject.com/ticket/32935
-    """
-    import django
-
-    django.db.connection.cursor().execute("SELECT InitSpatialMetaData(1);")
