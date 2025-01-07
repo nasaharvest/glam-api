@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.6.0 (2025-01-07)
+
+### Features
+
+- Add utility function to upload files to s3
+  ([`58bd67e`](https://github.com/nasaharvest/glam-api/commit/58bd67ea22b3c27fd5984392fe32a51b41587e05))
+
+### Refactoring
+
+- Remove duplicate utility function
+  ([`4aad928`](https://github.com/nasaharvest/glam-api/commit/4aad928d5fa1c1d2f368326c759893e15508e855))
+
+
 ## v1.5.0 (2024-12-31)
 
 ### Build System
