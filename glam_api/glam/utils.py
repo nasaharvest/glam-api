@@ -3,6 +3,8 @@ glam app specific utilities
 
 """
 
+import logging
+
 from typing import Sequence, Tuple, TypeVar, Union
 from typing import BinaryIO
 
@@ -13,6 +15,10 @@ Number = TypeVar("Number", int, float)
 RGBA = Tuple[Number, Number, Number, Number]
 Palette = Sequence[RGBA]
 Array = TypeVar("Array", np.ndarray, np.ma.MaskedArray)
+
+logging.basicConfig(
+    format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
+)
 
 
 def contrast_stretch(
@@ -144,3 +150,43 @@ def get_product_id_from_filename(filename):
         return "mod09a1-ndwi"
     else:
         return None
+
+
+def upload_files_from_directory(directory, bucket, prefix=""):
+    """Upload all files from a directory to a nested S3 location
+
+    Args:
+        directory (str): Directory containing files to upload
+        bucket (str): Bucket to upload to
+        prefix (str): Optional prefix for the S3 objects (e.g., "folder1/folder2/")
+    """
+    import boto3
+    from botocore.exceptions import ClientError
+    import os
+    import tqdm
+
+    # Create S3 client
+    s3_client = boto3.client("s3")
+
+    for filename in tqdm.tqdm(os.listdir(directory)):
+        file_path = os.path.join(directory, filename)
+        object_name = os.path.join(prefix, os.path.basename(file_path))
+
+        try:
+            # Check if the object already exists in the bucket
+            s3_client.head_object(Bucket=bucket, Key=object_name)
+            logging.info(
+                f"Object '{object_name}' already exists in bucket '{bucket}'. Skipping upload."
+            )
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                # Object does not exist, proceed with upload
+                try:
+                    response = s3_client.upload_file(file_path, bucket, object_name)
+                    logging.info(f"Uploaded '{file_path}' to '{bucket}/{object_name}'")
+                except ClientError as e:
+                    logging.info(
+                        f"Failed to upload '{file_path}' to '{bucket}/{object_name}'. Error: {e}"
+                    )
+            else:
+                raise e
