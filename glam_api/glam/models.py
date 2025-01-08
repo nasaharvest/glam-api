@@ -401,14 +401,14 @@ class BoundaryLayer(models.Model):
     )
     source_data = models.FileField(
         upload_to="boundary-layers",
-        storage=raster_storage,
+        storage=default_storage,
         blank=True,
         null=True,
         help_text="Original Boundary Layer raster or vector",
     )
     vector_file = models.FileField(
         upload_to="boundary-layers",
-        storage=vector_storage,
+        storage=default_storage,
         blank=True,
         null=True,
         help_text="Vector geometry file for visual representation in the GLAM application",
