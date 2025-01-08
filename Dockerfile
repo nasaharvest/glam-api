@@ -18,6 +18,9 @@ COPY pyproject.toml .
 RUN python -m pip install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install
+# Force no-binary rasterio install via pip
+RUN pip uninstall -y rasterio
+RUN pip install rasterio --no-binary rasterio --no-cache-dir
 
 # Copy project files
 COPY . .
