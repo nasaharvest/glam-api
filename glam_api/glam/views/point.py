@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 import numpy as np
+
+import rasterio
 from rio_tiler.io import COGReader
 
 from rest_framework import viewsets
@@ -177,100 +179,104 @@ class PointValue(viewsets.ViewSet):
 
         dataset_value = None
 
-        if cropmask:
-            mask_queryset = CropmaskRaster.objects.all()
-            mask_dataset = get_object_or_404(
-                mask_queryset,
-                product__product_id=product_id,
-                crop_mask__cropmask_id=cropmask,
-            )
+        with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
 
-            if not settings.USE_S3:
-                mask_path = mask_dataset.file_object.path
-            if settings.USE_S3:
-                mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
-
-            with COGReader(mask_path) as src:
-                mask_data = src.point(lon, lat)
-
-        with COGReader(path) as src:
-            data = src.point(lon, lat)
-            if data[0] == src.nodata:
-                dataset_value = None
-                result = {"value": "No Data"}
-                return Response(result)
-            else:
-                if cropmask:
-                    data = mask_data[0] * data[0]
-                else:
-                    data = data[0]
-                dataset_value = data
-
-        if anomaly_type:
-            anom_type = anomaly_type if anomaly_type else "mean"
-
-            if anom_type == "diff":
-                new_year = diff_year
-                new_date = product_dataset.date.replace(year=new_year)
-                anomaly_queryset = ProductRaster.objects.filter(
-                    product__product_id=product_id
-                )
-                closest = get_closest_to_date(anomaly_queryset, new_date)
-                try:
-                    anomaly_dataset = get_object_or_404(product_queryset, date=new_date)
-                except:
-                    anomaly_dataset = closest
-            else:
-                doy = product_dataset.date.timetuple().tm_yday
-                if product_id == "swi":
-                    swi_baselines = np.arange(1, 366, 5)
-                    idx = (np.abs(swi_baselines - doy)).argmin()
-                    doy = swi_baselines[idx]
-                if product_id == "chirps":
-                    doy = int(str(date.month) + f"{date.day:02d}")
-                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                anomaly_dataset = get_object_or_404(
-                    anomaly_queryset,
+            if cropmask:
+                mask_queryset = CropmaskRaster.objects.all()
+                mask_dataset = get_object_or_404(
+                    mask_queryset,
                     product__product_id=product_id,
-                    day_of_year=doy,
-                    baseline_length=anomaly,
-                    baseline_type=anom_type,
+                    crop_mask__cropmask_id=cropmask,
                 )
 
-            if not settings.USE_S3:
-                baseline_path = anomaly_dataset.file_object.path
-            if settings.USE_S3:
-                baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                if not settings.USE_S3:
+                    mask_path = mask_dataset.file_object.path
+                if settings.USE_S3:
+                    mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
-            with COGReader(baseline_path) as baseline_img:
-                baseline_data = baseline_img.point(lon, lat)
+                with COGReader(mask_path) as src:
+                    mask_data = src.point(lon, lat)
 
-                if baseline_data[0] == baseline_img.nodata:
+            with COGReader(path) as src:
+                data = src.point(lon, lat)
+                if data[0] == src.nodata:
+                    dataset_value = None
                     result = {"value": "No Data"}
+                    return Response(result)
                 else:
                     if cropmask:
-                        baseline_value = mask_data[0] * baseline_data[0]
+                        data = mask_data[0] * data[0]
                     else:
-                        baseline_value = baseline_data[0]
-                    diff = dataset_value - baseline_value
+                        data = data[0]
+                    dataset_value = data
+
+            if anomaly_type:
+                anom_type = anomaly_type if anomaly_type else "mean"
+
+                if anom_type == "diff":
+                    new_year = diff_year
+                    new_date = product_dataset.date.replace(year=new_year)
+                    anomaly_queryset = ProductRaster.objects.filter(
+                        product__product_id=product_id
+                    )
+                    closest = get_closest_to_date(anomaly_queryset, new_date)
+                    try:
+                        anomaly_dataset = get_object_or_404(
+                            product_queryset, date=new_date
+                        )
+                    except:
+                        anomaly_dataset = closest
+                else:
+                    doy = product_dataset.date.timetuple().tm_yday
+                    if product_id == "swi":
+                        swi_baselines = np.arange(1, 366, 5)
+                        idx = (np.abs(swi_baselines - doy)).argmin()
+                        doy = swi_baselines[idx]
+                    if product_id == "chirps":
+                        doy = int(str(date.month) + f"{date.day:02d}")
+                    anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                    anomaly_dataset = get_object_or_404(
+                        anomaly_queryset,
+                        product__product_id=product_id,
+                        day_of_year=doy,
+                        baseline_length=anomaly,
+                        baseline_type=anom_type,
+                    )
+
+                if not settings.USE_S3:
+                    baseline_path = anomaly_dataset.file_object.path
+                if settings.USE_S3:
+                    baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+
+                with COGReader(baseline_path) as baseline_img:
+                    baseline_data = baseline_img.point(lon, lat)
+
+                    if baseline_data[0] == baseline_img.nodata:
+                        result = {"value": "No Data"}
+                    else:
+                        if cropmask:
+                            baseline_value = mask_data[0] * baseline_data[0]
+                        else:
+                            baseline_value = baseline_data[0]
+                        diff = dataset_value - baseline_value
+                        result = {
+                            "value": float(
+                                Decimal(str(diff))
+                                * Decimal(str(product_dataset.product.variable.scale))
+                            )
+                        }
+
+                return Response(result)
+
+            else:
+                if dataset_value:
                     result = {
                         "value": float(
-                            Decimal(str(diff))
+                            Decimal(str(dataset_value))
                             * Decimal(str(product_dataset.product.variable.scale))
                         )
                     }
+                else:
+                    result = {"value": "No Data"}
 
-            return Response(result)
-
-        else:
-            if dataset_value:
-                result = {
-                    "value": float(
-                        Decimal(str(dataset_value))
-                        * Decimal(str(product_dataset.product.variable.scale))
-                    )
-                }
-            else:
-                result = {"value": "No Data"}
-
-            return Response(result)
+                return Response(result)

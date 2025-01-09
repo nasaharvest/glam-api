@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import datetime
 
+import rasterio
 from rio_tiler.io import COGReader
 from rio_tiler.utils import get_array_statistics
 
@@ -322,91 +323,96 @@ class Histogram(PandasViewSet):
                     path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
 
                 if geom["type"] == "Polygon" or geom["type"] == "MultiPolygon":
-
-                    with COGReader(path) as product_src:
-                        feat = product_src.feature(geom, max_size=1024)
-                        data = feat.as_masked()
-
-                    if cropmask:
-                        mask_queryset = CropmaskRaster.objects.all()
-                        mask_dataset = get_object_or_404(
-                            mask_queryset,
-                            product__product_id=product_id,
-                            crop_mask__cropmask_id=cropmask,
-                        )
-
-                        if not settings.USE_S3:
-                            mask_path = mask_dataset.file_object.path
-                        if settings.USE_S3:
-                            mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
-
-                        with COGReader(mask_path) as mask_src:
-                            mask_feat = mask_src.feature(geom, max_size=1024)
-                            mask_data = mask_feat.as_masked()
-
-                            data = data * mask_data
-
-                    if anomaly_type:
-                        anom_type = anomaly_type if anomaly_type else "mean"
-
-                        if anom_type == "diff":
-                            new_year = diff_year
-                            new_date = product_dataset.date.replace(year=new_year)
-                            anomaly_queryset = ProductRaster.objects.filter(
-                                product__product_id=product_id
-                            )
-                            closest = get_closest_to_date(anomaly_queryset, new_date)
-                            try:
-                                anomaly_dataset = get_object_or_404(
-                                    product_queryset, date=new_date
-                                )
-                            except:
-                                anomaly_dataset = closest
-                        else:
-                            doy = product_dataset.date.timetuple().tm_yday
-                            if product_id == "swi":
-                                swi_baselines = np.arange(1, 366, 5)
-                                idx = (np.abs(swi_baselines - doy)).argmin()
-                                doy = swi_baselines[idx]
-                            if product_id == "chirps":
-                                doy = int(str(date.month) + f"{date.day:02d}")
-                            anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                            anomaly_dataset = get_object_or_404(
-                                anomaly_queryset,
-                                product__product_id=product_id,
-                                day_of_year=doy,
-                                baseline_length=anomaly,
-                                baseline_type=anom_type,
-                            )
-
-                        if not settings.USE_S3:
-                            baseline_path = anomaly_dataset.file_object.path
-                        if settings.USE_S3:
-                            baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
-
-                        with COGReader(baseline_path) as baseline_src:
-                            baseline_feat = baseline_src.feature(geom, max_size=1024)
-                            baseline_data = baseline_feat.as_masked()
+                    with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
+                        with COGReader(path) as product_src:
+                            feat = product_src.feature(geom, max_size=1024)
+                            data = feat.as_masked()
 
                         if cropmask:
-                            # mask baseline data
-                            baseline_data = baseline_data * mask_data
+                            mask_queryset = CropmaskRaster.objects.all()
+                            mask_dataset = get_object_or_404(
+                                mask_queryset,
+                                product__product_id=product_id,
+                                crop_mask__cropmask_id=cropmask,
+                            )
 
-                        data = data - baseline_data
+                            if not settings.USE_S3:
+                                mask_path = mask_dataset.file_object.path
+                            if settings.USE_S3:
+                                mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
-                    stats = get_array_statistics(data, **hist_options)
-                    hist = stats[0]["histogram"][0]
-                    bin_edges = stats[0]["histogram"][1]
-                    new_bins = [
-                        x * product_dataset.product.variable.scale for x in bin_edges
-                    ]
+                            with COGReader(mask_path) as mask_src:
+                                mask_feat = mask_src.feature(geom, max_size=1024)
+                                mask_data = mask_feat.as_masked()
 
-                    result = {
-                        "date": product_dataset.date.strftime("%Y-%d-%m"),
-                        "hist": hist,
-                        "bin_edges": new_bins,
-                    }
-                    resp_list.append(result)
+                                data = data * mask_data
+
+                        if anomaly_type:
+                            anom_type = anomaly_type if anomaly_type else "mean"
+
+                            if anom_type == "diff":
+                                new_year = diff_year
+                                new_date = product_dataset.date.replace(year=new_year)
+                                anomaly_queryset = ProductRaster.objects.filter(
+                                    product__product_id=product_id
+                                )
+                                closest = get_closest_to_date(
+                                    anomaly_queryset, new_date
+                                )
+                                try:
+                                    anomaly_dataset = get_object_or_404(
+                                        product_queryset, date=new_date
+                                    )
+                                except:
+                                    anomaly_dataset = closest
+                            else:
+                                doy = product_dataset.date.timetuple().tm_yday
+                                if product_id == "swi":
+                                    swi_baselines = np.arange(1, 366, 5)
+                                    idx = (np.abs(swi_baselines - doy)).argmin()
+                                    doy = swi_baselines[idx]
+                                if product_id == "chirps":
+                                    doy = int(str(date.month) + f"{date.day:02d}")
+                                anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                                anomaly_dataset = get_object_or_404(
+                                    anomaly_queryset,
+                                    product__product_id=product_id,
+                                    day_of_year=doy,
+                                    baseline_length=anomaly,
+                                    baseline_type=anom_type,
+                                )
+
+                            if not settings.USE_S3:
+                                baseline_path = anomaly_dataset.file_object.path
+                            if settings.USE_S3:
+                                baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+
+                            with COGReader(baseline_path) as baseline_src:
+                                baseline_feat = baseline_src.feature(
+                                    geom, max_size=1024
+                                )
+                                baseline_data = baseline_feat.as_masked()
+
+                            if cropmask:
+                                # mask baseline data
+                                baseline_data = baseline_data * mask_data
+
+                            data = data - baseline_data
+
+                        stats = get_array_statistics(data, **hist_options)
+                        hist = stats[0]["histogram"][0]
+                        bin_edges = stats[0]["histogram"][1]
+                        new_bins = [
+                            x * product_dataset.product.variable.scale
+                            for x in bin_edges
+                        ]
+
+                        result = {
+                            "date": product_dataset.date.strftime("%Y-%d-%m"),
+                            "hist": hist,
+                            "bin_edges": new_bins,
+                        }
+                        resp_list.append(result)
                 else:
                     raise APIException(
                         "Geometry must be of type 'Polygon' or 'MultiPolygon"
@@ -495,106 +501,108 @@ class Histogram(PandasViewSet):
 
             resp_list = []
 
-            for year in years:
-                new_date = datetime.date(int(year), month, day)
-                product_dataset = get_closest_to_date(product_queryset, new_date)
+            with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
 
-                boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
-                boundary_feature = BoundaryFeature.objects.get(
-                    boundary_layer=boundary_layer, feature_id=feature_id
-                )
+                for year in years:
+                    new_date = datetime.date(int(year), month, day)
+                    product_dataset = get_closest_to_date(product_queryset, new_date)
 
-                if not settings.USE_S3:
-                    path = product_dataset.file_object.path
-                if settings.USE_S3:
-                    path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
-
-                geom = json.loads(boundary_feature.geom.geojson)
-
-                with COGReader(path) as product_src:
-                    feat = product_src.feature(geom, max_size=1024)
-                    data = feat.as_masked()
-
-                if cropmask:
-                    mask_queryset = CropmaskRaster.objects.all()
-                    mask_dataset = get_object_or_404(
-                        mask_queryset,
-                        product__product_id=product_id,
-                        crop_mask__cropmask_id=cropmask,
+                    boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
+                    boundary_feature = BoundaryFeature.objects.get(
+                        boundary_layer=boundary_layer, feature_id=feature_id
                     )
 
                     if not settings.USE_S3:
-                        mask_path = mask_dataset.file_object.path
+                        path = product_dataset.file_object.path
                     if settings.USE_S3:
-                        mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
+                        path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_dataset.file_object.name}"
 
-                    with COGReader(mask_path) as mask_src:
-                        mask_feat = mask_src.feature(geom, max_size=1024)
-                        mask_data = mask_feat.as_masked()
+                    geom = json.loads(boundary_feature.geom.geojson)
 
-                        data = data * mask_data
-
-                if anomaly_type:
-                    anom_type = anomaly_type if anomaly_type else "mean"
-
-                    if anom_type == "diff":
-                        new_year = diff_year
-                        new_date = product_dataset.date.replace(year=new_year)
-                        anomaly_queryset = ProductRaster.objects.filter(
-                            product__product_id=product_id
-                        )
-                        closest = get_closest_to_date(anomaly_queryset, new_date)
-                        try:
-                            anomaly_dataset = get_object_or_404(
-                                product_queryset, date=new_date
-                            )
-                        except:
-                            anomaly_dataset = closest
-                    else:
-                        doy = product_dataset.date.timetuple().tm_yday
-                        if product_id == "swi":
-                            swi_baselines = np.arange(1, 366, 5)
-                            idx = (np.abs(swi_baselines - doy)).argmin()
-                            doy = swi_baselines[idx]
-                        if product_id == "chirps":
-                            doy = int(str(date.month) + f"{date.day:02d}")
-                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                        anomaly_dataset = get_object_or_404(
-                            anomaly_queryset,
-                            product__product_id=product_id,
-                            day_of_year=doy,
-                            baseline_length=anomaly,
-                            baseline_type=anom_type,
-                        )
-
-                    if not settings.USE_S3:
-                        baseline_path = anomaly_dataset.file_object.path
-                    if settings.USE_S3:
-                        baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
-
-                    with COGReader(baseline_path) as baseline_src:
-                        baseline_feat = baseline_src.feature(geom, max_size=1024)
-                        baseline_data = baseline_feat.as_masked()
+                    with COGReader(path) as product_src:
+                        feat = product_src.feature(geom, max_size=1024)
+                        data = feat.as_masked()
 
                     if cropmask:
-                        # mask baseline data
-                        baseline_data = baseline_data * mask_data
+                        mask_queryset = CropmaskRaster.objects.all()
+                        mask_dataset = get_object_or_404(
+                            mask_queryset,
+                            product__product_id=product_id,
+                            crop_mask__cropmask_id=cropmask,
+                        )
 
-                    data = data - baseline_data
+                        if not settings.USE_S3:
+                            mask_path = mask_dataset.file_object.path
+                        if settings.USE_S3:
+                            mask_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_dataset.file_object.name}"
 
-                stats = get_array_statistics(data, **hist_options)
-                hist = stats[0]["histogram"][0]
-                bin_edges = stats[0]["histogram"][1]
-                new_bins = [
-                    x * product_dataset.product.variable.scale for x in bin_edges
-                ]
+                        with COGReader(mask_path) as mask_src:
+                            mask_feat = mask_src.feature(geom, max_size=1024)
+                            mask_data = mask_feat.as_masked()
 
-                result = {
-                    "date": product_dataset.date.strftime("%Y-%d-%m"),
-                    "hist": hist,
-                    "bin_edges": new_bins,
-                }
-                resp_list.append(result)
+                            data = data * mask_data
+
+                    if anomaly_type:
+                        anom_type = anomaly_type if anomaly_type else "mean"
+
+                        if anom_type == "diff":
+                            new_year = diff_year
+                            new_date = product_dataset.date.replace(year=new_year)
+                            anomaly_queryset = ProductRaster.objects.filter(
+                                product__product_id=product_id
+                            )
+                            closest = get_closest_to_date(anomaly_queryset, new_date)
+                            try:
+                                anomaly_dataset = get_object_or_404(
+                                    product_queryset, date=new_date
+                                )
+                            except:
+                                anomaly_dataset = closest
+                        else:
+                            doy = product_dataset.date.timetuple().tm_yday
+                            if product_id == "swi":
+                                swi_baselines = np.arange(1, 366, 5)
+                                idx = (np.abs(swi_baselines - doy)).argmin()
+                                doy = swi_baselines[idx]
+                            if product_id == "chirps":
+                                doy = int(str(date.month) + f"{date.day:02d}")
+                            anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                            anomaly_dataset = get_object_or_404(
+                                anomaly_queryset,
+                                product__product_id=product_id,
+                                day_of_year=doy,
+                                baseline_length=anomaly,
+                                baseline_type=anom_type,
+                            )
+
+                        if not settings.USE_S3:
+                            baseline_path = anomaly_dataset.file_object.path
+                        if settings.USE_S3:
+                            baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+
+                        with COGReader(baseline_path) as baseline_src:
+                            baseline_feat = baseline_src.feature(geom, max_size=1024)
+                            baseline_data = baseline_feat.as_masked()
+
+                        if cropmask:
+                            # mask baseline data
+                            baseline_data = baseline_data * mask_data
+
+                        data = data - baseline_data
+
+                    stats = get_array_statistics(data, **hist_options)
+                    hist = stats[0]["histogram"][0]
+                    bin_edges = stats[0]["histogram"][1]
+                    new_bins = [
+                        x * product_dataset.product.variable.scale for x in bin_edges
+                    ]
+
+                    result = {
+                        "date": product_dataset.date.strftime("%Y-%d-%m"),
+                        "hist": hist,
+                        "bin_edges": new_bins,
+                    }
+                    resp_list.append(result)
 
             output = pd.DataFrame(resp_list)
             output.set_index("date")

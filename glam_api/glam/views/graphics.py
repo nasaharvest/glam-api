@@ -23,6 +23,7 @@ import numpy as np
 import matplotlib
 from matplotlib.colors import ListedColormap
 
+import rasterio
 from rio_tiler.io import COGReader
 
 import matplotlib.pyplot as plt
@@ -317,177 +318,193 @@ class GraphicsViewSet(viewsets.ViewSet):
 
         boundary_feature_geom = boundary_feature.geom.simplify(scale_factor)
 
-        with COGReader(
-            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
-        ) as image:
-            feat = image.feature(
-                json.loads(boundary_feature_geom.geojson), max_size=1024
-            )
-
-        image = feat.as_masked()
-
-        if anomaly_type:
-            anom_type = anomaly_type if anomaly_type else "mean"
-
-            if anom_type == "diff":
-                new_year = diff_year
-                new_date = product_ds.date.replace(year=new_year)
-                anomaly_queryset = ProductRaster.objects.filter(
-                    product__product_id=product_id
-                )
-                closest = get_closest_to_date(anomaly_queryset, new_date)
-                try:
-                    anomaly_ds = get_object_or_404(anomaly_queryset, date=new_date)
-                except:
-                    anomaly_ds = closest
-
-            else:
-                doy = product_ds.date.timetuple().tm_yday
-                if product_id == "swi":
-                    swi_baselines = np.arange(1, 366, 5)
-                    idx = (np.abs(swi_baselines - doy)).argmin()
-                    doy = swi_baselines[idx]
-                if product_id == "chirps":
-                    doy = int(str(date.month) + f"{date.day:02d}")
-                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                anomaly_ds = get_object_or_404(
-                    anomaly_queryset,
-                    product=product,
-                    day_of_year=doy,
-                    baseline_length=anomaly,
-                    baseline_type=anom_type,
-                )
-
+        with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
             with COGReader(
-                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
-            ) as anom_img:
-                anom_feat = anom_img.feature(
+                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
+            ) as image:
+                feat = image.feature(
                     json.loads(boundary_feature_geom.geojson), max_size=1024
                 )
 
-            image = image - anom_feat.as_masked()
+            image = feat.as_masked()
 
-        if cropmask_id != "no-mask":
-            mask = CropMask.objects.get(cropmask_id=cropmask_id)
-            mask_queryset = CropmaskRaster.objects.all()
-            mask_ds = get_object_or_404(
-                mask_queryset, product__product_id=product_id, crop_mask=mask
-            )
+            if anomaly_type:
+                anom_type = anomaly_type if anomaly_type else "mean"
 
-            with COGReader(
-                f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
-            ) as mask_img:
-                mask_feat = mask_img.feature(
-                    json.loads(boundary_feature_geom.geojson), max_size=1024
+                if anom_type == "diff":
+                    new_year = diff_year
+                    new_date = product_ds.date.replace(year=new_year)
+                    anomaly_queryset = ProductRaster.objects.filter(
+                        product__product_id=product_id
+                    )
+                    closest = get_closest_to_date(anomaly_queryset, new_date)
+                    try:
+                        anomaly_ds = get_object_or_404(anomaly_queryset, date=new_date)
+                    except:
+                        anomaly_ds = closest
+
+                else:
+                    doy = product_ds.date.timetuple().tm_yday
+                    if product_id == "swi":
+                        swi_baselines = np.arange(1, 366, 5)
+                        idx = (np.abs(swi_baselines - doy)).argmin()
+                        doy = swi_baselines[idx]
+                    if product_id == "chirps":
+                        doy = int(str(date.month) + f"{date.day:02d}")
+                    anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                    anomaly_ds = get_object_or_404(
+                        anomaly_queryset,
+                        product=product,
+                        day_of_year=doy,
+                        baseline_length=anomaly,
+                        baseline_type=anom_type,
+                    )
+
+                with COGReader(
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
+                ) as anom_img:
+                    anom_feat = anom_img.feature(
+                        json.loads(boundary_feature_geom.geojson), max_size=1024
+                    )
+
+                image = image - anom_feat.as_masked()
+
+            if cropmask_id != "no-mask":
+                mask = CropMask.objects.get(cropmask_id=cropmask_id)
+                mask_queryset = CropmaskRaster.objects.all()
+                mask_ds = get_object_or_404(
+                    mask_queryset, product__product_id=product_id, crop_mask=mask
                 )
 
-            image = image * mask_feat.as_masked()
+                with COGReader(
+                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
+                ) as mask_img:
+                    mask_feat = mask_img.feature(
+                        json.loads(boundary_feature_geom.geojson), max_size=1024
+                    )
 
-        admin_0 = Tag.objects.get(name="ADM0")
-        admin_1 = Tag.objects.get(name="ADM1")
+                image = image * mask_feat.as_masked()
 
-        admin_level = None
+            admin_0 = Tag.objects.get(name="ADM0")
+            admin_1 = Tag.objects.get(name="ADM1")
 
-        if admin_1 in boundary_layer.tags.all():
-            admin_level = admin_1
-            buff = 1
-        elif admin_0 in boundary_layer.tags.all():
-            admin_level = admin_0
-            buff = 2
-        else:
             admin_level = None
-            buff = 1
 
-        boundary_feature_buffer = wkt.loads(boundary_feature_geom.buffer(buff).wkt)
-        boundary_feature_geom = wkt.loads(boundary_feature_geom.wkt)
+            if admin_1 in boundary_layer.tags.all():
+                admin_level = admin_1
+                buff = 1
+            elif admin_0 in boundary_layer.tags.all():
+                admin_level = admin_0
+                buff = 2
+            else:
+                admin_level = None
+                buff = 1
 
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(1, 1, 1, frameon=False)
+            boundary_feature_buffer = wkt.loads(boundary_feature_geom.buffer(buff).wkt)
+            boundary_feature_geom = wkt.loads(boundary_feature_geom.wkt)
 
-        # set wider extent
-        x1, y1, x2, y2 = boundary_feature_buffer.bounds
-        ax.set_xlim([x1, x2])
-        ax.set_ylim([y1, y2])
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(1, 1, 1, frameon=False)
 
-        # remove ticks
-        ax.axes.xaxis.set_visible(False)
-        ax.axes.yaxis.set_visible(False)
+            # set wider extent
+            x1, y1, x2, y2 = boundary_feature_buffer.bounds
+            ax.set_xlim([x1, x2])
+            ax.set_ylim([y1, y2])
 
-        extent = [
-            boundary_feature_geom.bounds[0],
-            boundary_feature_geom.bounds[2],
-            boundary_feature_geom.bounds[1],
-            boundary_feature_geom.bounds[3],
-        ]
+            # remove ticks
+            ax.axes.xaxis.set_visible(False)
+            ax.axes.yaxis.set_visible(False)
 
-        colormap = (
-            product.meta["graphic_anomaly"]
-            if anomaly
-            else product.meta["graphic_colormap"]
-        )
-        if product.variable.variable_id == "modis-ndvi" and not anomaly:
-            ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-                "ndvi",
-                [
-                    "#fffee1",
-                    "#ffe1c8",
-                    "#f5c98c",
-                    "#ffdd55",
-                    "#ebbe37",
-                    "#faffb4",
-                    "#e6fa9b",
-                    "#cdff69",
-                    "#aff05a",
-                    "#a0f5a5",
-                    "#82e187",
-                    "#78c878",
-                    "#9ec66c",
-                    "#8caf46",
-                    "#46b928",
-                    "#329614",
-                    "#147850",
-                    "#1e5000",
-                    "#003200",
-                ],
-                256,
+            extent = [
+                boundary_feature_geom.bounds[0],
+                boundary_feature_geom.bounds[2],
+                boundary_feature_geom.bounds[1],
+                boundary_feature_geom.bounds[3],
+            ]
+
+            colormap = (
+                product.meta["graphic_anomaly"]
+                if anomaly
+                else product.meta["graphic_colormap"]
             )
-            x = np.linspace(0, 1, 256)
-            cmap_vals = ndvi(x)[:, :]
-            ndvi_cm = ListedColormap(cmap_vals)
-            colormap = ndvi_cm
+            if product.variable.variable_id == "modis-ndvi" and not anomaly:
+                ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
+                    "ndvi",
+                    [
+                        "#fffee1",
+                        "#ffe1c8",
+                        "#f5c98c",
+                        "#ffdd55",
+                        "#ebbe37",
+                        "#faffb4",
+                        "#e6fa9b",
+                        "#cdff69",
+                        "#aff05a",
+                        "#a0f5a5",
+                        "#82e187",
+                        "#78c878",
+                        "#9ec66c",
+                        "#8caf46",
+                        "#46b928",
+                        "#329614",
+                        "#147850",
+                        "#1e5000",
+                        "#003200",
+                    ],
+                    256,
+                )
+                x = np.linspace(0, 1, 256)
+                cmap_vals = ndvi(x)[:, :]
+                ndvi_cm = ListedColormap(cmap_vals)
+                colormap = ndvi_cm
 
-        stretch = (
-            product.meta["anomaly_stretch"]
-            if (anomaly or anomaly_type == "diff")
-            else product.meta["default_stretch"]
-        )
-
-        image = ax.imshow(
-            image[0],
-            extent=extent,
-            cmap=colormap,
-            vmin=stretch[0],
-            vmax=stretch[1],
-            zorder=1,
-        )
-
-        ax.set_facecolor(BLUE)
-
-        if admin_level:
-            feature_intersects = BoundaryFeature.objects.filter(
-                boundary_layer__tags=admin_level,
-                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+            stretch = (
+                product.meta["anomaly_stretch"]
+                if (anomaly or anomaly_type == "diff")
+                else product.meta["default_stretch"]
             )
-        else:
-            feature_intersects = BoundaryFeature.objects.filter(
-                boundary_layer=boundary_layer,
-                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+
+            image = ax.imshow(
+                image[0],
+                extent=extent,
+                cmap=colormap,
+                vmin=stretch[0],
+                vmax=stretch[1],
+                zorder=1,
             )
-            countries = BoundaryFeature.objects.filter(
-                boundary_layer__tags=admin_0,
-                geom__intersects=boundary_feature.geom.buffer(buff).envelope,
-            )
-            for feature in countries:
+
+            ax.set_facecolor(BLUE)
+
+            if admin_level:
+                feature_intersects = BoundaryFeature.objects.filter(
+                    boundary_layer__tags=admin_level,
+                    geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+                )
+            else:
+                feature_intersects = BoundaryFeature.objects.filter(
+                    boundary_layer=boundary_layer,
+                    geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+                )
+                countries = BoundaryFeature.objects.filter(
+                    boundary_layer__tags=admin_0,
+                    geom__intersects=boundary_feature.geom.buffer(buff).envelope,
+                )
+                for feature in countries:
+                    wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
+                    try:
+                        patch = PolygonPatch(
+                            wktgeom,
+                            fc=land,
+                            ec="black",
+                            linestyle=":",
+                            alpha=1,
+                            zorder=0,
+                        )
+                    except:
+                        pass
+                    ax.add_patch(patch)
+
+            for feature in feature_intersects:
                 wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
                 try:
                     patch = PolygonPatch(
@@ -497,100 +514,90 @@ class GraphicsViewSet(viewsets.ViewSet):
                     pass
                 ax.add_patch(patch)
 
-        for feature in feature_intersects:
-            wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
-            try:
-                patch = PolygonPatch(
-                    wktgeom, fc=land, ec="black", linestyle=":", alpha=1, zorder=0
+            feature_fill = PolygonPatch(
+                boundary_feature_geom, fc=GRAY, linewidth=0, alpha=0.5, zorder=0.5
+            )
+            feature_border = PolygonPatch(
+                boundary_feature_geom,
+                color="black",
+                linewidth=1.5,
+                fill=False,
+                alpha=1,
+                zorder=2,
+            )
+            ax.add_patch(feature_border)
+            ax.add_patch(feature_fill)
+
+            if label:
+                feature_label = f"Region: {str(boundary_feature_name)}"
+                date_label = f"\nDate: {str(date)}"
+                product_label = f"\nProduct: {str(product.display_name)}"
+                cropmask_label = (
+                    f"\nCrop Mask: {str(mask.display_name)}"
+                    if cropmask_id != "no-mask"
+                    else ""
                 )
-            except:
-                pass
-            ax.add_patch(patch)
 
-        feature_fill = PolygonPatch(
-            boundary_feature_geom, fc=GRAY, linewidth=0, alpha=0.5, zorder=0.5
-        )
-        feature_border = PolygonPatch(
-            boundary_feature_geom,
-            color="black",
-            linewidth=1.5,
-            fill=False,
-            alpha=1,
-            zorder=2,
-        )
-        ax.add_patch(feature_border)
-        ax.add_patch(feature_fill)
+                if anomaly_type == "diff":
+                    anomaly_label = f"\nAnomaly: Difference Image vs. {diff_year}"
+                elif anomaly_type:
+                    anomaly_label = f"\nAnomaly: {str(anom_type).capitalize()}"
+                else:
+                    anomaly_label = ""
 
-        if label:
-            feature_label = f"Region: {str(boundary_feature_name)}"
-            date_label = f"\nDate: {str(date)}"
-            product_label = f"\nProduct: {str(product.display_name)}"
-            cropmask_label = (
-                f"\nCrop Mask: {str(mask.display_name)}"
-                if cropmask_id != "no-mask"
-                else ""
+                anomaly_duration = f" - {anomaly}" if anomaly else ""
+                # anomaly_diff = f'{}'
+
+                label = (
+                    feature_label
+                    + date_label
+                    + product_label
+                    + anomaly_label
+                    + anomaly_duration
+                    + cropmask_label
+                )
+
+                text = AnchoredText(
+                    label, loc="lower right", prop={"size": 8}, frameon=True
+                )
+                ax.add_artist(text)
+
+            # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
+
+            # legend_inset.axes.xaxis.set_visible(False)
+            # legend_inset.axes.yaxis.set_visible(False)
+            # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
+            if legend:
+                cbaxes = inset_axes(ax, "33%", "3%", loc="upper right", borderpad=1)
+                cbaxes.tick_params(labelsize=8)
+
+                # fig.colorbar(image, cax=cbaxes)
+                cb = fig.colorbar(
+                    image, cax=cbaxes, orientation="horizontal", format=formatter
+                )
+                # cb.ax.xaxis.set_tick_params(color="white")
+                cb.set_label(label=product_variable, fontsize=8)
+
+            # cbaxes.xaxis.set_ticks_position('top')
+            # legend_inset.set_visible(False)
+
+            glam_logo = DataSource.objects.get(source_id="glam").logo.url
+            logo = plt.imread(glam_logo)
+            logo_ax = inset_axes(ax, width="15%", height="10%", loc="lower left")
+            logo_ax.imshow(logo, alpha=0.75, origin="upper")
+            logo_ax.axis("off")
+
+            response = HttpResponse(content_type="image/png")
+
+            fig.savefig(
+                response,
+                transparent=True,
+                facecolor=BLUE,
+                bbox_inches="tight",
+                pad_inches=0,
             )
 
-            if anomaly_type == "diff":
-                anomaly_label = f"\nAnomaly: Difference Image vs. {diff_year}"
-            elif anomaly_type:
-                anomaly_label = f"\nAnomaly: {str(anom_type).capitalize()}"
-            else:
-                anomaly_label = ""
-
-            anomaly_duration = f" - {anomaly}" if anomaly else ""
-            # anomaly_diff = f'{}'
-
-            label = (
-                feature_label
-                + date_label
-                + product_label
-                + anomaly_label
-                + anomaly_duration
-                + cropmask_label
-            )
-
-            text = AnchoredText(
-                label, loc="lower right", prop={"size": 8}, frameon=True
-            )
-            ax.add_artist(text)
-
-        # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
-
-        # legend_inset.axes.xaxis.set_visible(False)
-        # legend_inset.axes.yaxis.set_visible(False)
-        # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
-        if legend:
-            cbaxes = inset_axes(ax, "33%", "3%", loc="upper right", borderpad=1)
-            cbaxes.tick_params(labelsize=8)
-
-            # fig.colorbar(image, cax=cbaxes)
-            cb = fig.colorbar(
-                image, cax=cbaxes, orientation="horizontal", format=formatter
-            )
-            # cb.ax.xaxis.set_tick_params(color="white")
-            cb.set_label(label=product_variable, fontsize=8)
-
-        # cbaxes.xaxis.set_ticks_position('top')
-        # legend_inset.set_visible(False)
-
-        glam_logo = DataSource.objects.get(source_id="glam").logo.url
-        logo = plt.imread(glam_logo)
-        logo_ax = inset_axes(ax, width="15%", height="10%", loc="lower left")
-        logo_ax.imshow(logo, alpha=0.75, origin="upper")
-        logo_ax.axis("off")
-
-        response = HttpResponse(content_type="image/png")
-
-        fig.savefig(
-            response,
-            transparent=True,
-            facecolor=BLUE,
-            bbox_inches="tight",
-            pad_inches=0,
-        )
-
-        return Response(response)
+            return Response(response)
 
     @swagger_auto_schema(
         operation_id="custom graphic",
@@ -671,249 +678,266 @@ class GraphicsViewSet(viewsets.ViewSet):
                     buff = 1
                     admin_level = admin_1
 
-                with COGReader(
-                    f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
-                ) as image:
-                    feat = image.feature(
-                        json.loads(boundary_feature_geom.geojson), max_size=1024
+                with rasterio.Env(**settings.GDAL_CONFIG_OPTIONS) as env:
+
+                    with COGReader(
+                        f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{product_ds.file_object.name}"
+                    ) as image:
+                        feat = image.feature(
+                            json.loads(boundary_feature_geom.geojson), max_size=1024
+                        )
+
+                    image = feat.as_masked()
+
+                    if anomaly_type:
+                        anom_type = anomaly_type if anomaly_type else "mean"
+
+                        if anom_type == "diff":
+                            new_year = diff_year
+                            new_date = product_ds.date.replace(year=new_year)
+                            anomaly_queryset = ProductRaster.objects.filter(
+                                product__product_id=product_id
+                            )
+                            closest = get_closest_to_date(anomaly_queryset, new_date)
+
+                            try:
+                                anomaly_ds = get_object_or_404(
+                                    anomaly_queryset, date=new_date
+                                )
+                            except:
+                                anomaly_ds = closest
+
+                        else:
+                            doy = product_ds.date.timetuple().tm_yday
+                            if product_id == "swi":
+                                swi_baselines = np.arange(1, 366, 5)
+                                idx = (np.abs(swi_baselines - doy)).argmin()
+                                doy = swi_baselines[idx]
+                            if product_id == "chirps":
+                                doy = int(str(date.month) + f"{date.day:02d}")
+                            anomaly_queryset = AnomalyBaselineRaster.objects.all()
+                            anomaly_ds = get_object_or_404(
+                                anomaly_queryset,
+                                product=product,
+                                day_of_year=doy,
+                                baseline_length=anomaly,
+                                baseline_type=anom_type,
+                            )
+
+                        with COGReader(
+                            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
+                        ) as anom_img:
+                            anom_feat = anom_img.feature(geom, max_size=1024)
+
+                        image = image - anom_feat.as_masked()
+
+                    if cropmask_id != "no-mask":
+                        mask = CropMask.objects.get(cropmask_id=cropmask_id)
+                        mask_queryset = CropmaskRaster.objects.all()
+                        mask_ds = get_object_or_404(
+                            mask_queryset,
+                            product__product_id=product_id,
+                            crop_mask=mask,
+                        )
+
+                        with COGReader(
+                            f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
+                        ) as mask_img:
+                            mask_feat = mask_img.feature(geom, max_size=1024)
+
+                        image = image * mask_feat.as_masked()
+
+                    boundary_feature_buffer = wkt.loads(
+                        boundary_feature_geom.buffer(buff).wkt
                     )
 
-                image = feat.as_masked()
+                    fig = plt.figure(figsize=figsize)
+                    ax = fig.add_subplot(1, 1, 1, frameon=False)
 
-                if anomaly_type:
-                    anom_type = anomaly_type if anomaly_type else "mean"
+                    # set wider extent
+                    x1, y1, x2, y2 = boundary_feature_buffer.bounds
+                    ax.set_xlim([x1, x2])
+                    ax.set_ylim([y1, y2])
 
-                    if anom_type == "diff":
-                        new_year = diff_year
-                        new_date = product_ds.date.replace(year=new_year)
-                        anomaly_queryset = ProductRaster.objects.filter(
-                            product__product_id=product_id
+                    # remove ticks
+                    ax.axes.xaxis.set_visible(False)
+                    ax.axes.yaxis.set_visible(False)
+
+                    # extent = [
+                    #     feature_geom.bounds[0],
+                    #     feature_geom.bounds[2],
+                    #     feature_geom.bounds[1],
+                    #     feature_geom.bounds[3],
+                    # ]
+                    # # scale = scale_from_extent(extent)
+
+                    colormap = (
+                        product.meta["graphic_anomaly"]
+                        if anomaly
+                        else product.meta["graphic_colormap"]
+                    )
+                    if product.variable.variable_id == "modis-ndvi" and not anomaly:
+                        ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
+                            "ndvi",
+                            [
+                                "#fffee1",
+                                "#ffe1c8",
+                                "#f5c98c",
+                                "#ffdd55",
+                                "#ebbe37",
+                                "#faffb4",
+                                "#e6fa9b",
+                                "#cdff69",
+                                "#aff05a",
+                                "#a0f5a5",
+                                "#82e187",
+                                "#78c878",
+                                "#9ec66c",
+                                "#8caf46",
+                                "#46b928",
+                                "#329614",
+                                "#147850",
+                                "#1e5000",
+                                "#003200",
+                            ],
+                            256,
                         )
-                        closest = get_closest_to_date(anomaly_queryset, new_date)
+                        x = np.linspace(0, 1, 256)
+                        cmap_vals = ndvi(x)[:, :]
+                        ndvi_cm = ListedColormap(cmap_vals)
+                        colormap = ndvi_cm
 
+                    stretch = (
+                        product.meta["anomaly_stretch"]
+                        if (anomaly or anomaly_type == "diff")
+                        else product.meta["default_stretch"]
+                    )
+
+                    image = ax.imshow(
+                        image[0],
+                        extent=extent,
+                        cmap=colormap,
+                        vmin=stretch[0],
+                        vmax=stretch[1],
+                        zorder=1,
+                    )
+
+                    feature_intersects = BoundaryFeature.objects.filter(
+                        boundary_layer__tags=admin_level,
+                        geom__intersects=boundary_feature_geom.buffer(buff).envelope,
+                    )
+                    for feature in feature_intersects:
+                        wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
                         try:
-                            anomaly_ds = get_object_or_404(
-                                anomaly_queryset, date=new_date
+                            patch = PolygonPatch(
+                                wktgeom,
+                                fc=land,
+                                ec="black",
+                                linestyle=":",
+                                alpha=1,
+                                zorder=0,
                             )
                         except:
-                            anomaly_ds = closest
+                            pass
+                        ax.add_patch(patch)
 
-                    else:
-                        doy = product_ds.date.timetuple().tm_yday
-                        if product_id == "swi":
-                            swi_baselines = np.arange(1, 366, 5)
-                            idx = (np.abs(swi_baselines - doy)).argmin()
-                            doy = swi_baselines[idx]
-                        if product_id == "chirps":
-                            doy = int(str(date.month) + f"{date.day:02d}")
-                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                        anomaly_ds = get_object_or_404(
-                            anomaly_queryset,
-                            product=product,
-                            day_of_year=doy,
-                            baseline_length=anomaly,
-                            baseline_type=anom_type,
+                    feature_fill = PolygonPatch(
+                        boundary_feature_geom,
+                        fc=GRAY,
+                        linewidth=0,
+                        alpha=0.5,
+                        zorder=0.5,
+                    )
+                    feature_border = PolygonPatch(
+                        boundary_feature_geom,
+                        color="black",
+                        linewidth=1.5,
+                        fill=False,
+                        alpha=1,
+                        zorder=2,
+                    )
+                    ax.add_patch(feature_border)
+                    ax.add_patch(feature_fill)
+
+                    if label:
+                        feature_label = f"Region: Custom Geometry"
+                        date_label = f"\nDate: {str(date)}"
+                        product_label = f"\nProduct: {str(product.display_name)}"
+                        cropmask_label = (
+                            f"\nCrop Mask: {str(mask.display_name)}"
+                            if cropmask_id != "no-mask"
+                            else ""
                         )
 
-                    with COGReader(
-                        f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_ds.file_object.name}"
-                    ) as anom_img:
-                        anom_feat = anom_img.feature(geom, max_size=1024)
+                        if anomaly_type == "diff":
+                            anomaly_label = (
+                                f"\nAnomaly: Difference Image vs. {diff_year}"
+                            )
+                        elif anomaly_type:
+                            anomaly_label = f"\nAnomaly: {str(anom_type).capitalize()}"
+                        else:
+                            anomaly_label = ""
 
-                    image = image - anom_feat.as_masked()
+                        anomaly_duration = f" - {anomaly}" if anomaly else ""
+                        # anomaly_diff = f'{}'
 
-                if cropmask_id != "no-mask":
-                    mask = CropMask.objects.get(cropmask_id=cropmask_id)
-                    mask_queryset = CropmaskRaster.objects.all()
-                    mask_ds = get_object_or_404(
-                        mask_queryset, product__product_id=product_id, crop_mask=mask
-                    )
-
-                    with COGReader(
-                        f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{mask_ds.file_object.name}"
-                    ) as mask_img:
-                        mask_feat = mask_img.feature(geom, max_size=1024)
-
-                    image = image * mask_feat.as_masked()
-
-                boundary_feature_buffer = wkt.loads(
-                    boundary_feature_geom.buffer(buff).wkt
-                )
-
-                fig = plt.figure(figsize=figsize)
-                ax = fig.add_subplot(1, 1, 1, frameon=False)
-
-                # set wider extent
-                x1, y1, x2, y2 = boundary_feature_buffer.bounds
-                ax.set_xlim([x1, x2])
-                ax.set_ylim([y1, y2])
-
-                # remove ticks
-                ax.axes.xaxis.set_visible(False)
-                ax.axes.yaxis.set_visible(False)
-
-                # extent = [
-                #     feature_geom.bounds[0],
-                #     feature_geom.bounds[2],
-                #     feature_geom.bounds[1],
-                #     feature_geom.bounds[3],
-                # ]
-                # # scale = scale_from_extent(extent)
-
-                colormap = (
-                    product.meta["graphic_anomaly"]
-                    if anomaly
-                    else product.meta["graphic_colormap"]
-                )
-                if product.variable.variable_id == "modis-ndvi" and not anomaly:
-                    ndvi = matplotlib.colors.LinearSegmentedColormap.from_list(
-                        "ndvi",
-                        [
-                            "#fffee1",
-                            "#ffe1c8",
-                            "#f5c98c",
-                            "#ffdd55",
-                            "#ebbe37",
-                            "#faffb4",
-                            "#e6fa9b",
-                            "#cdff69",
-                            "#aff05a",
-                            "#a0f5a5",
-                            "#82e187",
-                            "#78c878",
-                            "#9ec66c",
-                            "#8caf46",
-                            "#46b928",
-                            "#329614",
-                            "#147850",
-                            "#1e5000",
-                            "#003200",
-                        ],
-                        256,
-                    )
-                    x = np.linspace(0, 1, 256)
-                    cmap_vals = ndvi(x)[:, :]
-                    ndvi_cm = ListedColormap(cmap_vals)
-                    colormap = ndvi_cm
-
-                stretch = (
-                    product.meta["anomaly_stretch"]
-                    if (anomaly or anomaly_type == "diff")
-                    else product.meta["default_stretch"]
-                )
-
-                image = ax.imshow(
-                    image[0],
-                    extent=extent,
-                    cmap=colormap,
-                    vmin=stretch[0],
-                    vmax=stretch[1],
-                    zorder=1,
-                )
-
-                feature_intersects = BoundaryFeature.objects.filter(
-                    boundary_layer__tags=admin_level,
-                    geom__intersects=boundary_feature_geom.buffer(buff).envelope,
-                )
-                for feature in feature_intersects:
-                    wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
-                    try:
-                        patch = PolygonPatch(
-                            wktgeom,
-                            fc=land,
-                            ec="black",
-                            linestyle=":",
-                            alpha=1,
-                            zorder=0,
+                        label = (
+                            feature_label
+                            + date_label
+                            + product_label
+                            + anomaly_label
+                            + anomaly_duration
+                            + cropmask_label
                         )
-                    except:
-                        pass
-                    ax.add_patch(patch)
 
-                feature_fill = PolygonPatch(
-                    boundary_feature_geom, fc=GRAY, linewidth=0, alpha=0.5, zorder=0.5
-                )
-                feature_border = PolygonPatch(
-                    boundary_feature_geom,
-                    color="black",
-                    linewidth=1.5,
-                    fill=False,
-                    alpha=1,
-                    zorder=2,
-                )
-                ax.add_patch(feature_border)
-                ax.add_patch(feature_fill)
+                        text = AnchoredText(
+                            label, loc="lower right", prop={"size": 8}, frameon=True
+                        )
+                        ax.add_artist(text)
 
-                if label:
-                    feature_label = f"Region: Custom Geometry"
-                    date_label = f"\nDate: {str(date)}"
-                    product_label = f"\nProduct: {str(product.display_name)}"
-                    cropmask_label = (
-                        f"\nCrop Mask: {str(mask.display_name)}"
-                        if cropmask_id != "no-mask"
-                        else ""
+                    # # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
+
+                    # # legend_inset.axes.xaxis.set_visible(False)
+                    # # legend_inset.axes.yaxis.set_visible(False)
+                    # # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
+                    if legend:
+                        cbaxes = inset_axes(
+                            ax, "33%", "3%", loc="upper right", borderpad=1
+                        )
+                        cbaxes.tick_params(labelsize=8)
+
+                        # fig.colorbar(image, cax=cbaxes)
+                        cb = fig.colorbar(
+                            image,
+                            cax=cbaxes,
+                            orientation="horizontal",
+                            format=formatter,
+                        )
+                        # cb.ax.xaxis.set_tick_params(color="white")
+                        cb.set_label(label=product_variable, fontsize=8)
+
+                    # # cbaxes.xaxis.set_ticks_position('top')
+                    # # legend_inset.set_visible(False)
+
+                    glam_logo = DataSource.objects.get(source_id="glam").logo.url
+                    logo = plt.imread(glam_logo)
+                    logo_ax = inset_axes(
+                        ax, width="15%", height="10%", loc="lower left"
+                    )
+                    logo_ax.imshow(logo, alpha=0.75, origin="upper")
+                    logo_ax.axis("off")
+
+                    response = HttpResponse(content_type="image/png")
+
+                    fig.savefig(
+                        response,
+                        transparent=True,
+                        facecolor=BLUE,
+                        bbox_inches="tight",
+                        pad_inches=0,
                     )
 
-                    if anomaly_type == "diff":
-                        anomaly_label = f"\nAnomaly: Difference Image vs. {diff_year}"
-                    elif anomaly_type:
-                        anomaly_label = f"\nAnomaly: {str(anom_type).capitalize()}"
-                    else:
-                        anomaly_label = ""
-
-                    anomaly_duration = f" - {anomaly}" if anomaly else ""
-                    # anomaly_diff = f'{}'
-
-                    label = (
-                        feature_label
-                        + date_label
-                        + product_label
-                        + anomaly_label
-                        + anomaly_duration
-                        + cropmask_label
-                    )
-
-                    text = AnchoredText(
-                        label, loc="lower right", prop={"size": 8}, frameon=True
-                    )
-                    ax.add_artist(text)
-
-                # # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
-
-                # # legend_inset.axes.xaxis.set_visible(False)
-                # # legend_inset.axes.yaxis.set_visible(False)
-                # # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
-                if legend:
-                    cbaxes = inset_axes(ax, "33%", "3%", loc="upper right", borderpad=1)
-                    cbaxes.tick_params(labelsize=8)
-
-                    # fig.colorbar(image, cax=cbaxes)
-                    cb = fig.colorbar(
-                        image, cax=cbaxes, orientation="horizontal", format=formatter
-                    )
-                    # cb.ax.xaxis.set_tick_params(color="white")
-                    cb.set_label(label=product_variable, fontsize=8)
-
-                # # cbaxes.xaxis.set_ticks_position('top')
-                # # legend_inset.set_visible(False)
-
-                glam_logo = DataSource.objects.get(source_id="glam").logo.url
-                logo = plt.imread(glam_logo)
-                logo_ax = inset_axes(ax, width="15%", height="10%", loc="lower left")
-                logo_ax.imshow(logo, alpha=0.75, origin="upper")
-                logo_ax.axis("off")
-
-                response = HttpResponse(content_type="image/png")
-
-                fig.savefig(
-                    response,
-                    transparent=True,
-                    facecolor=BLUE,
-                    bbox_inches="tight",
-                    pad_inches=0,
-                )
-
-                return Response(response)
+                    return Response(response)
 
             else:
                 raise APIException(
