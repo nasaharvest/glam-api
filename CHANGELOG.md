@@ -1,6 +1,30 @@
 # CHANGELOG
 
 
+## v1.6.1 (2025-01-09)
+
+### Bug Fixes
+
+- Update utility function to create BoundaryFeatures from BoundaryLayer geojson file
+  ([`c6263b0`](https://github.com/nasaharvest/glam-api/commit/c6263b05ee1e182980c714bfa9b51d74a0182e3d))
+
+### Build System
+
+- Add no-binary installation configuration for rasterio
+  ([`83e1c08`](https://github.com/nasaharvest/glam-api/commit/83e1c08b0a020e27eed2a45602ce750352a04c0a))
+
+- Change python docker image to slim-bookworm
+  ([`e2b9f64`](https://github.com/nasaharvest/glam-api/commit/e2b9f64b5eea6c5c0addda18c79935b3d5e2fe65))
+
+- Force rasterio no-binary installation with pip in Dockerfile
+  ([`8e2a1ea`](https://github.com/nasaharvest/glam-api/commit/8e2a1eaba4de19cc46f71641eb680634067486b3))
+
+### Refactoring
+
+- Change BoundaryLayer file fields to default_storage
+  ([`d7afa0a`](https://github.com/nasaharvest/glam-api/commit/d7afa0ad741b7ca9cb899f82480a4345388f2749))
+
+
 ## v1.6.0 (2025-01-07)
 
 ### Features
