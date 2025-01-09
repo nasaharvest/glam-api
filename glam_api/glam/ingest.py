@@ -265,34 +265,33 @@ def add_geojson_layer(layer_id):
         logging.info(f"saved {layer_id}")
 
 
-def add_geojson_features(layer_id):
+def create_boundary_features_from_layer(layer_id, id_field=None, name_field="name"):
     """
-    Adds a geojson file to the BoundaryLayer and BoundaryFeature models.
+    Creates BoundaryFeature model records from layer geojson.
     :param layer_id: a unique identifier for the BoundaryLayer instance.
     :return: None
     """
     try:
         valid_layer = BoundaryLayer.objects.get(layer_id=slugify(layer_id))
-        geojson_path = os.path.join(settings.GEOJSON_LOCAL_PATH, f"{layer_id}.geojson")
-        with open(geojson_path) as f:
+
+        with valid_layer.vector_file.open() as f:
             geojson_data = json.load(f)
-        valid_layer.save()
-        logging.info(f"Saved geojson for {layer_id}")
-        for feature in geojson_data["features"]:
+
+        for idx, feature in enumerate(geojson_data["features"]):
             geom = GEOSGeometry(json.dumps(feature.get("geometry")))
             # coerce Polygon into MultiPolygon
             if geom.geom_type == "Polygon":
                 geom = MultiPolygon(geom)
 
             new_boundary_feature = BoundaryFeature(
-                feature_name=feature["properties"]["name"],
-                feature_id=feature["properties"]["id"],
+                feature_name=feature["properties"][name_field],
+                feature_id=feature["properties"][id_field] if id_field else idx,
                 boundary_layer=valid_layer,
                 properties=feature["properties"],
                 geom=geom,
             )
             new_boundary_feature.save()
-            logging.info(f"Saved feature {feature['properties']['name']}")
+            logging.info(f"Saved feature {feature['properties'][name_field]}")
     except BoundaryLayer.DoesNotExist as e:
         logging.info(
             f"{slugify(layer_id)} is not a valid boundary layer within the system."
