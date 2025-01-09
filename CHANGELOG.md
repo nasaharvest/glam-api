@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.6.2 (2025-01-09)
+
+### Bug Fixes
+
+- Add GDAL configuration options to all COGReader functions
+  ([`41ae773`](https://github.com/nasaharvest/glam-api/commit/41ae773aa3c4a1b87440cab27cef8997ee13d521))
+
+
 ## v1.6.1 (2025-01-09)
 
 ### Bug Fixes
