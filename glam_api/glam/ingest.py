@@ -392,15 +392,38 @@ def create_matching_mask_raster(product_id, cropmask_id):
         logging.info(f"No valid product exists matching {product_id}")
 
 
-def ingest_geoboundaries_layers(gb_directory, adm_level):
+def ingest_geoboundaries_layers_by_admin_level(
+    gb_directory: str, adm_level: int, release_type: str = "open", dry_run=False
+):
     """
     Bulk load geoBoundaries Layers
+
+    :param gb_directory: directory containing geoBoundaries data
+    :param adm_level: admin level of geoBoundaries data
+    :param dry_run: if true, do not save to database
+
+    :return: None
     """
 
     admin_level = "ADM" + str(adm_level)
+
+    if release_type == "open":
+        gb_directory = os.path.join(gb_directory, "releaseData/gbOpen")
+    elif release_type == "humanitarian":
+        gb_directory = os.path.join(gb_directory, "releaseData/gbHumanitarian")
+    elif release_type == "authoritative":
+        gb_directory = os.path.join(gb_directory, "releaseData/gbAuthoritative")
+
     geoBoundaries = DataSource.objects.get(source_id="geoboundaries")
 
-    for f in os.scandir(gb_directory):
+    updated_layer_count = 0
+    new_layer_count = 0
+
+    for f in tqdm(
+        os.scandir(gb_directory),
+        desc="Ingesting geoBoundaries layers",
+        total=len(list(os.scandir(gb_directory))),
+    ):
         for level in os.scandir(f.path):
             if level.name == admin_level:
                 metadata = ""
@@ -420,7 +443,7 @@ def ingest_geoboundaries_layers(gb_directory, adm_level):
                             metadata = metadataFile.read()
                             iso = fileparts[1]
                             name = "-".join(fileparts[0:3])
-                    if ext == ".json":
+                    if ext == ".json" and filename.endswith("metaData"):
                         metadataJSONFile = open(file.path)
                         metadataJSON = json.load(metadataJSONFile)
                         created = datetime.datetime.strptime(
@@ -429,14 +452,35 @@ def ingest_geoboundaries_layers(gb_directory, adm_level):
                 description = metadata + "\n" + citation
                 layer_id = name.lower()
                 iso_tag, iso_created = Tag.objects.get_or_create(name=iso)
+                if iso_created:
+                    logging.info(f"New tag {iso_tag.name} created")
                 level_tag, level_created = Tag.objects.get_or_create(name=level.name)
+                if level_created:
+                    logging.info(f"New tag {level_tag.name} created")
                 source_vector_file = level.path + "/" + name + ".geojson"
                 simplified_vector_file = (
                     level.path + "/" + name + "_simplified.topojson"
                 )
                 try:
                     existing_layer = BoundaryLayer.objects.get(layer_id=layer_id)
-                    logging.info(f"{existing_layer.name} already saved.")
+
+                    if existing_layer.date_created != created:
+                        logging.debug(
+                            f"{existing_layer.name} exists, updating with new data."
+                        )
+                        existing_layer.name = name
+                        existing_layer.display_name = name
+                        existing_layer.desc = description
+                        existing_layer.source = geoBoundaries
+                        existing_layer.date_created = created
+                        existing_layer.date_added = datetime.date.today()
+                        if not dry_run:
+                            existing_layer.save()
+                        updated_layer_count += 1
+                    else:
+                        logging.debug(
+                            f"{existing_layer.name} exists, layer up to date."
+                        )
                 except BoundaryLayer.DoesNotExist:
                     new_layer = BoundaryLayer(
                         name=name,
@@ -448,21 +492,33 @@ def ingest_geoboundaries_layers(gb_directory, adm_level):
                         date_added=datetime.date.today(),
                     )
                     source_f = open(source_vector_file, "rb")
-                    new_layer.source_data.save(name + ".geojson", File(source_f))
-                    simplified_f = open(simplified_vector_file, "rb")
-                    new_layer.vector_file.save(
-                        name + "_simplified.topojson", File(simplified_f)
-                    )
-                    new_layer.save()
 
-                    # add global masks to layer for stats
-                    # other masks must be added manually
-                    masks = CropMask.objects.filter(tags__name__in=["global"])
-                    for mask in masks:
-                        new_layer.masks.add(mask)
-                    new_layer.tags.add(iso_tag)
-                    new_layer.tags.add(level_tag)
-                    logging.info(f"Successfully saved {new_layer.name}")
+                    if not dry_run:
+                        new_layer.source_data.save(name + ".geojson", File(source_f))
+
+                    simplified_f = open(simplified_vector_file, "rb")
+
+                    if not dry_run:
+                        new_layer.vector_file.save(
+                            name + "_simplified.topojson", File(simplified_f)
+                        )
+
+                    if not dry_run:
+                        new_layer.save()
+                        new_layer.tags.add(iso_tag)
+                        new_layer.tags.add(level_tag)
+                        logging.debug(f"Successfully saved {new_layer.name}")
+                    else:
+                        logging.debug(f"{new_layer.name} not saved (dry run).")
+
+                    new_layer_count += 1
+
+    if not dry_run:
+        logging.info(f"Updated {updated_layer_count} layers.")
+        logging.info(f"Added {new_layer_count} new layers.")
+    else:
+        logging.info(f"{updated_layer_count} layers not updated (dry run).")
+        logging.info(f"{new_layer_count} new layers not added (dry run).")
 
 
 def ingest_geoboundaries_features(gb_directory, adm_level):
