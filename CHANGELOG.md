@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.7.0 (2025-01-13)
+
+### Features
+
+- Add updated utility function to bulk load geoboundaries layers
+  ([`c21e52f`](https://github.com/nasaharvest/glam-api/commit/c21e52f032911877e3b66f4690f5ee848ddb11da))
+
+
 ## v1.6.2 (2025-01-09)
 
 ### Bug Fixes
