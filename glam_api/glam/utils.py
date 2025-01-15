@@ -175,7 +175,7 @@ def upload_files_from_directory(directory, bucket, prefix=""):
         try:
             # Check if the object already exists in the bucket
             s3_client.head_object(Bucket=bucket, Key=object_name)
-            logging.info(
+            logging.debug(
                 f"Object '{object_name}' already exists in bucket '{bucket}'. Skipping upload."
             )
         except ClientError as e:

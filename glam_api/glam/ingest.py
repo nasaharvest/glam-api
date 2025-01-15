@@ -172,12 +172,12 @@ def add_product_rasters_from_storage():
                 settings.PRODUCT_DATASET_LOCAL_PATH, product_id
             )
             if product_id and ds_date:
-                logging.info(ds_date)
-                logging.info(product_id)
+                logging.debug(ds_date)
+                logging.debug(product_id)
                 valid_product = Product.objects.get(product_id=slugify(product_id))
                 try:
                     ds = ProductRaster.objects.get(product=valid_product, date=ds_date)
-                    logging.info(f"{filename} exists")
+                    logging.debug(f"{filename} exists")
                 except ProductRaster.DoesNotExist:
                     # if it doesn't exist, make it
                     new_dataset = ProductRaster(
@@ -503,10 +503,15 @@ def ingest_geoboundaries_layers_by_admin_level(
                             name + "_simplified.topojson", File(simplified_f)
                         )
 
+                    gb_tag, gb_tag_created = Tag.objects.get_or_create(
+                        name="geoboundaries"
+                    )
+
                     if not dry_run:
                         new_layer.save()
                         new_layer.tags.add(iso_tag)
                         new_layer.tags.add(level_tag)
+                        new_layer.tags.add(gb_tag)
                         logging.debug(f"Successfully saved {new_layer.name}")
                     else:
                         logging.debug(f"{new_layer.name} not saved (dry run).")
@@ -521,95 +526,82 @@ def ingest_geoboundaries_layers_by_admin_level(
         logging.info(f"{new_layer_count} new layers not added (dry run).")
 
 
-def ingest_geoboundaries_features(gb_directory, adm_level):
+def ingest_geoboundaries_features(adm_level=None, dry_run=False):
     """
-    Bulk add geoBoundaries features for available layers
+    Bulk add geoBoundaries features for existing geoboundaries layers
     """
 
-    admin_level = "ADM" + str(adm_level)
-    for f in os.scandir(os.path.abspath(gb_directory)):
-        for level in os.scandir(f.path):
-            if level.name == admin_level:
-                name = ""
-                iso = ""
-                for file in os.scandir(level.path):
-                    filename, ext = os.path.splitext(file.name)
-                    if ext == ".txt":
-                        fileparts = filename.split("-")
-                        if fileparts[-1] == "metaData":
-                            iso = fileparts[1]
-                            name = "-".join(fileparts[0:3])
+    new_features_count = 0
 
-                layer_id = name.lower()
-                vector_file = level.path + "/" + name + ".geojson"
+    gb_layers = BoundaryLayer.objects.filter(tags__name="geoboundaries")
+    if adm_level is not None:
+        admin_level = "ADM" + str(adm_level)
+        gb_layers = gb_layers.filter(tags__name=admin_level)
+    for layer in tqdm(gb_layers):
+        iso = layer.layer_id.split("-")[1]
 
-                # First, check to see if Boundary Layer exists.
+        # Check to see if any features exist
+        existing_features = BoundaryFeature.objects.filter(boundary_layer=layer)
+        feature_count = existing_features.count()
+        if feature_count > 0:
+            logging.info(
+                f"There are {feature_count} existing feature(s) for {layer.name}, skipping feature ingest for this layer."
+            )
+        else:
+            with layer.source_data.open() as f:
                 try:
-                    boundary_layer = BoundaryLayer.objects.get(layer_id=layer_id)
-                except BoundaryLayer.DoesNotExist:
-                    logging.info(
-                        f"{layer_id} does not exist in the system as a Boundary Layer."
-                    )
-
-                # Then, check to see if any features exist
-                existing_features = BoundaryFeature.objects.filter(
-                    boundary_layer=boundary_layer
-                )
-                feature_count = existing_features.count()
-                if feature_count > 0:
-                    logging.info(
-                        f"There are {feature_count} existing feature(s) for {boundary_layer.name}, skipping feature ingest for this layer."
-                    )
-                else:
-                    with open(vector_file) as f:
-                        try:
-                            geojson = json.loads(f.read())
-                            for feature in geojson.get("features", []):
-                                properties = feature.get("properties", {})
-                                shape_id = int(
-                                    properties["shapeID"].split("-")[-1].split("B")[-1]
-                                )
-                                if adm_level == 0:
-                                    shape_name = iso
-                                # For admin levels beyond 0 there are many possibilities
-                                elif adm_level >= 1:
+                    geojson = json.loads(f.read())
+                    for feature in geojson.get("features", []):
+                        properties = feature.get("properties", {})
+                        shape_id = int(
+                            properties["shapeID"].split("-")[-1].split("B")[-1]
+                        )
+                        if adm_level == 0:
+                            shape_name = iso
+                        # For admin levels beyond 0 there are many possibilities
+                        elif adm_level >= 1:
+                            try:
+                                shape_name = properties["shapeName"]
+                            except:
+                                try:
+                                    shape_name = properties["PROV_34_NA"]
+                                except:
                                     try:
-                                        shape_name = properties["shapeName"]
+                                        shape_name = properties["ADM1_NAME"]
                                     except:
                                         try:
-                                            shape_name = properties["PROV_34_NA"]
+                                            shape_name = properties["admin2Name"]
                                         except:
                                             try:
-                                                shape_name = properties["ADM1_NAME"]
+                                                shape_name = properties["DISTRICT"]
                                             except:
-                                                try:
-                                                    shape_name = properties[
-                                                        "admin2Name"
-                                                    ]
-                                                except:
-                                                    try:
-                                                        shape_name = properties[
-                                                            "DISTRICT"
-                                                        ]
-                                                    except:
-                                                        print(properties)
-                                geom = GEOSGeometry(json.dumps(feature.get("geometry")))
-                                # coerce Polygon into MultiPolygon
-                                if geom.geom_type == "Polygon":
-                                    geom = MultiPolygon(geom)
+                                                print(properties)
+                        geom = GEOSGeometry(json.dumps(feature.get("geometry")))
+                        # coerce Polygon into MultiPolygon
+                        if geom.geom_type == "Polygon":
+                            geom = MultiPolygon(geom)
 
-                                new_unit = BoundaryFeature(
-                                    feature_name=shape_name,
-                                    feature_id=int(shape_id),
-                                    boundary_layer=boundary_layer,
-                                    properties=properties,
-                                    geom=geom,
-                                )
-                                new_unit.save()
-                                logging.info(
-                                    f"Successfully saved: {shape_name}-{shape_id}"
-                                )
-                        except Exception as e:
+                        new_unit = BoundaryFeature(
+                            feature_name=shape_name,
+                            feature_id=int(shape_id),
+                            boundary_layer=layer,
+                            properties=properties,
+                            geom=geom,
+                        )
+                        if not dry_run:
+                            new_unit.save()
+                            logging.info(f"Successfully saved: {shape_name}-{shape_id}")
+                        else:
                             logging.info(
-                                f"Unable to save features from {vector_file} : {e}"
+                                f"{shape_name}-{shape_id} not saved (dry run)."
                             )
+                        new_features_count += 1
+                except Exception as e:
+                    logging.info(
+                        f"Unable to save features from {layer.source_data} : {e}"
+                    )
+
+    if not dry_run:
+        logging.info(f"Added {new_features_count} new features.")
+    else:
+        logging.info(f"{new_features_count} new features not added (dry run).")
