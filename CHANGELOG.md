@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.8.0 (2025-01-15)
+
+### Features
+
+- Updated utility funtion to ingest geoboundaries features from existing layers
+  ([`fd9fb42`](https://github.com/nasaharvest/glam-api/commit/fd9fb42e541045b4f26f4222be6576ac6a596157))
+
+
 ## v1.7.0 (2025-01-13)
 
 ### Features
