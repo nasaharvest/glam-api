@@ -15,6 +15,9 @@ from rest_framework.exceptions import APIException
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
@@ -367,6 +370,7 @@ class QueryRasterValue(viewsets.ViewSet):
             diff_year_param,
         ],
     )
+    @method_decorator(cache_page(86400 * 365))  # 1 year
     def query_boundary_feature(
         self,
         request,
