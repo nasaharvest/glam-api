@@ -181,3 +181,7 @@ local_files/
 *.env
 
 .vscode
+
+# Django local settings alternatives
+local_settings*.py
+local*settings.py
