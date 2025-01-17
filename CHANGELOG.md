@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v1.8.1 (2025-01-17)
+
+### Bug Fixes
+
+- Hande TileOutsideBounds error
+  ([`c733527`](https://github.com/nasaharvest/glam-api/commit/c733527d971d2ebc4c74cdeb2db457835dc562d1))
+
+### Build System
+
+- Add alernative django local settings file name patterns to .gitignore
+  ([`02868ed`](https://github.com/nasaharvest/glam-api/commit/02868ed7cc81a9b747d7a455a9c3a9c01624a38a))
+
+### Refactoring
+
+- Add per view caching to boundary feature queries
+  ([`aef6072`](https://github.com/nasaharvest/glam-api/commit/aef60720f591b2184dece1eb7ebbef910f088325))
+
+- Rename sample settings files
+  ([`415a18a`](https://github.com/nasaharvest/glam-api/commit/415a18a92e48472a9847e7f40a8c3856062826a9))
+
+
 ## v1.8.0 (2025-01-15)
 
 ### Features
