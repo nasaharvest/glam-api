@@ -4,6 +4,7 @@ Sample Production Settings
 
 from ..settings import *
 
+# Sample Database Settings
 DATABASES = {
     ### postgresql/postgis configuration
     "default": {
@@ -48,7 +49,7 @@ STORAGES = {
 """
 GDAL
 """
-
+# Sample GDAL Configuration
 GDAL_CONFIG_OPTIONS = {
     "CPL_DEBUG": True,
     "CPL_CURL_VERBOSE": True,
