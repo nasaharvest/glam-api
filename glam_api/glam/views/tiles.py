@@ -25,6 +25,9 @@ from drf_yasg import openapi
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 
 from ..serializers import TilesSerializer
 from ..renderers import PNGRenderer
@@ -217,6 +220,7 @@ class Tiles(viewsets.ViewSet):
         ],
         operation_id="retrieve tile",
     )
+    @method_decorator(cache_page(60 * 60 * 24 * 30))  # 30 days
     def retrieve(
         self,
         request,
