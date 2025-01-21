@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.9.2 (2025-01-21)
+
+### Bug Fixes
+
+- Fix DEBUG setting from env variable
+  ([`69e382e`](https://github.com/nasaharvest/glam-api/commit/69e382e34415f598467f497c84b9d23a6ba4b34f))
+
+
 ## v1.9.1 (2025-01-21)
 
 ### Bug Fixes
