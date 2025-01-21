@@ -754,7 +754,7 @@ class AnomalyBaselineRaster(models.Model):
 
         if not self.name:
             # generate name
-            base_file = os.path.basename(self.local_path)
+            base_file = os.path.basename(self.file_object.name)
             fileName, fileExt = os.path.splitext(base_file)
             self.name = fileName
 
@@ -764,7 +764,7 @@ class AnomalyBaselineRaster(models.Model):
 
         if not self.day_of_year:
             # get day of year from file name
-            base_file = os.path.basename(self.local_path)
+            base_file = os.path.basename(self.file_object.name)
             parts = base_file.split(".")
 
             if self.product.product_id in ["chirps-precip", "copernicus-swi"]:
@@ -776,21 +776,19 @@ class AnomalyBaselineRaster(models.Model):
 
         if not self.baseline_length:
             # get baseline length from file name
-            base_file = os.path.basename(self.local_path)
+            base_file = os.path.basename(self.file_object.name)
             parts = base_file.split(".")
 
             self.baseline_length = parts[1]
 
         if not self.baseline_type:
             # get baseline type from file name
-            base_file = os.path.basename(self.local_path)
+            base_file = os.path.basename(self.file_object.name)
             parts = base_file.split(".")
 
             self.baseline_type = parts[2]
 
-        self.date_updated = datetime.date.fromtimestamp(
-            os.stat(self.local_path).st_mtime
-        )
+        self.date_updated = raster_storage.get_modified_time(self.file_object.name)
 
         super().save(*args, **kwargs)
 
