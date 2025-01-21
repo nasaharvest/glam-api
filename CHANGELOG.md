@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.9.1 (2025-01-21)
+
+### Bug Fixes
+
+- Fix utility function for getting product id from filename
+  ([`ccbe027`](https://github.com/nasaharvest/glam-api/commit/ccbe02794bda28024c7b12d26a03e626d41d5a4a))
+
+
 ## v1.9.0 (2025-01-21)
 
 ### Bug Fixes
