@@ -148,7 +148,7 @@ def get_product_id_from_filename(filename):
         return "mod13q1-ndvi"
     elif any(text in filename for text in ["myd13q1.ndvi", "myd13q1-ndvi"]):
         return "myd13q1-ndvi"
-    elif any(text in filename for text in ["mod09a1.ndvi", "mod09a1-ndvi"]):
+    elif any(text in filename for text in ["mod09a1.ndwi", "mod09a1-ndwi"]):
         return "mod09a1-ndwi"
     else:
         return None
