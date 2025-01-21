@@ -128,25 +128,27 @@ def get_product_id_from_filename(filename):
       The matching ID if found, otherwise None.
     """
 
+    filename = filename.lower()
+
     if "chirps" in filename:
         return "chirps-precip"
     elif "swi" in filename:
         return "copernicus-swi"
-    elif "DFPPM_4WK" in filename:
+    elif any(text in filename for text in ["dfppm_4wk", "dfppm-4wk"]):
         return "servir-4wk-esi"
-    elif "DFPPM_12WK" in filename:
+    elif any(text in filename for text in ["dfppm_12wk", "dfppm-12wk"]):
         return "servir-12wk-esi"
-    elif "VNP09H1.ndvi" in filename:
+    elif any(text in filename for text in ["vnp09h1.ndvi", "vnp09h1-ndvi"]):
         return "vnp09h1-ndvi"
-    elif "MOD09Q1.ndvi" in filename:
+    elif any(text in filename for text in ["mod09q1.ndvi", "mod09q1-ndvi"]):
         return "mod09q1-ndvi"
-    elif "MYD09Q1.ndvi" in filename:
+    elif any(text in filename for text in ["myd09q1.ndvi", "myd09q1-ndvi"]):
         return "myd09q1-ndvi"
-    elif "MOD13Q1.ndvi" in filename:
+    elif any(text in filename for text in ["mod13q1.ndvi", "mod13q1-ndvi"]):
         return "mod13q1-ndvi"
-    elif "MYD13Q1.ndvi" in filename:
+    elif any(text in filename for text in ["myd13q1.ndvi", "myd13q1-ndvi"]):
         return "myd13q1-ndvi"
-    elif "MOD09A1.ndwi" in filename:
+    elif any(text in filename for text in ["mod09a1.ndvi", "mod09a1-ndvi"]):
         return "mod09a1-ndwi"
     else:
         return None
