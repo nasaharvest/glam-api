@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = get_env_variable("GLAM_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = get_env_variable("GLAM_DEBUG")
+DEBUG = get_env_variable("GLAM_DEBUG") == "True"
 
 ALLOWED_HOSTS = []
 
