@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.9.0 (2025-01-21)
+
+### Bug Fixes
+
+- Update AnomalyBaselineRaster save method
+  ([`4afdcbc`](https://github.com/nasaharvest/glam-api/commit/4afdcbc4e0485c1e3b23d3caecf2963ffae11c5c))
+
+### Features
+
+- Add utility function to add anomaly baseline rasters from storage
+  ([`de4fa57`](https://github.com/nasaharvest/glam-api/commit/de4fa576fb6fb9d160c5e6ac0930cd9514f70219))
+
+
 ## v1.8.2 (2025-01-21)
 
 ### Bug Fixes
