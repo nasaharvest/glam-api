@@ -192,6 +192,55 @@ def add_product_rasters_from_storage():
                     logging.info(f"saved {new_dataset}")
 
 
+def add_baseline_rasters_from_storage():
+    if not settings.USE_S3:
+        raster_storage = FileSystemStorage()
+    elif settings.USE_S3:
+        raster_storage = RasterStorage()
+
+    raster_files = raster_storage.listdir("baseline-rasters")[1]
+
+    for filename in tqdm(raster_files):
+        if filename.endswith(".tif"):
+            product_id = get_product_id_from_filename(filename)
+            valid_product = Product.objects.get(product_id=slugify(product_id))
+            dataset_directory = os.path.join(
+                settings.ANOMALY_BASELINE_LOCAL_PATH, product_id
+            )
+            parts = filename.split(".")
+            anom_len = parts[1]
+            anom_type = parts[2]
+
+            if product_id in ["chirps-precip", "copernicus-swi"]:
+                month, day = parts[3].split("-")
+                day_value = int(month + day)
+            else:
+                day_value = int(parts[3])
+            try:
+                AnomalyBaselineRaster.objects.get(
+                    product=valid_product,
+                    day_of_year=day_value,
+                    baseline_type=anom_type,
+                    baseline_length=anom_len,
+                )
+                logging.debug(f"{filename} already exists")
+                pass
+            except AnomalyBaselineRaster.DoesNotExist as e:
+                # day of year, baseline length and type pulled from model save method
+                new_baseline = AnomalyBaselineRaster(
+                    product=valid_product,
+                    day_of_year=day_value,
+                    baseline_type=anom_type,
+                    baseline_length=anom_len,
+                    date_added=datetime.datetime.now(),
+                    local_path=filename,
+                    file_object=f"baseline-rasters/{filename}",
+                )
+                logging.info(f"saving {filename}")
+                new_baseline.save()
+                logging.info(f"saved {new_baseline}")
+
+
 # for initial ingest of anomaly baseline datasets
 def add_anomaly_baselines(product_id):
     try:
