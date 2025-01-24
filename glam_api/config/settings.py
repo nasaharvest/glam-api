@@ -103,6 +103,8 @@ DATABASES = {
     # Configure database connection in local settings file
 }
 
+USE_CACHING = get_env_variable("USE_CACHING") == "True"
+
 # Q Cluster Settings
 
 Q_CLUSTER = {
