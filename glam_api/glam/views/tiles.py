@@ -26,8 +26,7 @@ from drf_yasg import openapi
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_cookie, vary_on_headers
+from django.core.cache import cache
 
 from ..serializers import TilesSerializer
 from ..renderers import PNGRenderer
@@ -220,7 +219,6 @@ class Tiles(viewsets.ViewSet):
         ],
         operation_id="retrieve tile",
     )
-    @method_decorator(cache_page(60 * 60 * 24 * 30))  # 30 days
     def retrieve(
         self,
         request,
@@ -259,6 +257,13 @@ class Tiles(viewsets.ViewSet):
         stretch_min = data.get("stretch_min", None)
         stretch_max = data.get("stretch_max", None)
         tile_size = data.get("tile_size", None)
+
+        if settings.USE_CACHING:
+            cache_key = f"tile-{product_id}-{date}-{z}-{x}-{y}-{cropmask_id}-{cropmask_threshold}-{anomaly}-{anomaly_type}-{diff_year}-{colormap}-{stretch_min}-{stretch_max}-{tile_size}"
+
+            data = cache.get(cache_key)
+            if data:
+                return Response(data)
 
         if tile_size is None:
             tile_size = settings.DEFAULT_TILE_SIZE
@@ -432,6 +437,9 @@ class Tiles(viewsets.ViewSet):
                     colormap=cm,
                     add_mask=True,
                 )
+
+                if settings.USE_CACHING:
+                    cache.set(cache_key, tile, timeout=(60 * 60 * 24 * 30))
 
                 return Response(tile)
 

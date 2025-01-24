@@ -6,7 +6,6 @@ import numpy as np
 from rio_tiler.io import COGReader
 
 import rasterio
-from rasterio import features
 
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -15,9 +14,7 @@ from rest_framework.exceptions import APIException
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_cookie, vary_on_headers
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
@@ -29,7 +26,6 @@ from ..models import (
     BoundaryFeature,
     BoundaryLayer,
     AnomalyBaselineRaster,
-    DataSource,
 )
 from ..serializers import (
     FeatureBodySerializer,
@@ -394,7 +390,6 @@ class QueryRasterValue(viewsets.ViewSet):
             diff_year_param,
         ],
     )
-    # @method_decorator(cache_page(86400 * 365))  # 1 year
     def query_boundary_feature(
         self,
         request,
@@ -417,6 +412,13 @@ class QueryRasterValue(viewsets.ViewSet):
         anomaly = data.get("anomaly", None)
         anomaly_type = data.get("anomaly_type", None)
         diff_year = data.get("diff_year", None)
+
+        if settings.USE_CACHING:
+            cache_key = f"boundary-query-{product_id}-{date}-{cropmask_id}-{layer_id}-{feature_id}-{baseline}-{baseline_type}-{anomaly}-{anomaly_type}-{diff_year}"
+
+            data = cache.get(cache_key)
+            if data:
+                return Response(data)
 
         product_queryset = ProductRaster.objects.filter(product__product_id=product_id)
 
@@ -463,9 +465,6 @@ class QueryRasterValue(viewsets.ViewSet):
                         Decimal(str(data.std()))
                         * Decimal(str(product_dataset.product.variable.scale))
                     )
-                    logging.info(
-                        f"product mean: {mean}, min: {_min}, max: {_max}, stdev: {stdev}"
-                    )
 
                 if cropmask_id != "no-mask":
                     mask_queryset = CropmaskRaster.objects.all()
@@ -506,9 +505,7 @@ class QueryRasterValue(viewsets.ViewSet):
                         )
 
                 if baseline_type or anomaly_type:
-                    logging.info(
-                        f"baseline_type: {baseline_type}, anomaly_type: {anomaly_type}"
-                    )
+
                     if anomaly_type:
                         baseline_type = anomaly_type if anomaly_type else "mean"
                         baseline = anomaly if anomaly else "5year"
@@ -589,9 +586,6 @@ class QueryRasterValue(viewsets.ViewSet):
                         Decimal(str(stdev))
                         * Decimal(str(product_dataset.product.variable.scale))
                     )
-                    logging.info(
-                        f"baseline mean: {mean}, min: {_min}, max: {_max}, stdev: {stdev}"
-                    )
 
                 if type(mean) != np.ma.core.MaskedConstant:
                     result = {"min": _min, "max": _max, "mean": mean, "std": stdev}
@@ -599,5 +593,8 @@ class QueryRasterValue(viewsets.ViewSet):
                     result = {"value": "No Data"}
         except InvalidOperation:
             result = {"value": "No Data"}
+
+        if settings.USE_CACHING:
+            cache.set(cache_key, result, timeout=(60 * 60 * 24 * 30))
 
         return Response(result)
