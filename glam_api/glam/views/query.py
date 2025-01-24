@@ -38,9 +38,13 @@ from ..serializers import (
 )
 from ..utils import get_closest_to_date
 
+import logging
+
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
 AVAILABLE_BOUNDARY_LAYERS = list()
+BASELINE_LENGTH_CHOICES = list()
+BASELINE_TYPE_CHOICES = list()
 ANOMALY_LENGTH_CHOICES = list()
 ANOMALY_TYPE_CHOICES = list()
 
@@ -67,8 +71,10 @@ except:
 
 try:
     for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
+        BASELINE_LENGTH_CHOICES.append(length[0])
         ANOMALY_LENGTH_CHOICES.append(length[0])
     for t in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
+        BASELINE_TYPE_CHOICES.append(t[0])
         ANOMALY_TYPE_CHOICES.append(t[0])
     ANOMALY_TYPE_CHOICES.append("diff")
 except:
@@ -120,6 +126,22 @@ class QueryRasterValue(viewsets.ViewSet):
         description="Boundary Feature ID.",
         # required=True,
         type=openapi.TYPE_INTEGER,
+    )
+
+    baseline_param = openapi.Parameter(
+        "baseline",
+        openapi.IN_QUERY,
+        description="String representing baseline length",
+        type=openapi.TYPE_STRING,
+        enum=BASELINE_LENGTH_CHOICES if len(BASELINE_LENGTH_CHOICES) > 0 else None,
+    )
+
+    baseline_type_param = openapi.Parameter(
+        "baseline_type",
+        openapi.IN_QUERY,
+        description="String representing baseline type",
+        type=openapi.TYPE_STRING,
+        enum=BASELINE_TYPE_CHOICES if len(BASELINE_TYPE_CHOICES) > 0 else None,
     )
 
     anomaly_param = openapi.Parameter(
@@ -365,12 +387,14 @@ class QueryRasterValue(viewsets.ViewSet):
             cropmask_param,
             boundary_layer_param,
             boundary_feature_param,
+            baseline_param,
+            baseline_type_param,
             anomaly_param,
             anomaly_type_param,
             diff_year_param,
         ],
     )
-    @method_decorator(cache_page(86400 * 365))  # 1 year
+    # @method_decorator(cache_page(86400 * 365))  # 1 year
     def query_boundary_feature(
         self,
         request,
@@ -388,6 +412,8 @@ class QueryRasterValue(viewsets.ViewSet):
         params.is_valid(raise_exception=True)
         data = params.validated_data
 
+        baseline = data.get("baseline", None)
+        baseline_type = data.get("baseline_type", None)
         anomaly = data.get("anomaly", None)
         anomaly_type = data.get("anomaly_type", None)
         diff_year = data.get("diff_year", None)
@@ -401,6 +427,9 @@ class QueryRasterValue(viewsets.ViewSet):
             boundary_layer=boundary_layer
         )
         boundary_feature = get_object_or_404(boundary_features, feature_id=feature_id)
+
+        # TODO: fix numpy "operands could not be broadcast together" error with small geometries
+        # if boundary feature below certain size, max_size = None or smaller max_size
 
         if not settings.USE_S3:
             path = product_dataset.file_object.path
@@ -433,6 +462,9 @@ class QueryRasterValue(viewsets.ViewSet):
                     stdev = float(
                         Decimal(str(data.std()))
                         * Decimal(str(product_dataset.product.variable.scale))
+                    )
+                    logging.info(
+                        f"product mean: {mean}, min: {_min}, max: {_max}, stdev: {stdev}"
                     )
 
                 if cropmask_id != "no-mask":
@@ -473,43 +505,37 @@ class QueryRasterValue(viewsets.ViewSet):
                             * Decimal(str(product_dataset.product.variable.scale))
                         )
 
-                if anomaly_type:
-                    anom_type = anomaly_type if anomaly_type else "mean"
-
-                    if anom_type == "diff":
-                        new_year = diff_year
-                        new_date = product_dataset.date.replace(year=new_year)
-                        anomaly_queryset = ProductRaster.objects.filter(
-                            product__product_id=product_id
-                        )
-                        closest = get_closest_to_date(anomaly_queryset, new_date)
-                        try:
-                            anomaly_dataset = get_object_or_404(
-                                product_queryset, date=new_date
-                            )
-                        except:
-                            anomaly_dataset = closest
+                if baseline_type or anomaly_type:
+                    logging.info(
+                        f"baseline_type: {baseline_type}, anomaly_type: {anomaly_type}"
+                    )
+                    if anomaly_type:
+                        baseline_type = anomaly_type if anomaly_type else "mean"
+                        baseline = anomaly if anomaly else "5year"
                     else:
-                        doy = product_dataset.date.timetuple().tm_yday
-                        if product_id == "swi":
-                            swi_baselines = np.arange(1, 366, 5)
-                            idx = (np.abs(swi_baselines - doy)).argmin()
-                            doy = swi_baselines[idx]
-                        if product_id == "chirps":
-                            doy = int(str(date.month) + f"{date.day:02d}")
-                        anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                        anomaly_dataset = get_object_or_404(
-                            anomaly_queryset,
-                            product__product_id=product_id,
-                            day_of_year=doy,
-                            baseline_length=anomaly,
-                            baseline_type=anom_type,
-                        )
+                        baseline_type = baseline_type if baseline_type else "mean"
+                        baseline = baseline if baseline else "5year"
+
+                    doy = product_dataset.date.timetuple().tm_yday
+                    if product_id == "copernicus-swi":
+                        swi_baselines = np.arange(1, 366, 5)
+                        idx = (np.abs(swi_baselines - doy)).argmin()
+                        doy = swi_baselines[idx]
+                    if product_id == "chirps-precip":
+                        doy = int(str(date.month) + f"{date.day:02d}")
+                    baseline_queryset = AnomalyBaselineRaster.objects.all()
+                    baseline_dataset = get_object_or_404(
+                        baseline_queryset,
+                        product__product_id=product_id,
+                        day_of_year=doy,
+                        baseline_length=baseline,
+                        baseline_type=baseline_type,
+                    )
 
                     if not settings.USE_S3:
-                        baseline_path = anomaly_dataset.file_object.path
+                        baseline_path = baseline_dataset.file_object.path
                     if settings.USE_S3:
-                        baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                        baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{baseline_dataset.file_object.name}"
 
                     with COGReader(baseline_path) as baseline_src:
                         baseline_feat = baseline_src.feature(
@@ -521,10 +547,31 @@ class QueryRasterValue(viewsets.ViewSet):
                         # mask baseline data
                         baseline_data = baseline_data * mask_data
 
-                    mean = data.mean() - baseline_data.mean()
-                    _min = data.min() - baseline_data.min()
-                    _max = data.max() - baseline_data.max()
-                    stdev = data.std() - baseline_data.std()
+                    if anomaly_type:
+                        if baseline_type == "diff":
+                            new_year = diff_year
+                            new_date = product_dataset.date.replace(year=new_year)
+                            baseline_queryset = ProductRaster.objects.filter(
+                                product__product_id=product_id
+                            )
+                            closest = get_closest_to_date(baseline_queryset, new_date)
+                            try:
+                                baseline_dataset = get_object_or_404(
+                                    product_queryset, date=new_date
+                                )
+                            except:
+                                baseline_dataset = closest
+                        # If Anomaly, Calculate difference between data and baseline
+                        mean = data.mean() - baseline_data.mean()
+                        _min = data.min() - baseline_data.min()
+                        _max = data.max() - baseline_data.max()
+                        stdev = data.std() - baseline_data.std()
+                    else:
+                        # If not Anomaly, just use baseline
+                        mean = baseline_data.mean()
+                        _min = baseline_data.min()
+                        _max = baseline_data.max()
+                        stdev = baseline_data.std()
 
                     mean = float(
                         Decimal(str(mean))
@@ -541,6 +588,9 @@ class QueryRasterValue(viewsets.ViewSet):
                     stdev = float(
                         Decimal(str(stdev))
                         * Decimal(str(product_dataset.product.variable.scale))
+                    )
+                    logging.info(
+                        f"baseline mean: {mean}, min: {_min}, max: {_max}, stdev: {stdev}"
                     )
 
                 if type(mean) != np.ma.core.MaskedConstant:

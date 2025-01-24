@@ -603,19 +603,27 @@ class GraphicSerializer(serializers.Serializer):
 
 
 class QueryBoundaryFeatureSerializer(serializers.Serializer):
+    BASELINE_LENGTH_CHOICES = list()
+    BASELINE_TYPE_CHOICES = list()
     ANOMALY_LENGTH_CHOICES = list()
     ANOMALY_TYPE_CHOICES = list()
     SIZE_CHOICES = ["tiny", "small", "regular", "large", "xlarge"]
 
     try:
         for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
+            BASELINE_LENGTH_CHOICES.append(length[0])
             ANOMALY_LENGTH_CHOICES.append(length[0])
         for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
+            BASELINE_TYPE_CHOICES.append(type[0])
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append("diff")
     except:
         pass
 
+    baseline = serializers.ChoiceField(choices=BASELINE_LENGTH_CHOICES, required=False)
+    baseline_type = serializers.ChoiceField(
+        choices=BASELINE_TYPE_CHOICES, required=False
+    )
     anomaly = serializers.ChoiceField(choices=ANOMALY_LENGTH_CHOICES, required=False)
     anomaly_type = serializers.ChoiceField(choices=ANOMALY_TYPE_CHOICES, required=False)
     diff_year = serializers.IntegerField(required=False)
