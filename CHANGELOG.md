@@ -1,6 +1,25 @@
 # CHANGELOG
 
 
+## v1.10.0 (2025-01-24)
+
+### Features
+
+- Add baseline queries
+  ([`fec3db7`](https://github.com/nasaharvest/glam-api/commit/fec3db7d1c735232cfbf0aa0f0f5317f5da5d3ed))
+
+- Add cache controll setting
+  ([`8550102`](https://github.com/nasaharvest/glam-api/commit/85501020f02e0db42344475134e9c9ea0718638b))
+
+### Refactoring
+
+- Add per view caching to tile retrieval
+  ([`3a4b2a5`](https://github.com/nasaharvest/glam-api/commit/3a4b2a5af9b9444fee603f3c6df3384bdc552768))
+
+- Use django caching api instead of cache_page method
+  ([`55d36fd`](https://github.com/nasaharvest/glam-api/commit/55d36fd3b026803299695904eac58e634e948c82))
+
+
 ## v1.9.2 (2025-01-21)
 
 ### Bug Fixes
