@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.10.1 (2025-01-28)
+
+### Bug Fixes
+
+- Add baseline queries for custom geometry
+  ([`29975bd`](https://github.com/nasaharvest/glam-api/commit/29975bd031a201fad6683632e26c436afa343312))
+
+
 ## v1.10.0 (2025-01-24)
 
 ### Features
