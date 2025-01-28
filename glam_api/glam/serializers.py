@@ -158,6 +158,8 @@ class HistogramResponseSerializer(serializers.Serializer):
 
 
 class FeatureBodySerializer(serializers.Serializer):
+    BASELINE_LENGTH_CHOICES = list()
+    BASELINE_TYPE_CHOICES = list()
     AVAILABLE_CROPMASKS = list()
     AVAILABLE_PRODUCTS = list()
     ANOMALY_LENGTH_CHOICES = list()
@@ -172,8 +174,10 @@ class FeatureBodySerializer(serializers.Serializer):
 
     try:
         for length in AnomalyBaselineRaster.BASELINE_LENGTH_CHOICES:
+            BASELINE_LENGTH_CHOICES.append(length[0])
             ANOMALY_LENGTH_CHOICES.append(length[0])
         for type in AnomalyBaselineRaster.BASELINE_TYPE_CHOICES:
+            BASELINE_TYPE_CHOICES.append(type[0])
             ANOMALY_TYPE_CHOICES.append(type[0])
         ANOMALY_TYPE_CHOICES.append("diff")
     except:
@@ -222,6 +226,14 @@ class FeatureBodySerializer(serializers.Serializer):
                     ]\
                 }\
             } ',
+    )
+    baseline = serializers.ChoiceField(
+        choices=BASELINE_LENGTH_CHOICES,
+        required=False,
+        allow_null=True,
+    )
+    baseline_type = serializers.ChoiceField(
+        choices=BASELINE_TYPE_CHOICES, required=False, allow_null=True
     )
     anomaly = serializers.ChoiceField(
         choices=ANOMALY_LENGTH_CHOICES,

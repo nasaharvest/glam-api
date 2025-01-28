@@ -195,12 +195,12 @@ class QueryRasterValue(viewsets.ViewSet):
             product_id = data.get("product_id", None)
             date = data.get("date", None)
             geom = data.get("geom", None)
+            baseline = data.get("baseline", None)
+            baseline_type = data.get("baseline_type", None)
             anomaly = data.get("anomaly", None)
             anomaly_type = data.get("anomaly_type", None)
             diff_year = data.get("diff_year", None)
-            cropmask = data.get("cropmask_id", None)
-            if cropmask == "no-mask":
-                cropmask = None
+            cropmask_id = data.get("cropmask_id", None)
 
             product_queryset = ProductRaster.objects.filter(
                 product__product_id=product_id
@@ -239,12 +239,12 @@ class QueryRasterValue(viewsets.ViewSet):
                                 * Decimal(str(product_dataset.product.variable.scale))
                             )
 
-                        if cropmask:
+                        if cropmask_id != "no-mask":
                             mask_queryset = CropmaskRaster.objects.all()
                             mask_dataset = get_object_or_404(
                                 mask_queryset,
                                 product__product_id=product_id,
-                                crop_mask__cropmask_id=cropmask,
+                                crop_mask__cropmask_id=cropmask_id,
                             )
 
                             if not settings.USE_S3:
@@ -283,45 +283,37 @@ class QueryRasterValue(viewsets.ViewSet):
                                     )
                                 )
 
-                        if anomaly_type:
-                            anom_type = anomaly_type if anomaly_type else "mean"
+                        if baseline_type or anomaly_type:
 
-                            if anom_type == "diff":
-                                new_year = diff_year
-                                new_date = product_dataset.date.replace(year=new_year)
-                                anomaly_queryset = ProductRaster.objects.filter(
-                                    product__product_id=product_id
-                                )
-                                closest = get_closest_to_date(
-                                    anomaly_queryset, new_date
-                                )
-                                try:
-                                    anomaly_dataset = get_object_or_404(
-                                        product_queryset, date=new_date
-                                    )
-                                except:
-                                    anomaly_dataset = closest
+                            if anomaly_type:
+                                baseline_type = anomaly_type if anomaly_type else "mean"
+                                baseline = anomaly if anomaly else "5year"
                             else:
-                                doy = product_dataset.date.timetuple().tm_yday
-                                if product_id == "swi":
-                                    swi_baselines = np.arange(1, 366, 5)
-                                    idx = (np.abs(swi_baselines - doy)).argmin()
-                                    doy = swi_baselines[idx]
-                                if product_id == "chirps":
-                                    doy = int(str(date.month) + f"{date.day:02d}")
-                                anomaly_queryset = AnomalyBaselineRaster.objects.all()
-                                anomaly_dataset = get_object_or_404(
-                                    anomaly_queryset,
-                                    product__product_id=product_id,
-                                    day_of_year=doy,
-                                    baseline_length=anomaly,
-                                    baseline_type=anom_type,
+                                baseline_type = (
+                                    baseline_type if baseline_type else "mean"
                                 )
+                                baseline = baseline if baseline else "5year"
+
+                            doy = product_dataset.date.timetuple().tm_yday
+                            if product_id == "copernicus-swi":
+                                swi_baselines = np.arange(1, 366, 5)
+                                idx = (np.abs(swi_baselines - doy)).argmin()
+                                doy = swi_baselines[idx]
+                            if product_id == "chirps-precip":
+                                doy = int(str(date.month) + f"{date.day:02d}")
+                            baseline_queryset = AnomalyBaselineRaster.objects.all()
+                            baseline_dataset = get_object_or_404(
+                                baseline_queryset,
+                                product__product_id=product_id,
+                                day_of_year=doy,
+                                baseline_length=baseline,
+                                baseline_type=baseline_type,
+                            )
 
                             if not settings.USE_S3:
-                                baseline_path = anomaly_dataset.file_object.path
+                                baseline_path = baseline_dataset.file_object.path
                             if settings.USE_S3:
-                                baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{anomaly_dataset.file_object.name}"
+                                baseline_path = f"s3://{settings.AWS_STORAGE_BUCKET_NAME}/{baseline_dataset.file_object.name}"
 
                             with COGReader(baseline_path) as baseline_src:
                                 baseline_feat = baseline_src.feature(
@@ -329,14 +321,39 @@ class QueryRasterValue(viewsets.ViewSet):
                                 )
                                 baseline_data = baseline_feat.as_masked()
 
-                            if cropmask:
+                            if cropmask_id != "no-mask":
                                 # mask baseline data
                                 baseline_data = baseline_data * mask_data
 
-                            mean = data.mean() - baseline_data.mean()
-                            _min = data.min() - baseline_data.min()
-                            _max = data.max() - baseline_data.max()
-                            stdev = data.std() - baseline_data.std()
+                            if anomaly_type:
+                                if baseline_type == "diff":
+                                    new_year = diff_year
+                                    new_date = product_dataset.date.replace(
+                                        year=new_year
+                                    )
+                                    baseline_queryset = ProductRaster.objects.filter(
+                                        product__product_id=product_id
+                                    )
+                                    closest = get_closest_to_date(
+                                        baseline_queryset, new_date
+                                    )
+                                    try:
+                                        baseline_dataset = get_object_or_404(
+                                            product_queryset, date=new_date
+                                        )
+                                    except:
+                                        baseline_dataset = closest
+                                # If Anomaly, Calculate difference between data and baseline
+                                mean = data.mean() - baseline_data.mean()
+                                _min = data.min() - baseline_data.min()
+                                _max = data.max() - baseline_data.max()
+                                stdev = data.std() - baseline_data.std()
+                            else:
+                                # If not Anomaly, just use baseline
+                                mean = baseline_data.mean()
+                                _min = baseline_data.min()
+                                _max = baseline_data.max()
+                                stdev = baseline_data.std()
 
                             mean = float(
                                 Decimal(str(mean))
@@ -418,7 +435,9 @@ class QueryRasterValue(viewsets.ViewSet):
 
             data = cache.get(cache_key)
             if data:
+                logging.debug(f"cache hit: {cache_key}")
                 return Response(data)
+            logging.debug
 
         product_queryset = ProductRaster.objects.filter(product__product_id=product_id)
 
@@ -595,6 +614,6 @@ class QueryRasterValue(viewsets.ViewSet):
             result = {"value": "No Data"}
 
         if settings.USE_CACHING:
-            cache.set(cache_key, result, timeout=(60 * 60 * 24 * 30))
+            cache.set(cache_key, result, timeout=(60 * 60 * 24 * 365))  # 1 year
 
         return Response(result)

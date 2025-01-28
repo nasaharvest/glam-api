@@ -263,7 +263,9 @@ class Tiles(viewsets.ViewSet):
 
             data = cache.get(cache_key)
             if data:
+                logging.debug(f"Cache hit: {cache_key}")
                 return Response(data)
+            logging.debug(f"Cache miss: {cache_key}")
 
         if tile_size is None:
             tile_size = settings.DEFAULT_TILE_SIZE
