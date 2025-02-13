@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.11.3 (2025-02-13)
+
+### Bug Fixes
+
+- Update utility function imports
+  ([`c2f0ccd`](https://github.com/nasaharvest/glam-api/commit/c2f0ccd5f424817aba69bf41f86c30b065f3ea90))
+
+
 ## v1.11.2 (2025-02-13)
 
 ### Bug Fixes
