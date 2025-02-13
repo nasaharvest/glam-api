@@ -47,7 +47,7 @@ from ..serializers import (
     HistogramResponseSerializer,
 )
 from ..renderers import OldGLAMHistRenderer
-from ..utils import get_closest_to_date
+from config.utils import get_closest_to_date
 
 AVAILABLE_PRODUCTS = list()
 AVAILABLE_CROPMASKS = list()
