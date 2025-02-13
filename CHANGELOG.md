@@ -1,6 +1,17 @@
 # CHANGELOG
 
 
+## v1.11.0 (2025-02-13)
+
+### Features
+
+- Add management command to automate download and ingest of new product rasters
+  ([`4073fcf`](https://github.com/nasaharvest/glam-api/commit/4073fcf122f205fe9fadf0aacf21d351e8a34246))
+
+- Add utility function to download new product rasters
+  ([`b3a36c5`](https://github.com/nasaharvest/glam-api/commit/b3a36c5c26b28e5c2bdaf22d447bb5041b2d4d8b))
+
+
 ## v1.10.1 (2025-01-28)
 
 ### Bug Fixes
@@ -346,7 +357,7 @@ Major upgrade and reconfiguration of glam-api code base.
 BREAKING CHANGE: Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files
   with poetry for dependency management.
 
-### BREAKING CHANGES
+### Breaking Changes
 
 - Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files with poetry
   for dependency management.
