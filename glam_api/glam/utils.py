@@ -4,21 +4,11 @@ glam app specific utilities
 """
 
 import logging
-import tqdm
-
-from datetime import datetime, timedelta
 
 from typing import Sequence, Tuple, TypeVar, Union
 from typing import BinaryIO
 
 import numpy as np
-
-from django.conf import settings
-
-from glam_processing.download import Downloader
-
-from .models import Product, ProductRaster
-from .ingest import add_product_rasters_from_storage
 
 logging.basicConfig(
     format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
