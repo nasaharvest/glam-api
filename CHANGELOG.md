@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.11.2 (2025-02-13)
+
+### Bug Fixes
+
+- Remove circular imports
+  ([`e78bf93`](https://github.com/nasaharvest/glam-api/commit/e78bf9335be9c9501ab1c72a2092087386ad1d3f))
+
+
 ## v1.11.1 (2025-02-13)
 
 ### Bug Fixes
