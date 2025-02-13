@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 
-from glam.utils import download_new, upload_files_from_directory
+from glam.tasks import download_new, upload_files_from_directory
 from glam.ingest import add_product_rasters_from_storage
 
 
