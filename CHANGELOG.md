@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.11.1 (2025-02-13)
+
+### Bug Fixes
+
+- Fix management command imports
+  ([`fd72232`](https://github.com/nasaharvest/glam-api/commit/fd7223293c5cd5738a0602e3d4ffdebaf28e128a))
+
+### Refactoring
+
+- Move glam utiliity functions to tasks.py
+  ([`f1c893c`](https://github.com/nasaharvest/glam-api/commit/f1c893c6c140b36725243c92a42897956a2ba5d6))
+
+- Rearrange utility functions
+  ([`83ed576`](https://github.com/nasaharvest/glam-api/commit/83ed576138e95dd9028e907ca59b4b7fb3ad3383))
+
+
 ## v1.11.0 (2025-02-13)
 
 ### Features
