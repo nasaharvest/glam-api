@@ -53,7 +53,7 @@ from ..models import (
     AnomalyBaselineRaster,
     DataSource,
 )
-from ..utils import get_closest_to_date
+from config.utils import get_closest_to_date
 
 
 def scale_from_extent(extent):

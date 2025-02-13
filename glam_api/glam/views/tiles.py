@@ -39,7 +39,7 @@ from ..models import (
     AnomalyBaselineRaster,
 )
 
-from ..utils import get_closest_to_date
+from config.utils import get_closest_to_date
 
 logging.basicConfig(
     format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.DEBUG

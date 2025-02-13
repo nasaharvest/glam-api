@@ -22,7 +22,7 @@ from ..models import (
     CropmaskRaster,
 )
 from ..serializers import PointValueSerializer, PointResponseSerializer
-from ..utils import get_closest_to_date
+from config.utils import get_closest_to_date
 
 
 class PointValue(viewsets.ViewSet):

@@ -32,7 +32,7 @@ from ..serializers import (
     FeatureResponseSerializer,
     QueryBoundaryFeatureSerializer,
 )
-from ..utils import get_closest_to_date
+from config.utils import get_closest_to_date
 
 import logging
 
