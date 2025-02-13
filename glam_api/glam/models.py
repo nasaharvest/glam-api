@@ -17,8 +17,7 @@ from config.storage import (
     S3PrivateMediaStorage,
 )
 
-from config.utils import generate_unique_slug
-from glam.utils import extract_datetime_from_filename
+from config.utils import generate_unique_slug, extract_datetime_from_filename
 
 if not settings.USE_S3:
     raster_storage = FileSystemStorage()

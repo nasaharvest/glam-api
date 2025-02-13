@@ -40,8 +40,9 @@ from glam.models import (
     AnomalyBaselineRaster,
 )
 
-from glam.utils import extract_datetime_from_filename, get_product_id_from_filename
+from glam.utils import get_product_id_from_filename
 
+from config.utils import extract_datetime_from_filename
 from config.storage import RasterStorage
 
 logging.basicConfig(

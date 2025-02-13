@@ -37,6 +37,70 @@ def generate_unique_slug(instance, slug_field):
     return unique_slug
 
 
+def get_closest_to_date(qs, date):
+    greater = qs.filter(date__gte=date).order_by("date").first()
+    less = qs.filter(date__lte=date).order_by("-date").first()
+
+    if greater and less:
+        return greater if abs(greater.date - date) < abs(less.date - date) else less
+    else:
+        return greater or less
+
+
+def extract_datetime_from_filename(filename):
+    """
+    Extracts datetime from a filename with various patterns.
+
+    Args:
+      filename: The name of the file.
+
+    Returns:
+      A datetime object if datetime is successfully extracted,
+      otherwise None.
+    """
+    import re
+    from datetime import datetime
+
+    # Define potential datetime patterns
+    patterns = [
+        r"\d{4}\.\d{2}\.\d{2}",  # e.g., 2024.11.11
+        r"\d{4}\.\d{2}\.\d{1}",  # e.g., 2024.11.3
+        r"\d{4}\.\d{1}\.\d{1}",  # e.g., 2024.9.1
+        r"\d{4}\.\d{1}\.\d{2}",  # e.g., 2024.9.11
+        r"\d{4}-\d{2}-\d{2}",  # e.g., 2024-08-11
+        r"\d{4}\d{3}",  # e.g., 2024330 (assuming YYYYDDD format)
+        r"\d{4}.\d{3}",  # e.g., 2024.330 (assuming YYYYDDD format)
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, filename)
+        if match:
+            datetime_str = match.group(0)
+
+            if pattern in [
+                r"\d{4}\.\d{2}\.\d{2}",
+                r"\d{4}\.\d{2}\.\d{1}",
+                r"\d{4}\.\d{1}\.\d{1}",
+                r"\d{4}\.\d{1}\.\d{2}",
+            ]:
+                datetime_format = "%Y.%m.%d"
+            elif pattern == r"\d{4}-\d{2}-\d{2}":
+                datetime_format = "%Y-%m-%d"
+            elif pattern == r"\d{4}\d{3}":
+                datetime_format = "%Y%j"  # %j for day of the year
+            elif pattern == r"\d{4}.\d{3}":
+                datetime_format = "%Y.%j"  # %j for day of the year
+
+            try:
+                return datetime.strptime(datetime_str, datetime_format).strftime(
+                    "%Y-%m-%d"
+                )
+            except ValueError:
+                continue  # Try the next pattern
+
+    return None
+
+
 def create_aws_session_env_file(serial_number: str, token: str):
     import boto3
     from django.conf import settings
