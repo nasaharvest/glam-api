@@ -4,21 +4,30 @@ glam app specific utilities
 """
 
 import logging
+import tqdm
+
+from datetime import datetime, timedelta
 
 from typing import Sequence, Tuple, TypeVar, Union
 from typing import BinaryIO
 
 import numpy as np
 
+from django.conf import settings
+
+from glam_processing.download import Downloader
+
+from .models import Product, ProductRaster
+from .ingest import add_product_rasters_from_storage
+
+logging.basicConfig(
+    format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
+)
 
 Number = TypeVar("Number", int, float)
 RGBA = Tuple[Number, Number, Number, Number]
 Palette = Sequence[RGBA]
 Array = TypeVar("Array", np.ndarray, np.ma.MaskedArray)
-
-logging.basicConfig(
-    format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
-)
 
 
 def contrast_stretch(
@@ -192,3 +201,63 @@ def upload_files_from_directory(directory, bucket, prefix=""):
                     )
             else:
                 raise e
+
+
+def download_new():
+    products = Product.objects.all()
+
+    downloads = []
+
+    for product in tqdm.tqdm(products):
+        product_id = product.product_id
+
+        try:
+            valid_product = Product.objects.get(product_id=product_id)
+            latest = (
+                ProductRaster.objects.filter(product=valid_product)
+                .order_by("-date")
+                .first()
+            )
+            logging.info(f"latest date for {product_id}: {latest.date.isoformat()}")
+
+        except Product.DoesNotExist:
+            return
+
+        parts = product_id.split("-")
+        if parts[-1] in ["ndvi", "ndwi"]:
+            vi = parts[-1].upper()
+            product = Downloader(parts[0].upper())
+        elif parts[-1] == "swi":
+            product = Downloader(parts[-1])
+        elif parts[-1] == "precip":
+            product = Downloader(parts[0])
+        elif parts[-1] == "esi":
+            product = Downloader(f"{parts[-1]}/{parts[-2]}")
+
+        if valid_product.composite:
+            start_date = latest.date + timedelta(days=valid_product.composite_period)
+        else:
+            start_date = latest.date + timedelta(days=1)
+
+        end_date = latest.date + timedelta(days=30)
+
+        if vi:
+            out = product.download_vi_composites(
+                start_date.isoformat(),
+                end_date.isoformat(),
+                settings.PRODUCT_DATASET_LOCAL_PATH,
+                vi=vi,
+            )
+        else:
+            out = product.download_composites(
+                start_date.isoformat(),
+                end_date.isoformat(),
+                settings.PRODUCT_DATASET_LOCAL_PATH,
+            )
+
+        downloads.append(out)
+        logging.info(f"{product_id} files downloaded: {out}")
+
+    logging.info(f"Total downloads: {len(downloads)}")
+    logging.info(f"{downloads}")
+    return downloads
