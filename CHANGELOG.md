@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.11.5 (2025-02-14)
+
+### Bug Fixes
+
+- Update glam-processing version
+  ([`4a8843c`](https://github.com/nasaharvest/glam-api/commit/4a8843cea03b4ea303404a254d92d36dcc1a5d01))
+
+
 ## v1.11.4 (2025-02-13)
 
 ### Bug Fixes
