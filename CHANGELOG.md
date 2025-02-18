@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.11.7 (2025-02-18)
+
+### Bug Fixes
+
+- Create output directory if not exists; add general per product error handling
+  ([`b898694`](https://github.com/nasaharvest/glam-api/commit/b898694a77e286ed92f00e5a385245392b4ecbbc))
+
+
 ## v1.11.6 (2025-02-18)
 
 ### Bug Fixes
