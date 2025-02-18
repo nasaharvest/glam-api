@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.11.6 (2025-02-18)
+
+### Bug Fixes
+
+- Set default vi value to None; fix esi name handling
+  ([`f729fc7`](https://github.com/nasaharvest/glam-api/commit/f729fc73872d1ca766a7525f361677c96ab92e91))
+
+### Build System
+
+- Bump glam-processing version to 0.4.2
+  ([`1593f3b`](https://github.com/nasaharvest/glam-api/commit/1593f3b6ec55a04a05f512627417e6c6664f7c86))
+
+- Update glam-processing version
+  ([`9c1fb6a`](https://github.com/nasaharvest/glam-api/commit/9c1fb6ad21cde8553c41b96d998d0cad5d193049))
+
+
 ## v1.11.5 (2025-02-14)
 
 ### Bug Fixes
