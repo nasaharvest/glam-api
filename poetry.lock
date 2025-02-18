@@ -1374,13 +1374,13 @@ test = ["coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre-commit",
 
 [[package]]
 name = "glam-processing"
-version = "0.4.1"
+version = "0.4.2"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.11"
 files = [
-    {file = "glam_processing-0.4.1-py3-none-any.whl", hash = "sha256:5144f6ed921e0681ec4cbb6b6dbdcfc77542e4a61e42c70bf4f05679b7793328"},
-    {file = "glam_processing-0.4.1.tar.gz", hash = "sha256:933047126cd0c0becb887878282f7690a81ca6f14eea42660e672af926e1bd49"},
+    {file = "glam_processing-0.4.2-py3-none-any.whl", hash = "sha256:fd88b01fa67559664a1d9a7f58884623097621293d64453c6ad7d979d825baea"},
+    {file = "glam_processing-0.4.2.tar.gz", hash = "sha256:5a075e985eac247861cb42730414a7b227c388b5ab8230cfa24f3c684874c052"},
 ]
 
 [package.dependencies]
@@ -3741,4 +3741,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11, <4.0"
-content-hash = "51bebb7519c0e8c18ec509043500158d18ef78715cbcef62ced4f0bfc308ab2d"
+content-hash = "07094948d225f9f4c1964895a1ccf0d052ce3a077a4155ddacd6a69066ce01fc"
