@@ -13,7 +13,6 @@ from django.conf import settings
 from glam_processing.download import Downloader
 
 from .models import Product, ProductRaster
-from .ingest import add_product_rasters_from_storage
 
 logging.basicConfig(
     format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
@@ -61,12 +60,13 @@ def upload_files_from_directory(directory, bucket, prefix=""):
 
 
 def download_new():
-    products = Product.objects.all()
+    products = Product.objects.all().order_by("product_id")
 
     downloads = []
 
     for product in tqdm.tqdm(products):
         product_id = product.product_id
+        vi = None
 
         try:
             valid_product = Product.objects.get(product_id=product_id)
@@ -89,7 +89,7 @@ def download_new():
         elif parts[-1] == "precip":
             product = Downloader(parts[0])
         elif parts[-1] == "esi":
-            product = Downloader(f"{parts[-1]}/{parts[-2]}")
+            product = Downloader(f"{parts[-1]}/{parts[-2].upper()}")
 
         if valid_product.composite:
             start_date = latest.date + timedelta(days=valid_product.composite_period)
