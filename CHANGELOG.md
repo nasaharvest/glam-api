@@ -1,6 +1,22 @@
 # CHANGELOG
 
 
+## v1.11.8 (2025-05-19)
+
+### Bug Fixes
+
+- Update boundary feature graphic generation
+  ([`2fc88b2`](https://github.com/nasaharvest/glam-api/commit/2fc88b267e7de95615fe24b17fba5ec5e1bec8e8))
+
+### Build System
+
+- Bump glam-processing version to 0.4.3
+  ([`08bd7fe`](https://github.com/nasaharvest/glam-api/commit/08bd7feb58d5e93a7d18410331f9ba445ab27cf9))
+
+- Bump glam-processing version to 0.4.4
+  ([`2a98b73`](https://github.com/nasaharvest/glam-api/commit/2a98b733f7353b39b3d6f2f55e83b3f33e20976d))
+
+
 ## v1.11.7 (2025-02-18)
 
 ### Bug Fixes
