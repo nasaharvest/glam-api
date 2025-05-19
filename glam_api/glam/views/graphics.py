@@ -400,14 +400,74 @@ class GraphicsViewSet(viewsets.ViewSet):
                 admin_level = None
                 buff = 1
 
-            boundary_feature_buffer = wkt.loads(boundary_feature_geom.buffer(buff).wkt)
-            boundary_feature_geom = wkt.loads(boundary_feature_geom.wkt)
-
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(1, 1, 1, frameon=False)
 
-            # set wider extent
-            x1, y1, x2, y2 = boundary_feature_buffer.bounds
+            # boundary_feature_buffer = wkt.loads(boundary_feature_geom.buffer(buff).wkt)
+
+            try:
+                from shapely import wkt as shapely_wkt
+                from shapely.geometry import shape, mapping
+                import numpy as np
+
+                # Debug the GEOS geometry
+                print(
+                    f"Original geometry class: {boundary_feature_geom.__class__.__name__}"
+                )
+                print(f"Original geometry: {boundary_feature_geom}")
+
+                # Convert to Shapely geometry via WKT
+                shapely_geom = shapely_wkt.loads(boundary_feature_geom.wkt)
+
+                # Ensure geometry is valid
+                if not shapely_geom.is_valid:
+                    shapely_geom = shapely_geom.buffer(0)
+
+                print(f"Shapely geometry class: {shapely_geom.__class__.__name__}")
+                print(f"Shapely geometry valid: {shapely_geom.is_valid}")
+                print(f"Shapely geometry coords: {list(shapely_geom.exterior.coords)}")
+
+                # Create polygon patches
+                feature_fill = PolygonPatch(
+                    shapely_geom.__geo_interface__,
+                    fc=GRAY,
+                    linewidth=0,
+                    alpha=0.5,
+                    zorder=0.5,
+                )
+                feature_border = PolygonPatch(
+                    shapely_geom.__geo_interface__,
+                    color="black",
+                    linewidth=1.5,
+                    fill=False,
+                    alpha=1,
+                    zorder=2,
+                )
+
+                # Add patches to plot
+                ax.add_patch(feature_border)
+                ax.add_patch(feature_fill)
+
+            except Exception as e:
+                print(f"Error creating polygon patches: {str(e)}")
+                # Try alternative approach using direct coordinates
+                try:
+                    coords = np.array(list(shapely_geom.exterior.coords))
+                    feature_fill = plt.Polygon(coords, fc=GRAY, alpha=0.5, zorder=0.5)
+                    feature_border = plt.Polygon(
+                        coords, ec="black", fc="none", linewidth=1.5, alpha=1, zorder=2
+                    )
+                    ax.add_patch(feature_fill)
+                    ax.add_patch(feature_border)
+                except Exception as e:
+                    print(f"Failed alternative approach: {str(e)}")
+                    raise APIException(
+                        f"Could not create boundary visualization: {str(e)}"
+                    )
+
+            # Set wider extent using buffer
+            boundary_feature_buffer = boundary_feature_geom.buffer(buff)
+            x1, y1, x2, y2 = boundary_feature_buffer.extent
             ax.set_xlim([x1, x2])
             ax.set_ylim([y1, y2])
 
@@ -416,10 +476,10 @@ class GraphicsViewSet(viewsets.ViewSet):
             ax.axes.yaxis.set_visible(False)
 
             extent = [
-                boundary_feature_geom.bounds[0],
-                boundary_feature_geom.bounds[2],
-                boundary_feature_geom.bounds[1],
-                boundary_feature_geom.bounds[3],
+                boundary_feature_geom.extent[0],
+                boundary_feature_geom.extent[2],
+                boundary_feature_geom.extent[1],
+                boundary_feature_geom.extent[3],
             ]
 
             colormap = (
@@ -500,33 +560,24 @@ class GraphicsViewSet(viewsets.ViewSet):
                             alpha=1,
                             zorder=0,
                         )
+                        ax.add_patch(patch)
                     except:
                         pass
-                    ax.add_patch(patch)
 
             for feature in feature_intersects:
                 wktgeom = wkt.loads(feature.geom.simplify(scale_factor).wkt)
                 try:
                     patch = PolygonPatch(
-                        wktgeom, fc=land, ec="black", linestyle=":", alpha=1, zorder=0
+                        wktgeom,
+                        fc=land,
+                        ec="black",
+                        linestyle=":",
+                        alpha=1,
+                        zorder=0,
                     )
+                    ax.add_patch(patch)
                 except:
                     pass
-                ax.add_patch(patch)
-
-            feature_fill = PolygonPatch(
-                boundary_feature_geom, fc=GRAY, linewidth=0, alpha=0.5, zorder=0.5
-            )
-            feature_border = PolygonPatch(
-                boundary_feature_geom,
-                color="black",
-                linewidth=1.5,
-                fill=False,
-                alpha=1,
-                zorder=2,
-            )
-            ax.add_patch(feature_border)
-            ax.add_patch(feature_fill)
 
             if label:
                 feature_label = f"Region: {str(boundary_feature_name)}"
@@ -546,7 +597,6 @@ class GraphicsViewSet(viewsets.ViewSet):
                     anomaly_label = ""
 
                 anomaly_duration = f" - {anomaly}" if anomaly else ""
-                # anomaly_diff = f'{}'
 
                 label = (
                     feature_label
@@ -562,37 +612,40 @@ class GraphicsViewSet(viewsets.ViewSet):
                 )
                 ax.add_artist(text)
 
-            # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
-
-            # legend_inset.axes.xaxis.set_visible(False)
-            # legend_inset.axes.yaxis.set_visible(False)
-            # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
             if legend:
                 cbaxes = inset_axes(ax, "33%", "3%", loc="upper right", borderpad=1)
                 cbaxes.tick_params(labelsize=8)
-
-                # fig.colorbar(image, cax=cbaxes)
                 cb = fig.colorbar(
                     image, cax=cbaxes, orientation="horizontal", format=formatter
                 )
-                # cb.ax.xaxis.set_tick_params(color="white")
                 cb.set_label(label=product_variable, fontsize=8)
 
-            # cbaxes.xaxis.set_ticks_position('top')
-            # legend_inset.set_visible(False)
+            # Handle logo image from URL
+            try:
+                from urllib.request import urlopen
+                from PIL import Image
+                import io
 
-            glam_logo = DataSource.objects.get(source_id="glam").logo.url
-            logo = plt.imread(glam_logo)
-            logo_ax = inset_axes(ax, width="15%", height="10%", loc="lower left")
-            logo_ax.imshow(logo, alpha=0.75, origin="upper")
-            logo_ax.axis("off")
+                glam_logo = DataSource.objects.get(source_id="glam").logo.url
+                with urlopen(glam_logo) as url:
+                    logo_data = url.read()
+                logo = Image.open(io.BytesIO(logo_data))
+                logo = np.array(logo)
+
+                logo_ax = inset_axes(ax, width="15%", height="10%", loc="lower left")
+                logo_ax.imshow(logo, alpha=0.75, origin="upper")
+                logo_ax.axis("off")
+            except Exception as e:
+                print(f"Failed to load logo: {str(e)}")
+                # Continue without logo if it fails
+                pass
 
             response = HttpResponse(content_type="image/png")
 
             fig.savefig(
                 response,
                 transparent=True,
-                facecolor=BLUE,
+                # facecolor=BLUE,
                 bbox_inches="tight",
                 pad_inches=0,
             )
@@ -763,14 +816,6 @@ class GraphicsViewSet(viewsets.ViewSet):
                     ax.axes.xaxis.set_visible(False)
                     ax.axes.yaxis.set_visible(False)
 
-                    # extent = [
-                    #     feature_geom.bounds[0],
-                    #     feature_geom.bounds[2],
-                    #     feature_geom.bounds[1],
-                    #     feature_geom.bounds[3],
-                    # ]
-                    # # scale = scale_from_extent(extent)
-
                     colormap = (
                         product.meta["graphic_anomaly"]
                         if anomaly
@@ -895,11 +940,6 @@ class GraphicsViewSet(viewsets.ViewSet):
                         )
                         ax.add_artist(text)
 
-                    # # legend_inset = inset_axes(ax, '50%', '15%', loc = "lower right")
-
-                    # # legend_inset.axes.xaxis.set_visible(False)
-                    # # legend_inset.axes.yaxis.set_visible(False)
-                    # # legend_inset.imshow(np.zeros((20,50)), cmap='binary')
                     if legend:
                         cbaxes = inset_axes(
                             ax, "33%", "3%", loc="upper right", borderpad=1
@@ -915,9 +955,6 @@ class GraphicsViewSet(viewsets.ViewSet):
                         )
                         # cb.ax.xaxis.set_tick_params(color="white")
                         cb.set_label(label=product_variable, fontsize=8)
-
-                    # # cbaxes.xaxis.set_ticks_position('top')
-                    # # legend_inset.set_visible(False)
 
                     glam_logo = DataSource.objects.get(source_id="glam").logo.url
                     logo = plt.imread(glam_logo)
