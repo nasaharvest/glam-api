@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.12.0 (2026-03-05)
+
+### Bug Fixes
+
+- Update Python base image and rasterio installation
+  ([`5e00fac`](https://github.com/nasaharvest/glam-api/commit/5e00fac42cf2d67b5118a7e0047aa8bc384490dd))
+
+### Features
+
+- Add Dockerfile for glam downloads
+  ([`2dedf1c`](https://github.com/nasaharvest/glam-api/commit/2dedf1ca9ac815d51c09a5f06788d99dc4f42962))
+
+
 ## v1.11.8 (2025-05-19)
 
 ### Bug Fixes
@@ -258,8 +271,6 @@
 - Add GDAL configuration options to django settings
   ([`a6f9518`](https://github.com/nasaharvest/glam-api/commit/a6f95181e0aa1c136a07f4ad6446c5fd3fd07819))
 
-use the rasterio Env context manager to set the GDAL options defined in settings.py
-
 ### Refactoring
 
 - Change s3 url patterns used with cogreader
@@ -439,11 +450,6 @@ use the rasterio Env context manager to set the GDAL options defined in settings
 
 - Merge pull request #18 from nasaharvest/upgrade
   ([`a2e92e6`](https://github.com/nasaharvest/glam-api/commit/a2e92e62c1792ddb2889fa910a2ee5fa21b7b15d))
-
-Major upgrade and reconfiguration of glam-api code base.
-
-BREAKING CHANGE: Upgrade Django version: 3.2.15 -> ^4.2. BREAKING CHANGE: Replace requirements files
-  with poetry for dependency management.
 
 ### Breaking Changes
 
