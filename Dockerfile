@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.11.10-slim-bullseye
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ RUN poetry config virtualenvs.create false
 RUN poetry install
 # Force no-binary rasterio install via pip
 RUN pip uninstall -y rasterio
-RUN pip install rasterio --no-binary rasterio --no-cache-dir
+RUN pip install rasterio==1.3.11 --no-binary rasterio --no-cache-dir
 
 # Copy project files
 COPY . .
