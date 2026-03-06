@@ -186,6 +186,7 @@ local_files/
 # Local settings - use env vars instead
 local_settings_dev.py
 local_settings_local.py
+local*settings.py
 
 # IDE
 .vscode

@@ -33,6 +33,11 @@ def upload_files_from_directory(directory, bucket, prefix=""):
     import os
     import tqdm
 
+    # Check if directory exists, if not create it
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        return
+
     # Create S3 client
     s3_client = boto3.client("s3")
 
@@ -126,4 +131,67 @@ def download_new():
 
     logging.info(f"Total downloads: {len(downloads)}")
     logging.info(f"{downloads}")
+    return downloads
+
+
+def download_new_by_product(product_id):
+
+    try:
+        product = Product.objects.get(product_id=product_id)
+
+        downloads = []
+
+        vi = None
+
+        try:
+            valid_product = Product.objects.get(product_id=product_id)
+            latest = (
+                ProductRaster.objects.filter(product=valid_product)
+                .order_by("-date")
+                .first()
+            )
+            logging.info(f"latest date for {product_id}: {latest.date.isoformat()}")
+
+        except Product.DoesNotExist:
+            return
+
+        parts = product_id.split("-")
+        if parts[-1] in ["ndvi", "ndwi"]:
+            vi = parts[-1].upper()
+            product = Downloader(parts[0].upper())
+        elif parts[-1] == "swi":
+            product = Downloader(parts[-1])
+        elif parts[-1] == "precip":
+            product = Downloader(parts[0])
+        elif parts[-1] == "esi":
+            product = Downloader(f"{parts[-1]}/{parts[-2].upper()}")
+
+        if valid_product.composite:
+            start_date = latest.date + timedelta(days=valid_product.composite_period)
+        else:
+            start_date = latest.date + timedelta(days=1)
+
+        end_date = latest.date + timedelta(days=30)
+
+        if not os.path.exists(settings.PRODUCT_DATASET_LOCAL_PATH):
+            os.makedirs(settings.PRODUCT_DATASET_LOCAL_PATH)
+
+        if vi:
+            out = product.download_vi_composites(
+                start_date.isoformat(),
+                end_date.isoformat(),
+                settings.PRODUCT_DATASET_LOCAL_PATH,
+                vi=vi,
+            )
+        else:
+            out = product.download_composites(
+                start_date.isoformat(),
+                end_date.isoformat(),
+                settings.PRODUCT_DATASET_LOCAL_PATH,
+            )
+        downloads.append(out)
+        logging.info(f"{product_id} files downloaded: {out}")
+    except Exception as e:
+        logging.error(f"Failed to download {product_id}: {e}")
+
     return downloads

@@ -1,8 +1,12 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
+from botocore.exceptions import ClientError
 
 from glam.tasks import download_new, upload_files_from_directory
 from glam.ingest import add_product_rasters_from_storage
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -20,4 +24,19 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(f"Adding new Rasters to DB")
-        add_product_rasters_from_storage()
+        try:
+            add_product_rasters_from_storage()
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            self.stdout.write(
+                self.style.ERROR(
+                    f"AWS Error ({error_code}): Failed to access S3 bucket. "
+                    f"Check your AWS credentials and permissions. Details: {str(e)}"
+                )
+            )
+            logger.error(f"S3 access error: {str(e)}")
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f"Unexpected error while adding rasters: {str(e)}")
+            )
+            logger.error(f"Unexpected error: {str(e)}")

@@ -69,9 +69,15 @@ def get_product_id_from_filename(filename):
         return "chirps-precip"
     elif "swi" in filename:
         return "copernicus-swi"
-    elif any(text in filename for text in ["dfppm_4wk", "dfppm-4wk"]):
+    elif any(
+        text in filename
+        for text in ["dfppm_4wk", "dfppm-4wk", "dfppm_aqua_4wk", "dfppm-aqua-4wk"]
+    ):
         return "servir-4wk-esi"
-    elif any(text in filename for text in ["dfppm_12wk", "dfppm-12wk"]):
+    elif any(
+        text in filename
+        for text in ["dfppm_12wk", "dfppm-12wk", "dfppm_aqua_12wk", "dfppm-aqua-12wk"]
+    ):
         return "servir-12wk-esi"
     elif any(text in filename for text in ["vnp09h1.ndvi", "vnp09h1-ndvi"]):
         return "vnp09h1-ndvi"
