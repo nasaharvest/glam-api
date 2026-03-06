@@ -141,6 +141,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Dev/local env files (but allow .env.example)
+*.env
+!.env.example
+!.env.sample
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -175,13 +180,38 @@ cython_debug/
 # End of https://www.toptal.com/developers/gitignore/api/django
 
 ### Custom ###
-# local_settings/
+# Local data files (never commit large datasets)
 local_files/
 
-*.env
+# Local settings - use env vars instead
+local_settings_dev.py
+local_settings_local.py
 
+# IDE
 .vscode
 
-# Django local settings alternatives
-local_settings*.py
-local*settings.py
+# User-specific dotfiles and directories (never commit)
+.bashrc
+.bash_profile
+.bash_history
+.profile
+.config/
+.local/
+.cache/
+.ssh/
+.gnupg/
+.git-credentials
+.aws/
+.kurly/
+.kube/
+.terraform/
+
+# Ignore ALL env files except examples
+*.env
+!.env.example
+!.env.sample
+!.env.template
+
+# Django migrations SHOULD be committed - do NOT ignore
+# !glam_api/glam/migrations/
+# !glam_api/*/migrations/
