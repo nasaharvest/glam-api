@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.12.2 (2026-03-06)
+
+### Bug Fixes
+
+- Update .gitignore and enhance error handling in raster commands
+  ([`71a3467`](https://github.com/nasaharvest/glam-api/commit/71a34671dfc91be8a844cfaf1ff266c393fedab8))
+
+
 ## v1.12.1 (2026-03-06)
 
 ### Bug Fixes
