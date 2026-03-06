@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.12.1 (2026-03-06)
+
+### Bug Fixes
+
+- Update .gitignore to manage local environment files and user-specific settings
+  ([`95f93ad`](https://github.com/nasaharvest/glam-api/commit/95f93adf13f3c269e0da0071da2767046facfe32))
+
+
 ## v1.12.0 (2026-03-05)
 
 ### Bug Fixes
