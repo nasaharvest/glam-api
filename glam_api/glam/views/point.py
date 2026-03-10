@@ -199,15 +199,24 @@ class PointValue(viewsets.ViewSet):
 
             with COGReader(path) as src:
                 data = src.point(lon, lat)
-                if data[0] == src.nodata:
+                # rio_tiler returns PointData object, extract the value
+                point_value = (
+                    data.values[0] if hasattr(data, "values") else data.data[0]
+                )
+                if point_value == src.nodata:
                     dataset_value = None
                     result = {"value": "No Data"}
                     return Response(result)
                 else:
                     if cropmask:
-                        data = mask_data[0] * data[0]
+                        mask_value = (
+                            mask_data.values[0]
+                            if hasattr(mask_data, "values")
+                            else mask_data.data[0]
+                        )
+                        data = mask_value * point_value
                     else:
-                        data = data[0]
+                        data = point_value
                     dataset_value = data
 
             if anomaly_type:
@@ -250,14 +259,25 @@ class PointValue(viewsets.ViewSet):
 
                 with COGReader(baseline_path) as baseline_img:
                     baseline_data = baseline_img.point(lon, lat)
+                    # rio_tiler returns PointData object, extract the value
+                    baseline_point_value = (
+                        baseline_data.values[0]
+                        if hasattr(baseline_data, "values")
+                        else baseline_data.data[0]
+                    )
 
-                    if baseline_data[0] == baseline_img.nodata:
+                    if baseline_point_value == baseline_img.nodata:
                         result = {"value": "No Data"}
                     else:
                         if cropmask:
-                            baseline_value = mask_data[0] * baseline_data[0]
+                            mask_value = (
+                                mask_data.values[0]
+                                if hasattr(mask_data, "values")
+                                else mask_data.data[0]
+                            )
+                            baseline_value = mask_value * baseline_point_value
                         else:
-                            baseline_value = baseline_data[0]
+                            baseline_value = baseline_point_value
                         diff = dataset_value - baseline_value
                         result = {
                             "value": float(
