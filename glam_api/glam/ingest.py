@@ -45,6 +45,8 @@ from glam.utils import get_product_id_from_filename
 from config.utils import extract_datetime_from_filename
 from config.storage import RasterStorage
 
+import boto3
+
 logging.basicConfig(
     format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S", level=logging.INFO
 )
@@ -159,6 +161,24 @@ def add_product_rasters_from_storage():
     elif settings.USE_S3:
         raster_storage = RasterStorage()
 
+    # first delete bad rasters from storage
+    raster_files = raster_storage.listdir("product-rasters")[1]
+
+    s3_client = boto3.client("s3")
+    bad_files = []
+
+    for filename in raster_files:
+        pid = get_product_id_from_filename(filename)
+        if pid is None:
+            bad_files.append(filename)
+
+    for bf in bad_files:
+        logging.info(f"deleting {bf} from storage")
+        s3_client.delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=f"product-rasters/{bf}"
+        )
+
+    # get fresh list of files after deleting bad files
     raster_files = raster_storage.listdir("product-rasters")[1]
 
     for filename in tqdm(raster_files):
