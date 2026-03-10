@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.13.0 (2026-03-10)
+
+### Bug Fixes
+
+- Update regex for FloatConverter and enhance point value extraction in PointValue viewset
+  ([`cbe7fce`](https://github.com/nasaharvest/glam-api/commit/cbe7fce89b6dc1db89a48f5c6193d74e6dc22ecd))
+
+### Features
+
+- Implement S3 cleanup for invalid product rasters
+  ([`fdbc621`](https://github.com/nasaharvest/glam-api/commit/fdbc621ec3688c881b544f84bbbd07436db8f0ec))
+
+
 ## v1.12.2 (2026-03-06)
 
 ### Bug Fixes
