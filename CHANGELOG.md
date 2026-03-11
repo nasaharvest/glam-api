@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.15.1 (2026-03-11)
+
+### Bug Fixes
+
+- Update pip and setuptools installation steps in Dockerfile
+  ([`2956e41`](https://github.com/nasaharvest/glam-api/commit/2956e41a23b984a4dd6ef5d9abc089c786f1f512))
+
+
 ## v1.15.0 (2026-03-11)
 
 ### Features
