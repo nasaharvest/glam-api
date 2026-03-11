@@ -425,40 +425,91 @@ class GraphicsViewSet(viewsets.ViewSet):
 
                 print(f"Shapely geometry class: {shapely_geom.__class__.__name__}")
                 print(f"Shapely geometry valid: {shapely_geom.is_valid}")
-                print(f"Shapely geometry coords: {list(shapely_geom.exterior.coords)}")
 
-                # Create polygon patches
-                feature_fill = PolygonPatch(
-                    shapely_geom.__geo_interface__,
-                    fc=GRAY,
-                    linewidth=0,
-                    alpha=0.5,
-                    zorder=0.5,
-                )
-                feature_border = PolygonPatch(
-                    shapely_geom.__geo_interface__,
-                    color="black",
-                    linewidth=1.5,
-                    fill=False,
-                    alpha=1,
-                    zorder=2,
-                )
+                # Handle both Polygon and MultiPolygon geometries
+                if isinstance(shapely_geom, MultiPolygon):
+                    print(f"MultiPolygon with {len(shapely_geom.geoms)} parts")
+                    for poly in shapely_geom.geoms:
+                        # Create polygon patches for each part
+                        feature_fill = PolygonPatch(
+                            poly.__geo_interface__,
+                            fc=GRAY,
+                            linewidth=0,
+                            alpha=0.5,
+                            zorder=0.5,
+                        )
+                        feature_border = PolygonPatch(
+                            poly.__geo_interface__,
+                            color="black",
+                            linewidth=1.5,
+                            fill=False,
+                            alpha=1,
+                            zorder=2,
+                        )
+                        # Add patches to plot
+                        ax.add_patch(feature_border)
+                        ax.add_patch(feature_fill)
+                else:
+                    # Single Polygon
+                    print(
+                        f"Shapely geometry coords: {list(shapely_geom.exterior.coords)}"
+                    )
+                    # Create polygon patches
+                    feature_fill = PolygonPatch(
+                        shapely_geom.__geo_interface__,
+                        fc=GRAY,
+                        linewidth=0,
+                        alpha=0.5,
+                        zorder=0.5,
+                    )
+                    feature_border = PolygonPatch(
+                        shapely_geom.__geo_interface__,
+                        color="black",
+                        linewidth=1.5,
+                        fill=False,
+                        alpha=1,
+                        zorder=2,
+                    )
 
-                # Add patches to plot
-                ax.add_patch(feature_border)
-                ax.add_patch(feature_fill)
+                    # Add patches to plot
+                    ax.add_patch(feature_border)
+                    ax.add_patch(feature_fill)
 
             except Exception as e:
                 print(f"Error creating polygon patches: {str(e)}")
                 # Try alternative approach using direct coordinates
                 try:
-                    coords = np.array(list(shapely_geom.exterior.coords))
-                    feature_fill = plt.Polygon(coords, fc=GRAY, alpha=0.5, zorder=0.5)
-                    feature_border = plt.Polygon(
-                        coords, ec="black", fc="none", linewidth=1.5, alpha=1, zorder=2
-                    )
-                    ax.add_patch(feature_fill)
-                    ax.add_patch(feature_border)
+                    if isinstance(shapely_geom, MultiPolygon):
+                        for poly in shapely_geom.geoms:
+                            coords = np.array(list(poly.exterior.coords))
+                            feature_fill = plt.Polygon(
+                                coords, fc=GRAY, alpha=0.5, zorder=0.5
+                            )
+                            feature_border = plt.Polygon(
+                                coords,
+                                ec="black",
+                                fc="none",
+                                linewidth=1.5,
+                                alpha=1,
+                                zorder=2,
+                            )
+                            ax.add_patch(feature_fill)
+                            ax.add_patch(feature_border)
+                    else:
+                        coords = np.array(list(shapely_geom.exterior.coords))
+                        feature_fill = plt.Polygon(
+                            coords, fc=GRAY, alpha=0.5, zorder=0.5
+                        )
+                        feature_border = plt.Polygon(
+                            coords,
+                            ec="black",
+                            fc="none",
+                            linewidth=1.5,
+                            alpha=1,
+                            zorder=2,
+                        )
+                        ax.add_patch(feature_fill)
+                        ax.add_patch(feature_border)
                 except Exception as e:
                     print(f"Failed alternative approach: {str(e)}")
                     raise APIException(
