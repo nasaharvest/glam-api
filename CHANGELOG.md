@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.15.3 (2026-03-11)
+
+### Bug Fixes
+
+- Improve handling of nodata values in PointValue viewset
+  ([`005141b`](https://github.com/nasaharvest/glam-api/commit/005141b76c1f99f5938061b3bfeed77d47f9d4e1))
+
+
 ## v1.15.2 (2026-03-11)
 
 ### Bug Fixes
