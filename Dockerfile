@@ -15,11 +15,13 @@ RUN apt-get update && apt-get install -y binutils build-essential libgdal-dev li
 
 # Install pip requirements
 COPY pyproject.toml .
+RUN python -m pip install --upgrade pip setuptools wheel
 RUN python -m pip install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install
-# Force no-binary rasterio install via pip
+# Force no-binary rasterio install via pip with setuptools available
 RUN pip uninstall -y rasterio
+RUN pip install --upgrade setuptools wheel
 RUN pip install rasterio==1.3.11 --no-binary rasterio --no-cache-dir
 
 # Copy project files
