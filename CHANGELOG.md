@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v1.14.0 (2026-03-11)
+
+### Bug Fixes
+
+- Improve datetime extraction for CHIRPS filenames with dekad handling
+  ([`9141936`](https://github.com/nasaharvest/glam-api/commit/9141936d57d07c231e047f050481161cb97bca7a))
+
+### Features
+
+- Add management command to fix CHIRPS ProductRaster dates using dekad encoding
+  ([`7309fb0`](https://github.com/nasaharvest/glam-api/commit/7309fb025c04fcd864a3b1bae184ea3f38f332c4))
+
+
 ## v1.13.0 (2026-03-10)
 
 ### Bug Fixes
