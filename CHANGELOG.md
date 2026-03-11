@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.15.2 (2026-03-11)
+
+### Bug Fixes
+
+- Enhance polygon handling in GraphicsViewSet to support MultiPolygon geometries
+  ([`3c57196`](https://github.com/nasaharvest/glam-api/commit/3c57196b01221fca9910d7d627a297d6cdae93e8))
+
+
 ## v1.15.1 (2026-03-11)
 
 ### Bug Fixes
