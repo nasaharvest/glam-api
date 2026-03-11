@@ -195,3 +195,189 @@ def download_new_by_product(product_id):
         logging.error(f"Failed to download {product_id}: {e}")
 
     return downloads
+
+
+def find_and_download_missing():
+    """
+    Find and download missing datasets for all products.
+
+    Analyzes the date range of existing datasets and identifies gaps
+    based on the product's composite period or expected dekad schedule.
+    """
+    products = Product.objects.all().order_by("product_id")
+
+    for product in tqdm.tqdm(products):
+        find_and_download_missing_by_product(product.product_id)
+
+
+def find_and_download_missing_by_product(product_id):
+    """
+    Find and download missing datasets for a specific product.
+
+    For CHIRPS: expects 3 datasets per month (dekads 1, 11, 21)
+    For composite products: generates expected dates based on composite_period
+    For daily products: generates all dates in range
+    """
+    from datetime import datetime as dt
+
+    try:
+        product = Product.objects.get(product_id=product_id)
+
+        # Get all existing dates for this product
+        existing_datasets = ProductRaster.objects.filter(product=product).order_by(
+            "date"
+        )
+
+        if not existing_datasets.exists():
+            logging.warning(
+                f"No datasets found for {product_id}. Skipping gap analysis."
+            )
+            return
+
+        existing_dates = set(existing_datasets.values_list("date", flat=True))
+        min_date = existing_datasets.first().date
+        max_date = existing_datasets.last().date
+
+        logging.info(f"\n{product_id}: Analyzing date range {min_date} to {max_date}")
+        logging.info(f"{product_id}: Found {len(existing_dates)} existing datasets")
+
+        # Generate expected dates based on product type
+        if product_id == "chirps-precip":
+            # CHIRPS has 3 datasets per month at days 1, 11, 21
+            expected_dates = _generate_chirps_expected_dates(min_date, max_date)
+        else:
+            # For other products, use composite period
+            if product.composite and product.composite_period:
+                expected_dates = _generate_composite_expected_dates(
+                    min_date, max_date, product.composite_period
+                )
+            else:
+                # Daily data
+                from datetime import date
+
+                expected_dates = set()
+                current = min_date
+                while current <= max_date:
+                    expected_dates.add(current)
+                    current += timedelta(days=1)
+
+        # Find missing dates
+        missing_dates = sorted(expected_dates - existing_dates)
+
+        if not missing_dates:
+            logging.info(f"{product_id}: No missing datasets found")
+            return
+
+        logging.info(f"{product_id}: Found {len(missing_dates)} missing datasets")
+        logging.info(f"{product_id}: Missing dates: {missing_dates}")
+
+        # Download missing datasets
+        _download_specific_dates(product_id, missing_dates)
+
+    except Product.DoesNotExist:
+        logging.error(f"Product not found: {product_id}")
+    except Exception as e:
+        logging.error(f"Failed to find/download missing datasets for {product_id}: {e}")
+
+
+def _generate_chirps_expected_dates(start_date, end_date):
+    """Generate expected CHIRPS dates (dekad 1, 11, 21 of each month)"""
+    from datetime import date
+
+    expected = set()
+    year, month = start_date.year, start_date.month
+
+    while date(year, month, 1) <= end_date:
+        # Dekad 1 (1st)
+        d1 = date(year, month, 1)
+        if d1 >= start_date and d1 <= end_date:
+            expected.add(d1)
+
+        # Dekad 2 (11th)
+        d2 = date(year, month, 11)
+        if d2 >= start_date and d2 <= end_date:
+            expected.add(d2)
+
+        # Dekad 3 (21st)
+        d3 = date(year, month, 21)
+        if d3 >= start_date and d3 <= end_date:
+            expected.add(d3)
+
+        # Move to next month
+        if month == 12:
+            year += 1
+            month = 1
+        else:
+            month += 1
+
+    return expected
+
+
+def _generate_composite_expected_dates(start_date, end_date, composite_period):
+    """Generate expected dates based on composite period"""
+    expected = set()
+    current = start_date
+
+    while current <= end_date:
+        expected.add(current)
+        current += timedelta(days=composite_period)
+
+    return expected
+
+
+def _download_specific_dates(product_id, dates):
+    """Download data for specific dates"""
+
+    vi = None
+    parts = product_id.split("-")
+
+    try:
+        if parts[-1] in ["ndvi", "ndwi"]:
+            vi = parts[-1].upper()
+            downloader = Downloader(parts[0].upper())
+        elif parts[-1] == "swi":
+            downloader = Downloader(parts[-1])
+        elif parts[-1] == "precip":
+            downloader = Downloader(parts[0])
+        elif parts[-1] == "esi":
+            downloader = Downloader(f"{parts[-1]}/{parts[-2].upper()}")
+        else:
+            logging.warning(f"Unknown product type: {product_id}")
+            return
+
+        if not os.path.exists(settings.PRODUCT_DATASET_LOCAL_PATH):
+            os.makedirs(settings.PRODUCT_DATASET_LOCAL_PATH)
+
+        successful_downloads = 0
+        failed_downloads = 0
+
+        for date_obj in tqdm.tqdm(dates, desc=f"Downloading {product_id}"):
+            try:
+                # Download a small range around each missing date to catch it
+                start = (date_obj - timedelta(days=1)).isoformat()
+                end = (date_obj + timedelta(days=1)).isoformat()
+
+                if vi:
+                    downloader.download_vi_composites(
+                        start, end, settings.PRODUCT_DATASET_LOCAL_PATH, vi=vi
+                    )
+                else:
+                    downloader.download_composites(
+                        start, end, settings.PRODUCT_DATASET_LOCAL_PATH
+                    )
+
+                successful_downloads += 1
+                logging.info(f"  Downloaded {product_id} for {date_obj}")
+            except Exception as e:
+                failed_downloads += 1
+                logging.warning(
+                    f"  Failed to download {product_id} for {date_obj}: {e}"
+                )
+
+        logging.info(
+            f"{product_id}: Downloaded {successful_downloads}/{len(dates)} missing datasets "
+            f"({failed_downloads} failed)"
+        )
+
+    except Exception as e:
+        logging.error(f"Failed to initialize downloader for {product_id}: {e}")
