@@ -203,7 +203,9 @@ class PointValue(viewsets.ViewSet):
                 point_value = (
                     data.values[0] if hasattr(data, "values") else data.data[0]
                 )
-                if point_value == src.nodata:
+                # Get nodata value from the dataset
+                nodata = src.dataset.nodata if hasattr(src, "dataset") else None
+                if nodata is not None and point_value == nodata:
                     dataset_value = None
                     result = {"value": "No Data"}
                     return Response(result)
@@ -266,7 +268,15 @@ class PointValue(viewsets.ViewSet):
                         else baseline_data.data[0]
                     )
 
-                    if baseline_point_value == baseline_img.nodata:
+                    baseline_nodata = (
+                        baseline_img.dataset.nodata
+                        if hasattr(baseline_img, "dataset")
+                        else None
+                    )
+                    if (
+                        baseline_nodata is not None
+                        and baseline_point_value == baseline_nodata
+                    ):
                         result = {"value": "No Data"}
                     else:
                         if cropmask:
