@@ -51,17 +51,43 @@ def extract_datetime_from_filename(filename):
     """
     Extracts datetime from a filename with various patterns.
 
+    Special handling for CHIRPS files where the last number represents dekad:
+      - 1 = day 1 of month
+      - 2 = day 11 of month
+      - 3 = day 21 of month
+
+    Example CHIRPS format: chirps-v2.0.2026.01.2.tif -> 2026-01-11
+
     Args:
       filename: The name of the file.
 
     Returns:
-      A datetime object if datetime is successfully extracted,
+      A datetime string (YYYY-MM-DD) if datetime is successfully extracted,
       otherwise None.
     """
     import re
     from datetime import datetime
 
-    # Define potential datetime patterns
+    # Special case: CHIRPS files with dekad format (YYYY.MM.D where D=1,2,3)
+    if "chirps" in filename.lower():
+        # Match pattern: YYYY.MM.D (where D is 1, 2, or 3 for dekads)
+        match = re.search(r"(\d{4})\.(\d{2})\.([123])", filename)
+        if match:
+            year = match.group(1)
+            month = match.group(2)
+            dekad = match.group(3)
+
+            # Map dekad to day: 1->1, 2->11, 3->21
+            dekad_to_day = {"1": "01", "2": "11", "3": "21"}
+            day = dekad_to_day[dekad]
+
+            datetime_str = f"{year}.{month}.{day}"
+            try:
+                return datetime.strptime(datetime_str, "%Y.%m.%d").strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+
+    # Define potential datetime patterns for other products
     patterns = [
         r"\d{4}\.\d{2}\.\d{2}",  # e.g., 2024.11.11
         r"\d{4}\.\d{2}\.\d{1}",  # e.g., 2024.11.3
