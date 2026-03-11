@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v1.15.0 (2026-03-11)
+
+### Features
+
+- Implement functions to find and download missing datasets for products
+  ([`9f2a62d`](https://github.com/nasaharvest/glam-api/commit/9f2a62d07a01ed7207614d9fe59670a27052856e))
+
+
 ## v1.14.0 (2026-03-11)
 
 ### Bug Fixes
