@@ -1,6 +1,26 @@
 # CHANGELOG
 
 
+## v1.15.4 (2026-03-12)
+
+### Bug Fixes
+
+- Update regex for FilePathField match patterns in ProductRaster, CropmaskRaster, and
+  AnomalyBaselineRaster models
+  ([`c5e1b94`](https://github.com/nasaharvest/glam-api/commit/c5e1b94c7df6026c3d1aaea4cd3b496683bbfb21))
+
+### Build System
+
+- Add extra dev dockerfile
+  ([`9495adf`](https://github.com/nasaharvest/glam-api/commit/9495adf97fda03e31178e13148d88419075c61cc))
+
+- Add setuptools dependency version 70.3.0 to pyproject.toml and poetry.lock
+  ([`044a311`](https://github.com/nasaharvest/glam-api/commit/044a3113016295c25c115c475965cf7b5e546e00))
+
+- Update Python version and dependencies in pyproject.toml
+  ([`7af2d51`](https://github.com/nasaharvest/glam-api/commit/7af2d5159ddc267fbd2d991ef2bc620e862873f4))
+
+
 ## v1.15.3 (2026-03-11)
 
 ### Bug Fixes
