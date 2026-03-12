@@ -501,7 +501,7 @@ class ProductRaster(models.Model):
     )
     local_path = models.FilePathField(
         path=settings.PRODUCT_DATASET_LOCAL_PATH,
-        match=".*\.tif$",
+        match=r".*\.tif$",
         max_length=256,
         recursive=True,
         help_text="Path to dataset on current machine. Used to for local development.",
@@ -609,7 +609,7 @@ class CropmaskRaster(models.Model):
     )
     local_path = models.FilePathField(
         path=settings.MASK_DATASET_LOCAL_PATH,
-        match=".*\.tif$",
+        match=r".*\.tif$",
         recursive=True,
         max_length=256,
         help_text="Path to dataset on current machine. "
@@ -719,7 +719,7 @@ class AnomalyBaselineRaster(models.Model):
     )
     local_path = models.FilePathField(
         path=settings.ANOMALY_BASELINE_LOCAL_PATH,
-        match=".*\.tif$",
+        match=r".*\.tif$",
         recursive=True,
         max_length=256,
         help_text="Path to dataset on current machine. "
