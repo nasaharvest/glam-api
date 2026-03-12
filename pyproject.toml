@@ -7,7 +7,7 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.11, <4.0"
+python = ">=3.12, <4.0"
 django = "^4.2.17"
 rio-tiler = "^6.6.1"
 django-storages = "^1.14.4"
@@ -30,11 +30,11 @@ gunicorn = "^22.0.0"
 whitenoise = "^6.7.0"
 psycopg2-binary = "^2.9.9"
 tqdm = "^4.66.4"
-rio-cogeo = "^5.3.3"
-rioxarray = "^0.17.0"
+rio-cogeo = "^7.0.1"
+rioxarray = "^0.21.0"
 ipython = "^8.26.0"
 python-semantic-release = "^9.14.0"
-glam-processing = "0.4.4"
+glam-processing = "0.5.0"
 
 [tool.poetry.group.dev]
 optional = true
